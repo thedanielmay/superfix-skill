@@ -1,6 +1,11 @@
 ---
 name: superfix
-description: Use when the user says "/superfix", references a GitHub issue number (#N), or provides a description of work to be done. Supersedes change-pipeline. Triggers on: "superfix #N", "issue #N", "work on #N", "fix #N", "implement #N", "do #N", or any freeform description of a bug, feature, UX change, performance problem, security issue, or architecture change that needs to be shipped.
+description: >-
+  Intelligent development orchestrator — accepts a GitHub issue number or
+  freeform description of a bug, feature, UX change, or architecture change
+  and drives it to a merged PR. Classifies the problem, assembles the right
+  skill set, and manages the full workflow. Triggers on: superfix, issue #N,
+  fix #N, implement #N, or any work description.
 ---
 
 # Superfix Orchestrator
