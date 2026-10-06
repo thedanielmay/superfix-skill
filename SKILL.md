@@ -274,12 +274,10 @@ git switch -c <fix|feature>/<N-or-date>-<slug> origin/<default-branch>
 `<N-or-date>` is the issue number, or today's date for freeform work. That prevents slug collisions.
 
 ```
-create branch → explore → implement → tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
-→ verification-before-completion [sonnet/high]
-→ PR
+create branch → (bug: failing test or repro command first) → implement → impacted tests
+→ simplify → re-run impacted tests → code-reviewer (issue text passed inline as the brief)
+→ code-security-audit ONLY IF the diff touches auth, input parsing, SQL, shell, secrets or dependencies
+→ verification-before-completion → PR
 ```
 
 ### Moderate + Complex path (autonomous agent)
