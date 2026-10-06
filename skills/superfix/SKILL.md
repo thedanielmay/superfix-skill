@@ -265,11 +265,13 @@ Key decisions: [brief summary]"
 
 ### Simple path (main thread, no agent)
 
-Create branch before touching any file:
+Create branch before touching any file (shared block, both paths):
 ```bash
-git checkout -b fix/<slug>     # bug/security
-git checkout -b feature/<slug> # feature/ux/performance/architecture
+git status --porcelain            # must print nothing, else stop and ask
+git fetch origin
+git switch -c <fix|feature>/<N-or-date>-<slug> origin/<default-branch>
 ```
+`<N-or-date>` is the issue number, or today's date for freeform work. That prevents slug collisions.
 
 ```
 create branch → explore → implement → tests
@@ -282,11 +284,7 @@ create branch → explore → implement → tests
 
 ### Moderate + Complex path (autonomous agent)
 
-Create branch before dispatching agent:
-```bash
-git checkout -b fix/<slug>     # bug/security
-git checkout -b feature/<slug> # feature/ux/performance/architecture
-```
+Create branch with the shared block above before dispatching the agent. Architecture: create the worktree from `origin/<default-branch>` instead of creating a branch first.
 
 Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. Pass:
 - Branch name
