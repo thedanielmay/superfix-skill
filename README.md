@@ -54,14 +54,14 @@ Type-specific design step (brainstorming, threat modelling, UX iteration), then 
 
 ### Execute (Phase 3)
 
-- **Simple** — runs inline on the main thread
-- **Moderate/Complex** — dispatches an autonomous agent with the context file and plan
+- **Simple** - runs inline on the main thread: branch, implement, impacted tests, simplify, re-run tests, review (the issue text is the brief), security audit only when the diff touches risky areas, verification, PR.
+- **Moderate/Complex** - dispatches an autonomous agent with the context file and plan. If the run dies, restart from the latest progress comment, plan checkboxes, and branch log. Finished stages are not redone.
 
-Execute sequence for every type includes: TDD (where applicable), implementation, tests, code review, security audit, silent-failure hunting, type design analysis (if new types introduced), simplification, and verification before completion.
+Every path simplifies before review (never after), re-runs tests after simplifying, then reviews, security-audits, and verifies against the original repro or baseline before declaring done. Skill names are Claude Code names; where a name does not resolve (notably under opencode), the step runs inline from its purpose and the PR body says so. Tests and verification are never skipped.
 
 ### Close (Phase 4)
 
-Pushes the branch, creates a PR, posts a closing comment on the GitHub issue, and closes the issue once the PR is confirmed merged.
+Pushes the branch, creates a PR with `Closes #N` in the body, and watches CI checks when the repo has them. The issue closes when the PR merges, never on PR creation.
 
 ### Model policy
 
@@ -79,28 +79,51 @@ Applied automatically — no user configuration needed:
 
 This repo is structured as a Claude Code installable plugin with a skill manifest.
 
+### Claude Code
+
 ```bash
 # From your project root (requires Claude Code with plugin support)
 claude skill install https://github.com/thedanielmay/superfix-skill
 ```
 
-The skill manifest is at the repo root (`SKILL.md`). The implementation lives in `skills/superfix/SKILL.md`.
+After a new release, pull it in with:
+
+```bash
+claude plugin marketplace update thedanielmay
+claude plugin update superfix@thedanielmay
+```
+
+Then restart Claude Code. The update only applies after a restart.
+
+### opencode
+
+opencode reads the skill straight from a local checkout. Clone it once, then symlink it into your skills directory:
+
+```bash
+git clone https://github.com/thedanielmay/superfix-skill.git ~/projects/superfix-skill
+ln -s ~/projects/superfix-skill ~/.agents/skills/superfix
+```
+
+Keep the clone on `main` when you are not mid-edit, so opencode runs released text. There is no install or update step beyond `git pull`.
 
 ---
 
 ## What's inside
 
 ```
-SKILL.md                        Root manifest (skills CLI discovery)
+SKILL.md                        Root manifest (skills CLI discovery, kept in sync)
 skills/
   superfix/
     SKILL.md                    Full skill implementation and phase definitions
+.claude-plugin/plugin.json      Plugin manifest and version
+.github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
+CONTRIBUTING.md                 How to work on this repo
 ```
 
-The entire skill is prompt-based — no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md`.
+The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md`, mirrored at the repo root.
 
 ---
 
 ## Status
 
-Active. The skill is used in production and supersedes `change-pipeline`. The classification rules, phase sequences, and skill inventory are kept up to date in the SKILL.md files.
+1.1.0. In production, supersedes `change-pipeline`. The classification rules, phase sequences, and skill inventory live in the SKILL.md files.
