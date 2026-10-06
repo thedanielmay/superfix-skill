@@ -308,9 +308,10 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 superpowers:test-driven-development (write failing test first) [sonnet/high]
 → implement fix (superpowers:subagent-driven-development for Complex) [sonnet/high]
 → run tests (impacted files: pytest <file> -n auto / npm run test -- --run <file>)
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
 → code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -323,9 +324,10 @@ TDD not required — the test suite guards correctness. If the performance chang
 implement improvement [sonnet/high]
 → run tests
 → measure again (confirm improvement vs baseline — must show measurable gain)
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
 → code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -337,9 +339,10 @@ superpowers:test-driven-development [sonnet/high]
 → react-vite-best-practices (if React components changed) [sonnet/high]
 → Playwright visual verification (document-skills:webapp-testing) [sonnet/high]
 → accessibility (WCAG 2.2 check on changed components) [sonnet/high]
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
 → code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -350,9 +353,10 @@ implement (worktree via superpowers:using-git-worktrees; superpowers:subagent-dr
 → run full test suite
 → improve-codebase-architecture (validate structural changes meet deep-module criteria) [sonnet/high]
 → pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
 → code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -361,9 +365,10 @@ implement (worktree via superpowers:using-git-worktrees; superpowers:subagent-dr
 ```
 implement fix [sonnet/high]
 → run tests
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → code-security-audit (primary — 80%+ confidence threshold) [sonnet/high]
 → pr-review-toolkit:code-reviewer (cross-check) [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -374,9 +379,10 @@ superpowers:test-driven-development [sonnet/high]
 → implement (superpowers:subagent-driven-development for Complex) [sonnet/high]
 → run tests
 → pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
+→ simplify [sonnet/high]
+→ re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
 → code-security-audit [sonnet/high]
-→ simplify [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -386,6 +392,7 @@ superpowers:test-driven-development [sonnet/high]
 - Fix every **high-confidence** finding — one issue, one fix, re-verify
 - Skip false positives — note and move on
 - Max 2 review passes; if high-confidence issues remain after pass 2, escalate to user
+- Impacted tests re-run after `simplify`, before review starts
 - `code-security-audit` always runs after `code-reviewer`, not instead of it
 
 ### Test scope
