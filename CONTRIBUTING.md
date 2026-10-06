@@ -20,7 +20,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is two identical ma
 
 1. Pick an issue. Update main: `git switch main && git pull`.
 2. Branch: `git switch -c fix/<issue-number>-<short-slug>`.
-3. Edit `skills/superfix/SKILL.md`, then copy it to the root (above).
+3. Edit `skills/superfix/SKILL.md`, then copy it to the root (above). If behaviour, scope, or installation changed, update `README.md` too: plain human description of what the skill is, what it does, and install directions for Claude Code and opencode.
 4. Test it (next section).
 5. Commit, push, open a PR with `Closes #<issue-number>` in the body. Merge, delete the branch.
 
