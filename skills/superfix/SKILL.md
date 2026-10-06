@@ -395,6 +395,7 @@ superpowers:test-driven-development [sonnet/high]
 
 - Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`
 - Full test suite once at end, before verification
+- Verification re-runs the Phase 1 repro or baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
 
 ---
 
