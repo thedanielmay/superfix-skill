@@ -24,7 +24,7 @@ Applied automatically. No user configuration required.
 |---------------|-------|--------|
 | File reads, symbol lookups, quick checks | Haiku | High |
 | Exploration, planning, implementation, review | Sonnet | High |
-| Expert panel, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
+| Expert panel, brainstorming, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
 
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 
@@ -142,7 +142,7 @@ gh issue comment <N> --body "✅ Phase N complete — [one sentence summary of o
 
 **Complexity can be upgraded** (Simple→Moderate, Moderate→Complex) after exploration reveals more scope. It cannot be downgraded.
 
-**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post a comment explaining this, close the issue as won't-fix, and stop — do not run the pipeline for a non-issue.
+**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone — do not run the pipeline for a non-issue until the user confirms.
 
 ---
 
