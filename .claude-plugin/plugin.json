@@ -1,6 +1,6 @@
 {
   "name": "superfix",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Superfix orchestrator — intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to a merged PR.",
   "author": {
     "name": "Daniel May",
