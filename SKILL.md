@@ -297,6 +297,10 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
 - Final PR link when complete
 
+The agent ticks the plan file's task checkboxes as each task completes.
+
+On restart (limit, crash, new session): read the latest progress comment on the issue (if any), the plan file's task checkboxes, and `git log` on the branch. Continue from the first unfinished stage. Do not redo finished stages.
+
 ### Execute sequences by type
 
 **`bug`**
