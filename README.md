@@ -1,12 +1,12 @@
 # superfix-skill
 
-Intelligent development orchestrator for Claude Code — takes a GitHub issue or freeform description and drives it end-to-end to a merged PR.
+Intelligent development orchestrator for Claude Code - takes a GitHub issue or freeform description and drives it end-to-end to a merged PR.
 
 ---
 
 ## Overview
 
-`superfix` is a Claude Code skill that acts as the single front-door for all development work. You give it a GitHub issue number (`#42`) or describe what needs doing in plain English; it classifies the problem, assembles the right sub-skill set, and manages the full pipeline — exploration, planning, expert review, implementation, testing, code review, and PR — without requiring you to invoke individual skills manually or break the work into steps yourself.
+`superfix` is a Claude Code skill that acts as the single front-door for all development work. You give it a GitHub issue number (`#42`) or describe what needs doing in plain English; it classifies the problem, assembles the right sub-skill set, and manages the full pipeline - exploration, planning, expert review, implementation, testing, code review, and PR - without requiring you to invoke individual skills manually or break the work into steps yourself.
 
 It supersedes the older `change-pipeline` skill.
 
@@ -18,7 +18,7 @@ Invoke `superfix` (via `/superfix` in Claude Code) whenever you have:
 
 - A GitHub issue number: `/superfix #42`, `/fix #42`, `/implement #42`
 - A freeform description: `/superfix "the login button is broken on mobile"`
-- No arguments — it will ask for an issue number or description
+- No arguments - it will ask for an issue number or description
 
 The skill triggers automatically on the keywords `superfix`, `issue #N`, `fix #N`, or `implement #N`.
 
@@ -28,7 +28,7 @@ The skill triggers automatically on the keywords `superfix`, `issue #N`, `fix #N
 
 ### Problem Profile (Phase 0)
 
-Reads the full issue — body, labels, all comments — and classifies it:
+Reads the full issue - body, labels, all comments - and classifies it:
 
 | Classification | Types |
 |----------------|-------|
@@ -41,12 +41,12 @@ Posts a Problem Profile as a GitHub comment if an issue was referenced. Keeps th
 
 Runs type-aware exploration before writing any code:
 
-- **bug** — systematic debugging + execution path tracing
-- **performance** — hot-path mapping + call graph + baseline measurement
-- **ux** — component tree, design tokens, layout patterns
-- **architecture** — full system mapping, dependency graph, structural analysis
-- **security** — auth/data flow tracing + pre-plan security scan
-- **feature** — quick lookup (Simple) or full explorer + architect (Moderate/Complex)
+- **bug** - systematic debugging + execution path tracing
+- **performance** - hot-path mapping + call graph + baseline measurement
+- **ux** - component tree, design tokens, layout patterns
+- **architecture** - full system mapping, dependency graph, structural analysis
+- **security** - auth/data flow tracing + pre-plan security scan
+- **feature** - quick lookup (Simple) or full explorer + architect (Moderate/Complex)
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -65,7 +65,7 @@ Pushes the branch, creates a PR with `Closes #N` in the body, and watches CI che
 
 ### Model policy
 
-Applied automatically — no user configuration needed:
+Applied automatically - no user configuration needed:
 
 | Task | Model |
 |------|-------|
