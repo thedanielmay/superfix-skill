@@ -1,0 +1,12 @@
+name: skill-sync-check
+on:
+  pull_request:
+    paths:
+      - 'SKILL.md'
+      - 'skills/superfix/SKILL.md'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: diff SKILL.md skills/superfix/SKILL.md && echo in-sync
