@@ -1,7 +1,7 @@
 ---
 name: superfix
 description: >-
-  Intelligent development orchestrator — accepts a GitHub issue number or
+  Intelligent development orchestrator - accepts a GitHub issue number or
   freeform description of a bug, feature, UX change, or architecture change
   and drives it to a merged PR. Classifies the problem, assembles the right
   skill set, and manages the full workflow. Triggers on: superfix, issue #N,
@@ -12,7 +12,7 @@ description: >-
 
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to a merged PR without requiring manual skill invocation or step breakdown.
 
-Supersedes `change-pipeline` — do not invoke change-pipeline.
+Supersedes `change-pipeline` - do not invoke change-pipeline.
 
 ---
 
@@ -36,36 +36,36 @@ Skill names are Claude Code names. If a name does not resolve, use the opencode 
 
 | Input form | How to get context |
 |------------|-------------------|
-| `/issue #N` | `gh issue view N` — read title, body, labels, all comments |
-| `/issue "description"` | Use the text directly — do not search for a matching issue |
+| `/issue #N` | `gh issue view N` - read title, body, labels, all comments |
+| `/issue "description"` | Use the text directly - do not search for a matching issue |
 | `/issue` (no args) | Ask: "GitHub issue number or describe what needs doing?" |
 
 GitHub-specific steps (posting comments, closing) run only when an issue was referenced.
 
-If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode — confirm with the user whether to continue without GitHub integration or abort.
+If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
 
 ---
 
-## Phase 0 — Problem Profile
+## Phase 0 - Problem Profile
 
-Read the full input — body, labels, all comments — before classifying. Never classify from title alone.
+Read the full input - body, labels, all comments - before classifying. Never classify from title alone.
 
 Produce a **Problem Profile**:
 
 ```
 Primary type:    [bug | performance | ux | architecture | security | feature]
-Secondary type:  [optional — set when issue spans two types]
+Secondary type:  [optional - set when issue spans two types]
 Complexity tier: [Simple | Moderate | Complex]  ← provisional; confirmed after exploration
-Skill manifest:  [ordered skills — merged from primary + secondary paths if compound]
-Expert panel:    [yes — all Moderate and Complex]
-Agent execution: [yes — all Moderate and Complex]
+Skill manifest:  [ordered skills - merged from primary + secondary paths if compound]
+Expert panel:    [yes - all Moderate and Complex]
+Agent execution: [yes - all Moderate and Complex]
 ```
 
-**Compound issues:** When an issue spans two types (e.g. bug + security, UX + performance), set both `primary_type` and `secondary_type`. Merge skill manifests — run Phase 1 exploration tools from both types; append Phase 3 execute additions from the secondary type to the primary path.
+**Compound issues:** When an issue spans two types (e.g. bug + security, UX + performance), set both `primary_type` and `secondary_type`. Merge skill manifests - run Phase 1 exploration tools from both types; append Phase 3 execute additions from the secondary type to the primary path.
 
 Post as first GitHub comment if issue exists:
 ```bash
-gh issue comment <N> --body "🔍 Problem Profile: [type] / [tier] — [one sentence summary]. Skill manifest: [list]. Starting exploration."
+gh issue comment <N> --body "🔍 Problem Profile: [type] / [tier] - [one sentence summary]. Skill manifest: [list]. Starting exploration."
 ```
 
 State it in conversation if no issue.
@@ -101,7 +101,7 @@ EOF
 ```
 
 **Progress comments = timestamped changelog**
-Each significant phase transition gets a progress comment — not an edit to the body. Comments accumulate as a readable audit trail of what happened and when.
+Each significant phase transition gets a progress comment - not an edit to the body. Comments accumulate as a readable audit trail of what happened and when.
 
 Required progress comment triggers:
 - Phase 0 complete: problem profile posted (already required above)
@@ -112,7 +112,7 @@ Required progress comment triggers:
 
 Comment format:
 ```bash
-gh issue comment <N> --body "✅ Phase N complete — [one sentence summary of outcome]. Next: [next step]."
+gh issue comment <N> --body "✅ Phase N complete - [one sentence summary of outcome]. Next: [next step]."
 ```
 
 **This applies only when an issue was referenced.** Freeform-description invocations skip all GitHub journal steps.
@@ -136,52 +136,52 @@ gh issue comment <N> --body "✅ Phase N complete — [one sentence summary of o
 
 | Tier | Criteria |
 |------|----------|
-| **Simple** | 1–3 files, fix obvious from description, no design decisions |
+| **Simple** | 1-3 files, fix obvious from description, no design decisions |
 | **Moderate** | Multiple files, some design choices, scope is clear |
 | **Complex** | Architectural impact, unclear scope, cross-cutting concerns, or risky changes |
 
 **Complexity can be upgraded** (Simple→Moderate, Moderate→Complex) after exploration reveals more scope. It cannot be downgraded.
 
-**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone — do not run the pipeline for a non-issue until the user confirms.
+**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
 
 ---
 
-## Phase 1 — Explore
+## Phase 1 - Explore
 
 Run before writing a single line of code. Exploration is type-aware.
 
 ### Exploration by type
 
 **`bug`**
-- `superpowers:systematic-debugging` — frames the failure, classifies root cause category [sonnet/high]
-- `feature-dev:code-explorer` — traces the affected execution paths [sonnet/high]
-- `diagnose` — escalation if `systematic-debugging` cannot identify the root cause category after one pass, or the identified cause is speculative rather than confirmed by code evidence [sonnet/high]
+- `superpowers:systematic-debugging` - frames the failure, classifies root cause category [sonnet/high]
+- `feature-dev:code-explorer` - traces the affected execution paths [sonnet/high]
+- `diagnose` - escalation if `systematic-debugging` cannot identify the root cause category after one pass, or the identified cause is speculative rather than confirmed by code evidence [sonnet/high]
 
 **`performance`**
-- `feature-dev:code-explorer` — maps the hot path end-to-end [sonnet/high]
-- `grepai-trace-graph` — builds recursive call graph of the slow path [sonnet/high]
+- `feature-dev:code-explorer` - maps the hot path end-to-end [sonnet/high]
+- `grepai-trace-graph` - builds recursive call graph of the slow path [sonnet/high]
 - Measure before planning: run actual timing/profiling. Record baseline numbers in context file.
 
 **`ux`**
-- `feature-dev:code-explorer` — reads component tree, design tokens, layout patterns [sonnet/high]
+- `feature-dev:code-explorer` - reads component tree, design tokens, layout patterns [sonnet/high]
 - Note existing impeccable/ui-ux-pro-max conventions already in use
 
 **`architecture`**
-- `feature-dev:code-explorer` — full system mapping, data flows, module boundaries [sonnet/high]
-- `architecture-deep-dive` — structural analysis, strengths/weaknesses [opus/high]
-- `grepai-trace-graph` — dependency graph across subsystems [sonnet/high]
-- `improve-codebase-architecture` — identifies shallow modules, structural candidates [sonnet/high]
+- `feature-dev:code-explorer` - full system mapping, data flows, module boundaries [sonnet/high]
+- `architecture-deep-dive` - structural analysis, strengths/weaknesses [opus/high]
+- `grepai-trace-graph` - dependency graph across subsystems [sonnet/high]
+- `improve-codebase-architecture` - identifies shallow modules, structural candidates [sonnet/high]
 
 **`security`**
-- `feature-dev:code-explorer` — traces auth flows, data flows, trust boundaries [sonnet/high]
-- `code-security-audit` — run on relevant files pre-plan to understand current exposure [sonnet/high]
+- `feature-dev:code-explorer` - traces auth flows, data flows, trust boundaries [sonnet/high]
+- `code-security-audit` - run on relevant files pre-plan to understand current exposure [sonnet/high]
 
 **`feature` Simple**
-- Built-in `Explore` agent — quick symbol/file lookup, "where does this slot in?" — max 5 minutes [haiku/high]
+- Built-in `Explore` agent - quick symbol/file lookup, "where does this slot in?" - max 5 minutes [haiku/high]
 
 **`feature` Moderate/Complex**
-- `feature-dev:code-explorer` — traces where feature integrates [sonnet/high]
-- `feature-dev:code-architect` — maps existing patterns, identifies what can be reused [sonnet/high]
+- `feature-dev:code-explorer` - traces where feature integrates [sonnet/high]
+- `feature-dev:code-architect` - maps existing patterns, identifies what can be reused [sonnet/high]
 
 ### After exploration: confirm complexity tier
 
@@ -189,7 +189,7 @@ Re-assess the provisional tier. If scope is larger than described, upgrade and s
 
 ---
 
-## Phase 2 — Design & Plan
+## Phase 2 - Design & Plan
 
 Applies to **Moderate and Complex** only. Simple goes directly to Phase 3.
 
@@ -197,11 +197,11 @@ Applies to **Moderate and Complex** only. Simple goes directly to Phase 3.
 
 | Type | Design approach |
 |------|----------------|
-| `bug` | No design step — exploration output feeds directly into plan |
+| `bug` | No design step - exploration output feeds directly into plan |
 | `performance` | Plan based on measured baseline; state target improvement metric |
 | `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
-| `architecture` | `superpowers:brainstorming` [opus/high] — explore structural options before committing |
-| `security` | `security` skill — produce threat model; identify trust boundaries and attack surface [opus/high] |
+| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
+| `security` | `security` skill - produce threat model; identify trust boundaries and attack surface [opus/high] |
 | `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
 
 ### Plan
@@ -243,11 +243,11 @@ Path: docs/superpowers/plans/<plan-filename>.md
 
 **Pass this file path to every subagent.** Every subagent reads the same source of truth.
 
-### Expert panel (all Moderate + Complex — blocking)
+### Expert panel (all Moderate + Complex - blocking)
 
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
 
-- Format: synthesised must-fixes / should-fixes / verdict only — no per-panelist narration
+- Format: synthesised must-fixes / should-fixes / verdict only - no per-panelist narration
 - Must-fix findings addressed before implementation proceeds
 - Update the plan with any must-fix resolutions
 - Post comment if issue exists:
@@ -263,7 +263,7 @@ Key decisions: [brief summary]"
 
 ---
 
-## Phase 3 — Execute
+## Phase 3 - Execute
 
 ### Simple path (main thread, no agent)
 
@@ -318,12 +318,12 @@ superpowers:test-driven-development (write failing test first) [sonnet/high]
 
 **`performance`**
 
-TDD not required — the test suite guards correctness. If the performance change modifies logic (not just queries/caching/indexes), run `superpowers:test-driven-development` first.
+TDD not required - the test suite guards correctness. If the performance change modifies logic (not just queries/caching/indexes), run `superpowers:test-driven-development` first.
 
 ```
 implement improvement [sonnet/high]
 → run tests
-→ measure again (confirm improvement vs baseline — must show measurable gain)
+→ measure again (confirm improvement vs baseline - must show measurable gain)
 → simplify [sonnet/high]
 → re-run impacted tests
 → pr-review-toolkit:code-reviewer [sonnet/high]
@@ -367,7 +367,7 @@ implement fix [sonnet/high]
 → run tests
 → simplify [sonnet/high]
 → re-run impacted tests
-→ code-security-audit (primary — 80%+ confidence threshold) [sonnet/high]
+→ code-security-audit (primary - 80%+ confidence threshold) [sonnet/high]
 → pr-review-toolkit:code-reviewer (cross-check) [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
@@ -389,8 +389,8 @@ superpowers:test-driven-development [sonnet/high]
 
 ### Code review rules (all types)
 
-- Fix every **high-confidence** finding — one issue, one fix, re-verify
-- Skip false positives — note and move on
+- Fix every **high-confidence** finding - one issue, one fix, re-verify
+- Skip false positives - note and move on
 - Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
 - Impacted tests re-run after `simplify`, before review starts
 - `code-security-audit` always runs after `code-reviewer`, not instead of it
@@ -403,13 +403,13 @@ superpowers:test-driven-development [sonnet/high]
 
 ---
 
-## Phase 4 — Close
+## Phase 4 - Close
 
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 
 If GitHub issue exists:
 ```bash
-gh issue comment <N> --body "🚀 PR #<PR> created — ready for review."
+gh issue comment <N> --body "🚀 PR #<PR> created - ready for review."
 ```
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
@@ -429,26 +429,26 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 
 ## Red Flags
 
-- Classifying from title alone — always read full body, labels, and all comments first
+- Classifying from title alone - always read full body, labels, and all comments first
 - Triaging complexity before exploring the codebase
 - Skipping exploration for any tier
 - Starting implementation on Moderate/Complex without an approved plan
 - Skipping expert panel on Moderate or Complex
-- Subagents without the context file — undefined hand-offs produce blind reviews
+- Subagents without the context file - undefined hand-offs produce blind reviews
 - Claiming tests pass without a fresh run
 - Declaring done without checking the original goal was actually achieved
-- Upgrading Simple→Moderate/Complex after implementation has started — stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then continue
+- Upgrading Simple→Moderate/Complex after implementation has started - stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then continue
 - Closing a GitHub issue without confirming the PR is merged
-- Invoking `change-pipeline` — it is superseded; do not use
-- Updating only GitHub comments but never the issue body — the body is the living spec; let it drift and the issue becomes unreadable out of context
-- Editing the issue body for progress updates instead of adding a comment — body = current state, comments = history
+- Invoking `change-pipeline` - it is superseded; do not use
+- Updating only GitHub comments but never the issue body - the body is the living spec; let it drift and the issue becomes unreadable out of context
+- Editing the issue body for progress updates instead of adding a comment - body = current state, comments = history
 
 ---
 
 ## Out of Scope
 
-- `roadmap-planning` — sits above this orchestrator; invoke separately for planning work
-- Observability tooling — post-deployment concern; not part of pre-merge workflow
+- `roadmap-planning` - sits above this orchestrator; invoke separately for planning work
+- Observability tooling - post-deployment concern; not part of pre-merge workflow
 
 ---
 
@@ -468,7 +468,7 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 | `impeccable` (sub-skills) | 2 + 3 | ux | inline from UX intent |
 | `accessibility` | 2 + 3 | ux | same name both |
 | `security` | 2 | security | `security-audit` |
-| `code-security-audit` | 1 (security — pre-plan scan) + 3 (all) | all | same name, else inline review |
+| `code-security-audit` | 1 (security - pre-plan scan) + 3 (all) | all | same name, else inline review |
 | `superpowers:writing-plans` | 2 | Moderate + Complex | write the plan file directly |
 | `expert-panel` | 2 | all Moderate + Complex | same where installed, else structured self-review |
 | `superpowers:test-driven-development` | 3 | bug, ux, feature | failing test first, inline |
