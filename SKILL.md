@@ -414,6 +414,8 @@ gh issue comment <N> --body "🚀 PR #<PR> created — ready for review."
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
+If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
+
 ---
 
 ## Shortcuts
