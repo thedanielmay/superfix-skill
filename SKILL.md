@@ -397,18 +397,14 @@ superpowers:test-driven-development [sonnet/high]
 
 ## Phase 4 — Close
 
-Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR.
+Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 
 If GitHub issue exists:
 ```bash
 gh issue comment <N> --body "🚀 PR #<PR> created — ready for review."
-
-# Guard: only close if still open (PR may have auto-closed on merge)
-ISSUE_STATE=$(gh issue view <N> --json state -q .state)
-if [ "$ISSUE_STATE" = "OPEN" ]; then
-  gh issue close <N> --comment "Fixed in PR #<PR>"
-fi
 ```
+
+If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
 ---
 
