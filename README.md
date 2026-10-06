@@ -75,6 +75,39 @@ Applied automatically - no user configuration needed:
 
 ---
 
+## Dependencies
+
+Nothing is hard-required. Superfix names Claude Code skills; any step whose skill is not installed runs inline from its stated purpose, and the PR body records `ran inline: <skill>`. Tests and verification are never skipped. Install the below for full behavior. Every skill superfix can employ is listed, including the ones that run inline.
+
+**Plugin packs (Claude Code):**
+
+- `superpowers` ([obra/superpowers](https://github.com/obra/superpowers)) - systematic-debugging, brainstorming, test-driven-development, verification-before-completion, writing-plans, finishing-a-development-branch, subagent-driven-development, using-git-worktrees. Not available in opencode; runs inline there.
+- `feature-dev` ([anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official)) - code-explorer and code-architect agents. opencode: built-in Explore agent for exploration, inline otherwise.
+- `pr-review-toolkit` ([same repo](https://github.com/anthropics/claude-plugins-official)) - code-reviewer, silent-failure-hunter and type-design-analyzer agents, plus the review-pr command. opencode: inline review with the same brief.
+- `expert-panel` ([thedanielmay/expert-panel-skill](https://github.com/thedanielmay/expert-panel-skill)) - same where installed, else structured self-review.
+
+**Same-name skills (both harnesses; installed copies verified identical to source):**
+
+- `diagnose` ([javimosch/supercli](https://github.com/javimosch/supercli))
+- `improve-codebase-architecture` ([same repo](https://github.com/javimosch/supercli))
+- `grepai-trace-graph` ([yoanbernabeu/grepai-skills](https://github.com/yoanbernabeu/grepai-skills))
+- `react-vite-best-practices` ([AsyrafHussin/agent-skills](https://github.com/AsyrafHussin/agent-skills))
+- `security-audit` ([cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill))
+- `code-security-audit` ([LeonMelamud/claude-code-security-review](https://github.com/LeonMelamud/claude-code-security-review))
+- `refactor` ([github/awesome-copilot](https://github.com/github/awesome-copilot))
+- `api-response-optimization` ([aj-geddes/useful-ai-prompts](https://github.com/aj-geddes/useful-ai-prompts))
+- `accessibility` ([addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-skills)) - installed copy is v1.1, upstream is v2.0.
+
+**Flagged: employed inline (no install resolves them here):**
+
+- `architecture-deep-dive` - installed in this Claude Code setup, no verifiable upstream found; missing in opencode. Runs as an inline structural review.
+- `ui-ux-pro-max` ([nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)), `impeccable` ([pbakaus/impeccable](https://github.com/pbakaus/impeccable)) - registered but not installed in either harness here. Runs inline from UX intent.
+- `security` (threat-model step) - no such skill exists in either harness; the closest family is the memstack security skills ([cwinvestments/memstack](https://github.com/cwinvestments/memstack)). Always runs inline.
+- `webapp-testing` - no upstream found; Playwright steps run inline.
+- `simplify` - exists nowhere; the fallback is `refactor` above, else inline.
+
+---
+
 ## Installation
 
 This repo is structured as a Claude Code installable plugin with a skill manifest.
