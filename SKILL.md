@@ -28,6 +28,8 @@ Applied automatically. No user configuration required.
 
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 
+Skill names are Claude Code names. If a name does not resolve, use the opencode equivalent from the inventory; if neither exists, do the step inline from its stated purpose and write `ran inline: <skill>` in the PR body. Never skip tests or verification.
+
 ---
 
 ## Input Handling
@@ -446,35 +448,32 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 
 ## Skill Inventory Reference
 
-| Skill | Phase | Types |
-|-------|-------|-------|
-| `feature-dev:code-explorer` | 1 | all except feature/Simple |
-| `feature-dev:code-architect` | 1 | feature Mod/Complex |
-| `grepai-trace-graph` | 1 | performance, architecture |
-| `superpowers:systematic-debugging` | 1 | bug |
-| `diagnose` | 1 | bug (escalation) |
-| `architecture-deep-dive` | 1 | architecture |
-| `improve-codebase-architecture` | 1 + 3 | architecture |
-| `superpowers:brainstorming` | 2 | ux, architecture, feature Mod/Complex |
-| `ui-ux-pro-max` | 2 | ux |
-| `impeccable` (sub-skills) | 2 + 3 | ux |
-| `accessibility` | 2 + 3 | ux |
-| `security` | 2 | security |
-| `code-security-audit` | 1 (security — pre-plan scan) + 3 (all) | all |
-| `api-response-optimization` | 2 | performance |
-| `python-performance-optimization` | 2 | performance (backend) |
-| `sql-optimization-patterns` | 2 | performance (DB) |
-| `postgresql-optimization` | 2 | performance (DB) |
-| `superpowers:writing-plans` | 2 | Moderate + Complex |
-| `expert-panel` | 2 | all Moderate + Complex |
-| `superpowers:test-driven-development` | 3 | bug, ux, feature |
-| `react-vite-best-practices` | 3 | ux |
-| `document-skills:webapp-testing` | 3 | ux (Playwright visual) |
-| `pr-review-toolkit:code-reviewer` | 3 | all |
-| `pr-review-toolkit:silent-failure-hunter` | 3 | all |
-| `pr-review-toolkit:type-design-analyzer` | 3 | architecture, feature (new types only) |
-| `simplify` | 3 | all |
-| `superpowers:verification-before-completion` | 3 | all |
-| `superpowers:subagent-driven-development` | 3 | Complex only |
-| `superpowers:using-git-worktrees` | 3 | architecture |
-| `superpowers:finishing-a-development-branch` | 4 | all |
+| Skill (Claude Code) | Phase | Types | opencode or fallback |
+|-------|-------|-------|----------------------|
+| `feature-dev:code-explorer` | 1 | all except feature/Simple | built-in Explore agent |
+| `feature-dev:code-architect` | 1 | feature Mod/Complex | inline from purpose |
+| `grepai-trace-graph` | 1 | performance, architecture | same name, else inline recursive search |
+| `superpowers:systematic-debugging` | 1 | bug | inline from purpose |
+| `diagnose` | 1 | bug (escalation) | same name, else inline |
+| `architecture-deep-dive` | 1 | architecture | inline structural review |
+| `improve-codebase-architecture` | 1 + 3 | architecture | same name, else inline |
+| `superpowers:brainstorming` | 2 | ux, architecture, feature Mod/Complex | inline, one question at a time, 2-3 options |
+| `ui-ux-pro-max` | 2 | ux | inline from UX intent |
+| `impeccable` (sub-skills) | 2 + 3 | ux | inline from UX intent |
+| `accessibility` | 2 + 3 | ux | same name both |
+| `security` | 2 | security | `security-audit` |
+| `code-security-audit` | 1 (security — pre-plan scan) + 3 (all) | all | same name, else inline review |
+| `superpowers:writing-plans` | 2 | Moderate + Complex | write the plan file directly |
+| `expert-panel` | 2 | all Moderate + Complex | same where installed, else structured self-review |
+| `superpowers:test-driven-development` | 3 | bug, ux, feature | failing test first, inline |
+| `react-vite-best-practices` | 3 | ux | same name, else inline |
+| `document-skills:webapp-testing` | 3 | ux (Playwright visual) | `webapp-testing`, else Playwright steps inline |
+| `pr-review-toolkit:code-reviewer` | 3 | all | inline review with the same brief |
+| `pr-review-toolkit:silent-failure-hunter` | 3 | all | inline silent-failure pass |
+| `pr-review-toolkit:type-design-analyzer` | 3 | architecture, feature (new types only) | inline type review |
+| `pr-review-toolkit:review-pr` | 3 | existing PR (shortcut) | inline review with the same brief |
+| `simplify` | 3 | all | `refactor` skill, else inline |
+| `superpowers:verification-before-completion` | 3 | all | inline checklist |
+| `superpowers:subagent-driven-development` | 3 | Complex only | native subagents |
+| `superpowers:using-git-worktrees` | 3 | architecture | `git worktree` directly |
+| `superpowers:finishing-a-development-branch` | 4 | all | push and create PR directly |
