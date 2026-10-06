@@ -295,8 +295,6 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
 - Final PR link when complete
 
-**Wakeup defaults:** implementer 15 min, reviewer 10 min, gate 12 min.
-
 ### Execute sequences by type
 
 **`bug`**
@@ -387,7 +385,7 @@ superpowers:test-driven-development [sonnet/high]
 
 - Fix every **high-confidence** finding — one issue, one fix, re-verify
 - Skip false positives — note and move on
-- Max 2 review passes; if high-confidence issues remain after pass 2, escalate to user
+- Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
 - Impacted tests re-run after `simplify`, before review starts
 - `code-security-audit` always runs after `code-reviewer`, not instead of it
 
@@ -418,7 +416,6 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 |-----------|----------|
 | Plan already exists in `docs/superpowers/plans/` | Run exploration as normal; skip design step and `writing-plans`; create context file from existing plan; verify plan reflects current codebase state before expert panel |
 | PR already exists | Use `pr-review-toolkit:review-pr` instead of `code-reviewer` in execute phase |
-| Tests unchanged by change | Skip that test suite |
 
 ---
 
@@ -429,7 +426,6 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Skipping exploration for any tier
 - Starting implementation on Moderate/Complex without an approved plan
 - Skipping expert panel on Moderate or Complex
-- Running `code-security-audit` instead of `code-reviewer` — both are required, in that order
 - Subagents without the context file — undefined hand-offs produce blind reviews
 - Claiming tests pass without a fresh run
 - Declaring done without checking the original goal was actually achieved
