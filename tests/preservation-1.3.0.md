@@ -36,6 +36,15 @@ One line per 1.2.0 line that is removed or changed: `- <exact old line> :: <mani
 - - Verification re-runs the Phase 1 repro or baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met :: execute.md "Verification re-runs the Phase 1 repro or baseline..."
 - Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when to read this file. :: "Moved word for word from SKILL.md 1.1.1" first lines of journal, explore, execute
 
+
+## Justifications, review pass 1
+
+Lines changed by the review pass 1 decisions (coordinator, 19 Oct 2026). The reason for each is under "Review pass 1" in Deviations.
+
+- F="$(mktemp)" :: journal.md awk logic and `--body-file` call
+- printf '\n## Original report\n%s\n' "$ORIG" >> "$F" :: journal.md awk logic and `--body-file` call
+- gh issue edit <N> --body-file "$F" :: journal.md awk logic and `--body-file` call
+
 ## Deviations
 
 Places where the build differs from the plan, with the reason. Recorded by the builder (T0 to T15).
@@ -63,3 +72,7 @@ Places where the build differs from the plan, with the reason. Recorded by the b
 - Phase 0 heading kept as "## Phase 0 - Problem Profile". D3 names the phase "Intake, coverage check, Problem Profile", but D-1 has no row for a heading change. The new line "Run the Coverage check (Classification Rules) first, then type and tier." gives the order.
 - inventory.md: its first line "Moved word for word from SKILL.md 1.1.1" was kept, because D-1 lists only journal, explore and execute for that change.
 - CONTRIBUTING: besides the worktree rule and the preservation check, the "This clone" bullet and the `--plugin-dir` line were edited to match the worktree rule.
+
+### Review pass 1
+
+- Decision 1 (stateless redaction): journal.md writes the body to the fixed path `~/.superfix/check/body-<N>.md` and posts it in a separate call after the checks, because `F="$(mktemp)"` is lost between Bash calls. The awk logic and the `--body-file` post are unchanged in substance. The bash block was re-run twice locally (zsh): Original report once, reporter text identical, Status line 1.
