@@ -129,6 +129,7 @@ They follow redaction.md: a figure the owner calls private goes on the secrets l
 ### 9. Where the work happens
 
 Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good); the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas and the scripts in the criteria folder, never the data.
+- While the owner still has to put a changed copy back (section 10), the job has not ended: the run folder and its `work/` stay (mode 700 and 600, on this Mac only), the stop message names the copy's path, and redaction.md's end-of-run delete waits until the export is measured or the owner says stop. Then `finish` runs first, then the delete.
 
 | What | Change made on | Shown beside the original by | Undo |
 |---|---|---|---|

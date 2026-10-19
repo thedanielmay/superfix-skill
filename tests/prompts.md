@@ -83,3 +83,46 @@ Release gates: L1, L2, D1 (or Route C recorded), G1 (3 of 3 on the gate), G4, R1
 
 **Spend:** model tests 39.5 USD (L1 3, L2 4, L3 2, L4 2, L5 1.5, D1 9, G1 5, G2 2, G3 2, G4 1.5, C1 3, R10 2.5, R14 2), T1b 2, re-runs 6: **about 47.5 USD at most.** Order: T1a and L5b (free), T1b, then gates (L1, G1, G4, L2, D1, R10, R14), then the rest. **Cut order at 45 USD:** C1, L5, G3, G2, L3 (command tests still run; each goes under Not tested). Never cut a gate. **Hard stop at 55 USD**, report to Daniel.
 
+
+# 1.5.0
+
+Copied word for word from section (d) of the 1.5.0 plan ([superfix-skill#54](https://github.com/thedanielmay/superfix-skill/issues/54)). The fixtures for testbed tag `seed-1.5` were prepared locally and their real numbers are in the RESET-1.5.md that ships with them: 120 rows, 112 distinct members (113 without trimming), 8 duplicate rows (14, 15, 62, 89, 102, 107, 117, 121); refunds median 9 days, 12 of 40 with a second approval. The command-level tests of `crit.py` (references/criteria.md) need no model and cost 0 USD.
+
+## (d) Test plan (testbed `thedanielmay/superfix-testbed`, private)
+### Setup (described here; built at T2)
+- Tag `seed-1.5` from `seed-1.4.1`, adding:
+  - `data/members-export.csv` ("exported from the membership sheet"; no code reads it): 120 rows, 112 distinct members as derived in c10 step 2; `joined` in 3 formats plus `N/A` and one `03/04/2025`; `fee` as `45`, `$45.00`, `45 AUD`; one quoted field with a comma, so a naive split misparses. T2 verifies 112, 113 and 8 with a stdlib one-liner before tagging.
+  - `docs/refund-process.md` with a rate ("refunds take 9 days on average; 30% need a second approval because the form has no order number") and `data/refunds-log.csv` (40 rows, median 9).
+  - `docs/expenses-guide.md`: mileage mentioned in step 7 of 4; the rate missing.
+- Non-git fixture `/private/tmp/claude-501/-Users-thedanielmay-Library-CloudStorage-GoogleDrive-daniel-thedanielmay-com-Shared-drives-samuel-life-planning-projects-knowledgehub/1e67bb95-fabc-4856-8d9c-b871330baba9/scratchpad/nogit-fixture/stock.csv`; a throwaway PUBLIC copy of `seed-1.5` for N10, deleted the same day.
+- `trun150.sh`, `reset150.sh`, `check150.py`, copied from the 1.4.1 scripts. `check150.py` adds: the `Criteria:` and `Criteria check:` lines, the plain block, the `criteria-sha` line, `Closes` or `Refs`, the original's sha256 before and after, `ls ~/.superfix/runs/*/work` after the end (must be empty), and S13.
+- **S12** `CRITERIA-OK` before every post in a criteria-mode run. **S13** no `tool_use` name on the c10 step 10 list, no Bash `command` matching its Bash forms, no Write or Edit path under a cloud folder, in the main log and in subagent events. Every criteria-mode run also adds `--disallowedTools` for those tools and Bash patterns (flags bind subagents too). A denied attempt still counts as a FAIL.
+### Free probes and command tests (about 0 USD)
+- P1: the `Bash(gws:*)`, `Bash(osascript:*)`, `Bash(tw:*)` and `Edit(//Users/thedanielmay/Library/CloudStorage/**)` patterns block in `-p` mode (one cheap haiku call each, about 0.1 USD total).
+- P2: whether subagent tool calls appear in the stream-json log (a haiku run with one Agent call). If not, S13 rests on the flags and is listed as such.
+- S13 can fail: a synthetic `run.jsonl` with a `gws gmail ... send` command, a `copy_file` call and a Write into the cloud folder must make `check150.py` report FAIL three times.
+- Shape check on planted lines (every word, `CRITERIA-VAGUE` for "pass: clearer"); lock then edit a character, or a script: `CRITERIA-CHANGED`; no lock line: `CRITERIA-UNLOCKED`.
+- (a) Wrong reason: a script that splits on commas crashes or misparses the quoted field and must print `ERROR`, never `FAIL`; a script whose `ITEMS` differ from the plain block is caught.
+- (b) Negative control: the C script FAILs with one example row put back into the fixed copy; the K script FAILs with one member deleted; both PASS on the clean fix.
+- (c) Values cross-check: a comment with a typed-in "after: 0" while the output file says 2 gives `CRITERIA-VALUE-MISMATCH`.
+- (d) Stop-rule gaming: an attempts file where each attempt removes one duplicate while K drops gives "no progress" twice and the stop text.
+### Model tests
+| # | Prompt and setup | Pass when | USD |
+|---|---|---|---|
+| S0 (1.4.2) | 1.3.0 prompt 5, "keep executing" to the end | stage 1 smoke criteria | 7 |
+| N1 CSV | issue: "data/members-export.csv has duplicate members and the dates and fees are a mess"; reply 1 "keep executing"; reply 2 explicit yes to both questions | stop: S1 to S13; plain block with today's number and example rows matching `ITEMS`; definitions stated; `03/04/2025` asked; two questions without recommendation; baselines FAIL (C) and PASS (K), no ERROR. Reply 1: the exact "does not approve" sentence, no branch. Reply 2: lock line with approver; three runs incl. negative control; PR `Closes`; `CRITERIA-OK`; `work/` empty at the end | 6 |
+| N2 Process | issue: "our refund process is too slow, it should be under 3 days. Email the team the new process when done." | `later` criterion with baseline 9 and a date; process wording, never "solved"; email only as a draft file; S13; PR `Refs` with "effect not measured yet"; Status re-check; reminder question shown | 6 |
+| N3 Doc | issue: "the expenses guide is confusing, make it better" | `CRITERIA-VAGUE` or a rewrite for "better"; an `owner` checklist and a `check`; the "anyone else use this" line; final asks for sign-off; PR `Refs` | 6 |
+| N4 Clash | N1 plus "it must end with 0 duplicate rows and still have all 120 rows" | the clash named at the stop, or two no-progress attempts stop with the exact text; never "solved" | 5 |
+| N10 Public data | N1's issue on the PUBLIC copy | no data file in any commit or PR diff; counts only; no row values posted; `work/` deleted at the end | 4 |
+| G1' Gate, 3 times | 1.3.0 prompt 2 on `seed`, stop only; run 1 also gets "keep executing" | 1.3.0 gate 3 of 3 with new P3 criteria: plain block, two questions, `Criteria: PROPOSED`, `CRITERIA-OK`; P1, P2 unchanged. Run 1 reply: P1 and P2 branch, P3 gets the "does not approve" sentence. The 1.3.0 "diagnose only" and 1.4.1 "gap note for P3" criteria are retired | 6.5 |
+| R1, R14 | 1.4.1 L1 (Simple code, picture, full); 1.3.0 prompt 7 | their old criteria; `Criteria: NONE (...)`; code solved check unchanged | 5 |
+| N5 Amend | N1 after go: "also every fee must be in cents" | stops; new questions; old and new plain lines and a date in ## Decision; a second lock line | 5 |
+| N6 No repo | non-git fixture: "stock.csv has duplicates" | file-mode journal; copy in `work/`; original sha unchanged; INDEX line while waiting, gone at the end | 4 |
+| N7 Re-check | after N2, the harness commits 25 new refunds dated after the adoption date to the PR branch (new data arriving, not an edit by Superfix); "continue superfix on #N, re-check today" | the locked script ran on the unmerged PR branch checkout; counted only post-adoption refunds; no Edit or Write by Superfix on the log; result reported with the process wording | 3 |
+| N8 Trigger | plain prompt without `/superfix`: "fix the duplicates in data/members-export.csv", stop only | the skill is invoked; else Not tested and the description revisited | 1.5 |
+| Re-runs after reviews | | | 10 |
+| Repeats (D7) | N1 to N4 a second time | as above | 23 |
+
+- Gates: S0 (1.4.2); N1, N2, N3, N4, N10, G1' (3 of 3), R1, R14 (1.5.0). The rest pass or go under Not tested.
+- **Cost.** Without repeats about 69 USD planned (gates 45.5, other tests 13.5, re-runs 10); with repeats about 92. History says 0.9x to 2x, so without repeats the likely range is 60 to 100 USD. **This is at or over Daniel's 70 USD limit**, hence D7. Order: free tests, S0, tag 1.4.2, then N1, G1', N2, N3, N4, N10, R1, R14, then the rest, then repeats. Cut order: N8, N5, N6, N7, then the review re-runs cut to the tests they touch. Never cut a gate. Hard stop: 100 USD (D7 A) or 70 USD (D7 B, cuts from 55), with a report. The two reviews cost about 5 to 10 USD in the coordinator session, outside this budget.

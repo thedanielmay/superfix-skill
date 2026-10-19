@@ -27,6 +27,7 @@ Invoke `superfix` (via `/superfix` in Claude Code) whenever you have:
 The skill triggers automatically on the keywords `superfix`, `issue #N`, `fix #N`, or `implement #N`.
 
 Qik configuration and other non-code problems are reached only by typing `/superfix`. There is no automatic trigger for them.
+Since 1.5.0 the skill description also names "clean up a document or data file against criteria the owner approves", so a plain request such as "fix the duplicates in data/members-export.csv" may trigger it on its own. Whether it does is test N8; until it passes, type `/superfix`.
 
 ---
 
@@ -70,7 +71,7 @@ Coverage check: it says which kind of problem this is, and quotes the words that
 |------|----------------------------------|--------------------|
 | Code | files in the repo, a test, a stack trace, CLI or page output | diagnose and fix |
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only, marked provisional (not yet proven by a test); you always publish |
-| Everything else | documents, process, sheets, business | diagnosis only, low confidence |
+| Everything else | documents, process, sheets, business | diagnosis; since 1.5.0 data and document clean-ups are fixed on a copy against checks you approve (criteria mode, below); a process only gets a drafted change |
 
 Passwords and tokens: it keeps a list of every credential given in the session and checks every comment, body edit, commit and PR against it before anything is posted (`references/redaction.md`). Name a 1Password item instead of typing a password.
 Since 1.3.1 each run keeps that list and its scratch files in its own folder, `~/.superfix/runs/<owner>+<repo>+<issue number or journal file name>/` (all lowercase), and deletes only that folder at the end, so two runs on different issues never touch each other's list.
@@ -94,11 +95,24 @@ When a problem shows on a screen (a page, a rendered component), Superfix takes 
   - The same in a terminal: `gh search issues --label "superfix:awaiting-decision" --owner thedanielmay --state open`
   - What the saved search misses: issues that only carry the body marker, and issues in repos you do not own. The GitHub app's own label filter was not tested. Searching for the marker words (`superfix-awaiting-decision`) does find marked issues after a few minutes, but also any issue that mentions those words.
 - **Diagrams, only when you say yes.** For Moderate or Complex work where 3 or more parts interact, the decision comment asks one numbered question with a recommended yes (so "keep executing" means yes). The diagrams are drawn after your go, by a subagent following the `diagram-design` skill's files (default style, chosen by Claude; change it with `diagram-design:profile`), checked for secrets and posted in the issue description: at most two, the cause today and the change. Private repos only, like the pictures. Rules in `references/diagrams.md`.
-- **Private gap notes.** When a problem is something Superfix does not cover (a document, a process, a sheet), it writes a short note about that KIND of problem: what a playbook would need. The note never names a client, repo, person, path or link and never repeats your words. Rules in `references/gaps.md`.
+- **Private gap notes.** When a problem is something Superfix does not cover (a document, a process, a sheet), it writes a short note about that KIND of problem: what a playbook would need. Since 1.5.0 a note is written only for a check Superfix had no tool or access to measure (criteria mode, above). The note never names a client, repo, person, path or link and never repeats your words. Rules in `references/gaps.md`.
   - Setup: put `gap_repo=<you>/<private repo>` in `~/.superfix/config` (or set `SUPERFIX_GAP_REPO`). The repo must be private, owned by you, with no other collaborators and no webhook.
   - GitHub Apps cannot be checked from the `gh` login. Look at https://github.com/settings/installations, make sure no App can read the gap repo, then add the line `gap_repo_no_apps=<you>/<gap repo> <YYYY-MM-DD>` (the repo you checked, a space, today's date) to `~/.superfix/config`. Without that line for the same repo, or when it is older than 90 days, every note goes to `~/.superfix/gaps/` on your Mac instead. A `SUPERFIX_GAP_REPO` set anywhere else (for example by a project's settings) only counts when this line names the same repo.
   - All open notes, most seen first: `https://github.com/<you>/<gap repo>/issues?q=is%3Aopen+sort%3Acomments-desc`
 - **Before and after pictures line up.** The after picture uses the same page area as the before picture. If the thing moved out of that area, the after picture is widened and the caption says so.
+
+### Non-code problems: criteria mode (1.5.0)
+
+For a sheet, a data file or a document, Superfix fixes only against checks you approve. For a process it drafts the change and never calls it solved. Rules and the checking tool are in `references/criteria.md`.
+
+- **The checks, in plain words.** Each one shows today's number, the pass line and up to three example row numbers, never the personal values: "Duplicate members. Today: 8 (rows 14, 15 and 62 share an email with an earlier row). Must be 0." The measure scripts are in the AI detail below the line.
+- **Two questions per problem, with no recommended answer.** "If every check above passes, would you consider this solved?" and "What must not get worse, for you or anyone affected?" Only your yes to the first and an answer to the second approve the checks. "Keep executing" does not: Superfix says so once, asks once more, then waits; code problems in the same issue go ahead.
+- **Locked.** At your go the check lines and the measure scripts are hashed into a `criteria-sha` line in `## Decision`, with who approved them. A changed check needs a new yes.
+- **Proof.** The scripts must fail on your original for the rows shown, then pass on the change, and a negative control (one known defect put back) must fail again. A script that crashes reports ERROR, never FAIL. A try counts as progress only when a failing check got closer and nothing got worse; two tries without progress stop the run.
+- **Your original is never touched.** The work happens on the PR branch (private repos) or on a copy in the run folder on your Mac, deleted when the job ends. Nothing is written into Google Drive, shared drives or Dropbox. On a public repo no personal or financial data is committed; the PR describes the change in counts.
+- **Nothing is sent to anyone.** Messages to your team or customers are drafts. A Google Sheet or Drive file is changed only as a local copy: you put it back, send an export, and only then is it "verified on the real file".
+- **Checks for later.** A process check ("refunds under 3 days") is measured on a date you get told; the issue waits with "Waiting for you: re-check on <date>". Superfix can add one reminder task to your own task list, only if you say yes to that question. Jobs with no GitHub issue are listed in `~/.superfix/journal/INDEX.md` while they wait.
+- **Honest limits.** A script that misreads the file quietly is caught only when its count or rows differ from what you see in the plain lines. If every check passes but your description still seems true, Superfix says so and keeps the issue open.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -214,6 +228,7 @@ skills/
       evidence.md               Pictures: when, the capture script, the upload command, captions (1.4.0)
       diagrams.md               Diagrams: when to ask, the brief, the source check, render and upload (1.4.1)
       gaps.md                   Private gap notes: what they hold, the repo checks, the local folder (1.4.1)
+      criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts, the crit.py tool (1.5.0)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
       inventory.md              Every skill used, with its opencode name or fallback
@@ -224,13 +239,15 @@ tests/
   preservation-1.3.1.md         The same for 1.3.1, keyed by file and heading
   preservation-1.4.0.md         The same for 1.4.0, with the builder's deviations from the plan
   preservation-1.4.1.md         The same for 1.4.1
+  preservation-1.4.2.md         The same for 1.4.2 (move only)
+  preservation-1.5.0.md         The same for 1.5.0
 .claude-plugin/plugin.json      Plugin manifest and version
 .github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
 ```
 
 The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md` (mirrored at the repo root) and the files in `skills/superfix/references/` it tells the model to read. `tests/` is never loaded at run time.
-Since 1.4.0 the picture step writes a Python script from `references/evidence.md` into the run folder and runs it. It needs the tools under "Pictures" above; without them, there are no pictures and nothing else changes.
+Since 1.4.0 the picture step writes a Python script from `references/evidence.md` into the run folder and runs it; since 1.5.0 criteria mode does the same with `crit.py` from `references/criteria.md` (standard library only). It needs the tools under "Pictures" above; without them, there are no pictures and nothing else changes.
 
 ---
 
@@ -239,3 +256,5 @@ Since 1.4.0 the picture step writes a Python script from `references/evidence.md
 1.4.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.4.0. Pictures of Qik draft pages are untested in 1.4.0 (they need the one-time saved login above).
 
 1.4.1 adds the labels, the optional diagrams, the private gap notes and aligned before and after pictures (above).
+
+1.5.0 adds criteria mode for non-code problems (above). A gap note now means a check Superfix had no way to measure, not every non-code problem.

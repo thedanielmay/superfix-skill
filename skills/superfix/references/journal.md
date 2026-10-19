@@ -76,6 +76,8 @@ Diagram: ![P1 the change: <full caption>](<url>)  (only after a yes)
 
 ## Done when
 - <each failing check the solved check re-runs>
+- P<k>-C<n> [check|later|owner] <plain name>: <definition>; pass: <pass line>; how: <how>; who: <who>  (criteria mode only; references/criteria.md)
+- P<k>-K<n> [check] <plain name>: <what must not get worse>; pass: <today's value>; how: measure-P<k>-K<n>.py; who: Superfix  (criteria mode only)
 - The owner's description no longer holds: "<owner's words, redacted>"
 
 ## Scope
@@ -106,6 +108,7 @@ Status line, first line of the body, updated in place (a body update by design):
 Values: Diagnosing | Waiting for you: N questions | Fixing problem K of N |
 Stopped: <plain reason> | Ready for review: PR <link> | Waiting for you to
 publish | Done
+1.5.0, criteria mode (references/criteria.md): Waiting for you: re-check on <date> | Waiting for you: sign-off on <name> | Waiting for you: put it back and give me an export
 
 **Progress comments = timestamped changelog**
 Each significant phase transition gets a progress comment, not an edit to the body, except the Status line and ## Decision, which are body updates by design. Comments accumulate as a readable audit trail of what happened and when.
@@ -119,6 +122,7 @@ Comment triggers:
 | Plan approved after panel (Moderate, Complex) | plan and key decisions | Plan, Key decisions |
 | Budget stop, diagnosis wrong, blocker | stop message | Status |
 | PR open and CI green | final result: solved check, Not tested, PR link | Status |
+| Re-check, sign-off or export | final result or stop message | Status |
 
 Every message in this table carries the required Labels: line, and every Status change runs the label commands (Labels, below). Go's body update also adds the diagrams after they pass diagrams.md.
 
@@ -229,6 +233,8 @@ Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (pu
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <ASKED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
+Criteria: <PROPOSED n | APPROVED n | NONE (no Everything else problem)>
+Criteria check: <criteria mode: plain name RESULT (value), ...; else NONE (no Everything else problem)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -237,7 +243,7 @@ Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
 - One coverage line per problem, in plain words, before the numbered questions:
   - Code: This is a code problem, because you wrote "<quote>". I can find the cause and fix it.
   - Qik: This is a Qik settings problem, because you wrote "<quote>". I can fix it in the draft, but my Qik fixing is not yet proven by a test, so you check it and publish.
-  - Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
+  - Everything else: This is not code or Qik, because you wrote "<quote>". I can fix it only against checks you approve below, on a copy, never your original. For a process I only draft the change.
 - Simple with one problem: the short form, three lines (problem, fix, effort) and "Go?". The effort line carries the budget in its plain wording.
 - Write `Loaded: journal.md` (and the other references read so far) in the AI detail part.
 - Question count: write the numbered questions first, then the callout, and state the number in digits ("I need 3 answers"). Before posting, check that the callout's number matches the numbered lines above the `---` (the Simple short form, with "Go?" and no numbered lines, is exempt):
@@ -262,6 +268,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<
   - `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)` (references/gaps.md); the final comment adds "open notes in your gap list: <n>".
 - The diagram question (exact text in references/diagrams.md) goes after the problem and budget questions and before the `assets` and create-issue questions; the create-issue question stays last.
 - The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.
+- 1.5.0, criteria mode (references/criteria.md): above the numbered questions, after the coverage lines, the plain block (one line per criterion: "<plain name>. Today: <number> (<up to 3 example rows>). Must be <pass line>."); the two questions per criteria-mode problem after the problem questions and before the budget question, with no recommended answer; the reminder question for a `later` criterion after the budget question, with no recommended answer. `Criteria:` and `Criteria check:` go after `Gap note:` in the AI detail; the comment check prints `CRITERIA-OK` before posting, after `LINES-OK`.
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -322,6 +329,8 @@ Pictures: <the same required line, now for the after pictures too>
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <POSTED n | NO (owner said no) | HELD (why) | LOCAL (why) | NOT-POSTED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>; open notes in your gap list: <n>
+Criteria check: <criteria mode: plain name RESULT (before -> after), ...; else NONE (no Everything else problem)>
+| check | before | after | must be | result |  (criteria mode only: one row per criterion, references/criteria.md)
 ## Not tested
 - <item, and why>
 ```

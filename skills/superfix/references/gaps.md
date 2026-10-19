@@ -4,7 +4,7 @@ New in 1.4.1 ([superfix-skill#51](https://github.com/thedanielmay/superfix-skill
 
 ### Which problems get a note
 
-- Every problem whose Coverage line is "Everything else" (not covered).
+- Every criterion Superfix had no way to check (no tool or access), so it fell to later or owner.
 - A Code or Qik problem whose diagnosis fell to low confidence because its row's own tools were missing (partial). For Qik that means the Qik read tools were missing; a Qik problem is not partial otherwise.
 - When: at the Stop gate, before the decision comment. This is a write before approval, allowed by SKILL.md Phase 1.
 - One note per kind of problem per run.
@@ -19,12 +19,12 @@ Holds the KIND only:
 > **In plain English:** Superfix met a kind of problem it does not cover: <kind, in plain words>. This note says what a playbook for it would need.
 
 Kind of problem: <generic>
-Coverage row: <Everything else (not covered) | Code, partial (tools missing) | Qik, partial (read tools missing)>
+Coverage row: <Everything else (criterion not checkable) | Code, partial (tools missing) | Qik, partial (read tools missing)>
 Why it stopped at diagnosis: <generic>
 What was tried: <tools and steps, generic>
 What a playbook would need: recognisers (<words or signs>); evidence (<what to collect>); failing check form (<how to show it fails>); what done means (<generic>); tools (<generic>)
 Confidence: <low | medium>
-Superfix version: 1.4.1
+Superfix version: 1.5.0
 ```
 
 Never holds: a quote or paraphrase of the owner's request, a client, repo, organisation or person name, a path, a URL, an e-mail address, code, a secret, a picture or a diagram. Write it so a stranger could read it without learning whose problem it was. Avoid `/` altogether (the check below flags `word/word`).
