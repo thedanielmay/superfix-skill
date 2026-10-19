@@ -129,6 +129,8 @@ the exploration skills collect the evidence, the method decides what it proves.
 Diagnosis fixes nothing. Before approval the only writes allowed are the
 journal, a scratch folder outside the repo, and a detached worktree in it
 (removed before the stop): no branch, no edits to tracked files, no Qik writes.
+Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to
+its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
 Write `Loaded: explore.md, diagnose.md` in the decision comment, or in your next
 message if there is no issue.
 
@@ -140,6 +142,13 @@ End of Phase 1, every tier: write `## Problems`, the evidence note (failing chec
 and output, baseline, cause confirmed or suspected, ruled out and how, Tools
 used). Later steps read evidence from here.
 
+### Evidence pictures: if the problem is something you could see on a screen, take them (read references/evidence.md first)
+Read `references/evidence.md` in full before the first picture; write `Loaded: evidence.md` in the decision comment. A web page, app screen, rendered document or UI always counts as a screen: `NONE (no screen)` is only for command output, tests, servers and config.
+- Command, test, log and backend output stays text, never an image. Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
+- Red box numbered like the problem, one caption that says it all in words. Width or height 0: no mark.
+- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing. Any entry in the secrets list, or a saved login: upload nothing until the owner has looked and replied "post the pictures" (after those pictures, in this run).
+- Never paste a session secret into a browser tool call; Claude in Chrome is never a picture source. Never read a mark-*.side file.
+
 ## Stop gate
 
 Every tier, every run, unless the fast lane was asked for in this run.
@@ -147,6 +156,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
 1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
+   The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -165,6 +175,7 @@ question has none: unless the owner says yes to it explicitly, it is no (keep
 the journal file, create nothing), on public and private repos alike. A reply that answers only some questions: ask
 only the rest. Anything else (a question, a new fact): answer it, update the
 record, stay stopped.
+The `assets` release question (evidence.md) has no recommended answer either: anything but an explicit yes to it is no.
 
 On go: write ## Decision (below) as a body update, no comment. Run `git fetch
 origin`, then record approval-sha = `git rev-parse origin/<default-branch>` and
@@ -202,6 +213,7 @@ checked first. A credential in the reporter's original issue body: stop, post
 nothing, ask the owner to edit it. If something already leaked: delete the comment (never edit it,
 GitHub keeps edit history), tell the owner to rotate the credential, and say
 what leaked where.
+Pictures: no upload except through evidence.md's upload command; a pattern hit in a picture blocks it.
 
 ## Phase 2 - Design & Plan
 
@@ -316,6 +328,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
 - The budget and approval-sha from `## Decision`.
 - The session list path `~/.superfix/runs/<run-key>/secrets`, written out in full, and the absolute path of `references/redaction.md`.
+- When a problem has a before picture: the absolute path of `references/evidence.md`, the BROWSER-SCRIPT interpreter and the run folder (each picture's `evidence/<name>.json` says how to retake it).
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
@@ -337,6 +350,8 @@ Runs inside `verification-before-completion`, on both paths. Code only (Qik: see
      `git -C <s1> checkout <branch> -- <new or changed test paths>`; run the
      failing check from ## Problems in <s1>.
   Run 2, fix passes: the same check on the branch.
+     Run 2 also takes the after picture of each problem that had a before
+     picture: same page and size, green box, same number (evidence.md).
   Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
      `git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R`;
      run the check in <s3>, expect failure. The branch is never touched.
@@ -371,6 +386,7 @@ The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
 
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
+The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
@@ -400,6 +416,7 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Posting, pushing or creating anything before the redaction check
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
+- Uploading a picture without the upload command, or to a public repo
 
 ## Out of Scope
 

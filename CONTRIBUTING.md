@@ -34,6 +34,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 - opencode: type `superfix: <small task>`. It reads the repo file through the symlink, so it is live on your current branch.
 - Claude Code: `claude --plugin-dir ~/projects/skills-dev/superfix-<short-slug>` (the worktree). This loads that checkout for that one session only, without releasing anything.
 - Try one Simple task and one Moderate task. Check the thing you changed actually happened.
+- Pictures (1.4.0): the capture script `shot.py` lives inside `skills/superfix/references/evidence.md`, between the lines `# --- shot.py start ---` and `# --- shot.py end ---`. Edit it there, never as a separate file. To try it, write it out with the `awk` command in evidence.md into a scratch folder that holds a `key` file, then run it against the testbed tag `seed-1.4` (`public/pricing.html`, `public/account.html`) with an interpreter that has the playwright module (on this Mac `/usr/bin/python3`; Homebrew's `python3` has none). Never upload while testing; `tests/prompts.md` lists the release tests.
 
 ## Releasing and deploying
 

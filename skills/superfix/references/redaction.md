@@ -5,6 +5,7 @@ New in 1.3.0. SKILL.md ("Decision and redaction") says when to run these checks:
 Rules that hold everywhere:
 - Every command below is self-contained. Claude Code's shell keeps no variables between Bash calls, so nothing here depends on an earlier command.
 - Every check prints one explicit word: `CLEAN`, `BLOCKED <files>`, `NO-LIST`, `NO-RUN-FOLDER`, `PATTERN-CLEAN` or `PATTERN-HITS`. **Silence is never a pass.** No word printed, or an `ERROR` line, means the check did not run: fix it and run it again. `NO-RUN-FOLDER` is a stop like `ERROR`, never a pass.
+- Picture checks (references/evidence.md) print their own words: `SAVED`, `NO-MATCH`, `ZERO-SIZE`, `UNREACHABLE`, `OCR-CLEAN`, `OCR-BLOCKED`, `VIEW-MATCH`, `VIEW-MISMATCH`, `NO-OCR`, `NOT-PRIVATE`, `NOT-VIEWED`, `OCR-READY`, `HELD`, `UPLOADED`, `KEPT`, `NOT-UPLOADED`, and for the `assets` release `ASSETS-EXISTS`, `ASSETS-CREATED`, `ASK-FIRST`, `ASK-FIRST-WORKFLOWS`; the decision message count check prints `COUNT-OK` or `COUNT-MISMATCH`. Silence is never a pass there either. A pattern hit in a picture blocks it (no "you decide" for pictures). Any entry in the session list holds every picture on the Mac until the owner has looked and replied "post the pictures" (evidence.md).
 - The exact-string check on session credentials BLOCKS. A pattern hit is REPORTED, and you decide (below).
 - Every post uses `--body-file`. Never pass `--body "..."` inline. A `--title` from chat text is written to a file and checked first, then passed as `--title "$(cat <title file>)"`.
 
@@ -43,6 +44,7 @@ EOF
 ```
 
 - `NO-RUN-FOLDER` here means the key is wrong or the folder was never made: nothing was saved. Rebuild the key from the facts and append again.
+- A credential you SEE, not only one you are TOLD, goes on the list: one in the reporter's issue body, the chat, a URL the owner gave (its query string too), a file the run read (`.env`, config) or a log. Append it at once, and always before any picture is taken (evidence.md).
 
 - The list is a file, so it survives a restart. Blank lines are ignored by the check.
 - At the end of the run, delete this run's folder and nothing else. The guard prints `REFUSED` instead of deleting when the path is not one folder inside `~/.superfix/runs/` (an empty key, `..`, or a `/` in the key; a `+` is fine), so it can never delete `~/.superfix/runs/` itself:
@@ -50,6 +52,8 @@ EOF
 ```bash
 D="$HOME/.superfix/runs/<run-key>"; K="${D#"$HOME/.superfix/runs/"}"; if [ "$K" = "$D" ] || [ -z "$K" ] || [ "$K" = . ] || [ "$K" = .. ] || [ "$K" != "${K%/*}" ]; then echo "REFUSED: not a run folder: $D"; else rm -rf "$D" && echo LIST-DELETED; fi
 ```
+
+- Before that delete, move pictures that were not uploaded to `~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/` (evidence.md: the upload command with `A='keep'` copies each picture that passed every check; a picture that failed a check is deleted with the folder). Stop any dev server first (evidence.md, by its PID file). Pictures still held because of a credential: the delete waits for the owner's answer to "post the pictures" (evidence.md).
 
 ### Files to check
 
@@ -100,11 +104,15 @@ Allowlist, never redacted:
 
 `## Original report` is copied word for word, so it cannot be redacted. If the reporter's original issue body itself contains a credential (a `BLOCKED` or a real pattern hit inside it): stop, post nothing, and tell the owner in chat to edit the issue and rotate the credential. Continue only after the owner says it is done and the check prints `CLEAN`.
 
+That credential goes on the session list, so every picture already taken in this run is held (evidence.md).
+
 ### Repo visibility
 
 Before creating an issue from chat text, run
 `gh repo view --json visibility -q .visibility`. PUBLIC: show the exact text in
 the decision message and wait for yes.
+
+Before any picture upload the upload command checks the repo is PRIVATE. In 1.4.0 nothing is uploaded to a public repo.
 
 ### Leak handling
 
@@ -112,5 +120,7 @@ Leak handling: comment: `gh api -X DELETE repos/<o>/<r>/issues/comments/<id>`.
 Issue body: rewrite it, then tell the owner the old text stays in the edit
 history until they delete that revision in the GitHub page. Commit not pushed:
 amend or rebase before pushing. Pushed: tell the owner, rotate first.
+
+Picture: delete the comment that shows it (never edit it), edit the issue body only to remove its link, delete the file with `gh release delete-asset assets <file> --repo <o>/<r> --yes`, and tell the owner to rotate the credential (evidence.md, Leaked picture).
 
 Always also tell the owner to rotate the credential, and say what leaked where.

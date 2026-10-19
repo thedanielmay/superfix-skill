@@ -4,6 +4,8 @@ New in 1.3.0. SKILL.md Phase 1 says when to read this file. The exploration skil
 
 Before approval the only writes allowed are the journal, a scratch folder outside the repo, and a detached worktree inside that folder (removed before the stop). No branch, no edits to tracked files, no Qik writes, no change to org data, roles or permissions. Run installs and test commands (`npm install`, `pip install`, a build) in the scratch worktree, never in the repo, so no stray file such as `package-lock.json` is left. If `git status --porcelain` is not empty at the stop, remove the stray file and say so.
 
+Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
+
 ### Method
 
 1. Failing check first. Before any theory, run one check that fails on the
@@ -64,6 +66,7 @@ Additions for diagnosis. Nothing is removed from `references/explore.md` or `ref
 | episodic memory search | past runs on the same code | skip; write "no history search" |
 | `git log`, `git blame`, `git bisect` in the scratch worktree | when the symptom started | always present in a repo |
 | Playwright MCP, else Claude in Chrome | reproduce a visible symptom | none; list "visual check" under Not tested |
+| Pictures (references/evidence.md) | before and after pictures | NO-BROWSER Not tested line |
 | Qik read tools (`get_content`, `get_content_log`, `get_content_diffs`, `explain_access`, `search_interface_code`, `get_interface`) | Qik evidence | none; Qik diagnosis is then "Everything else" level, low confidence |
 
 Missing tools fall back, never block, in this order: the named skill or agent; the built-in `Explore` agent; a `general-purpose` subagent with the review header below; inline. Record what ran in `## Problems`, for example:

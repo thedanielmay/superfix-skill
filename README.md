@@ -12,7 +12,7 @@ It supersedes the older `change-pipeline` skill.
 
 Since 1.3.0 it diagnoses first and stops for your approval before it fixes anything (see "Diagnose and stop" below).
 
-The skill file is kept short. The long parts (the issue journal, the diagnosis method, agent briefs, redaction, exploration by type, the execute sequences and review rules, the skill inventory) live in `skills/superfix/references/` and are read only when a step needs them.
+The skill file is kept short. The long parts (the issue journal, the diagnosis method, agent briefs, redaction, evidence pictures, exploration by type, the execute sequences and review rules, the skill inventory) live in `skills/superfix/references/` and are read only when a step needs them.
 
 ---
 
@@ -74,6 +74,18 @@ Coverage check: it says which kind of problem this is, and quotes the words that
 
 Passwords and tokens: it keeps a list of every credential given in the session and checks every comment, body edit, commit and PR against it before anything is posted (`references/redaction.md`). Name a 1Password item instead of typing a password.
 Since 1.3.1 each run keeps that list and its scratch files in its own folder, `~/.superfix/runs/<owner>+<repo>+<issue number or journal file name>/` (all lowercase), and deletes only that folder at the end, so two runs on different issues never touch each other's list.
+
+### Pictures of the problem and the fix (1.4.0, private repos only)
+
+When a problem shows on a screen (a page, a rendered component), Superfix takes a picture of it with a red numbered box round the problem, and after the fix a picture with a green box. The rules and the script are in `references/evidence.md`.
+
+- **Where they appear:** under each problem in the issue description; the first picture of each problem below the questions in the decision comment; one side-by-side Before and After picture per problem in the final comment.
+- **Private repos only.** Pictures are uploaded to a standing release named `assets` in the repo, as in `thedanielmay/pullstruder`. On a public repo nothing is uploaded: the pictures stay on your Mac in `~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/`, and the decision comment names that folder.
+- **The GitHub mobile app does not show these pictures; the website does.** So every caption says the whole thing in words, and every comment with pictures has the line "Pictures show on the website, not in the GitHub app: <issue link>".
+- **No pictures of terminal text.** Command, test, log and server output stays text, because text can be checked for secrets and a picture of it cannot.
+- **Secrets:** if you give a password or token in a run, no picture from that run is posted on its own. They stay on your Mac in the journal pictures folder; look at them and reply "post the pictures" if you want them on the issue. Behind that, several checks run, none of them proof on its own: every credential on the run's list (the ones you gave, and the ones Superfix saw in the issue, a link, a file or a log) is replaced by `[redacted]` in the page's text and attributes, where the script can reach them; a picture taken with a saved login is held for your look too; the page's own scripts are stopped so nothing changes after the check; areas that cannot be cleaned (a drawing area, an image, a video, a page inside another page, text added by a style sheet file) stop the picture until they are hidden; and OCR reads each picture before upload. OCR can miss small or pale text, and a short password with one misread letter.
+- **Needs:** a Python 3 that has the `playwright` module and a Chromium browser, plus `tesseract` and ImageMagick (`brew install tesseract imagemagick`). On this Mac, Xcode's `/usr/bin/python3` already has playwright with its browsers; Homebrew's `python3` does not, and Superfix does not use it for pictures. On another Mac, use a virtual environment: `python3 -m venv ~/.superfix/venv && ~/.superfix/venv/bin/pip install playwright && ~/.superfix/venv/bin/python -m playwright install chromium`, then that `python` is found by the probe only if it is first on PATH as `python3`. Without these, Superfix takes no pictures and says so under Not tested.
+- **Qik draft pages (untested in 1.4.0):** they need a one-time saved login. Run `/usr/bin/python3 -m playwright codegen --save-storage=$HOME/.superfix/auth/<host>.json <draft url>`, log in in the window that opens, close it, then `chmod 600 ~/.superfix/auth/<host>.json`. That file holds your session cookies: never put it in a repo. Without it, no Qik picture.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -185,6 +197,7 @@ skills/
       diagnose.md               Diagnosis method, stop rules, tools and fallbacks, review header, fan-out brief
       briefs.md                 Execution brief for the fix agent (read only after approval)
       redaction.md              Credential check before any post, commit or PR
+      evidence.md               Pictures: when, the capture script, the upload command, captions (1.4.0)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
       inventory.md              Every skill used, with its opencode name or fallback
@@ -193,15 +206,17 @@ tests/
   preservation-check.py         Lists every line of a release tag (--tag, default the newest) that is gone or MOVED; fails on unexplained ones
   preservation-1.3.0.md         One justification per removed or changed line
   preservation-1.3.1.md         The same for 1.3.1, keyed by file and heading
+  preservation-1.4.0.md         The same for 1.4.0, with the builder's deviations from the plan
 .claude-plugin/plugin.json      Plugin manifest and version
 .github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
 ```
 
 The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md` (mirrored at the repo root) and the files in `skills/superfix/references/` it tells the model to read. `tests/` is never loaded at run time.
+Since 1.4.0 the picture step writes a Python script from `references/evidence.md` into the run folder and runs it. It needs the tools under "Pictures" above; without them, there are no pictures and nothing else changes.
 
 ---
 
 ## Status
 
-1.3.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.3.0.
+1.4.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.4.0. Pictures of Qik draft pages are untested in 1.4.0 (they need the one-time saved login above).
