@@ -129,7 +129,7 @@ Every message in this table carries the required Labels: line, and every Status 
 - Any significant scope change or blocker encountered
 - Child issues, when they exist: progress goes on the parent only.
 - A Simple fix posts 2 comments (decision request, final result). A Moderate or Complex fix posts 3 (plus the plan comment).
-- Criteria mode: the "Keep executing does not approve" notice is appended to the decision comment (the comment file gains it, the checks run again, then `gh issue comment <N> --edit-last --body-file <file>`), so it adds no comment and these counts stay the same.
+- Criteria mode: the "Keep executing does not approve" notice is appended to the decision comment, edited by its recorded id (`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<comment file>`, after the checks; never `--edit-last`), so it adds no comment and these counts stay the same.
 
 Comment format:
 Every comment and journal entry starts with:

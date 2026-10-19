@@ -120,7 +120,7 @@ Criteria mode never reuses a code sequence above. Simple runs it on the main thr
 ```
 criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through criteria.md's tool, in its sandbox
 → change the branch file, or the copy from criteria.md's copy command
-→ criteria.md's attempt command on the change (--label try<n>; the tool runs every locked script itself), then the progress command
+→ criteria.md's attempt command on the change (--label try<n>; the tool runs every locked script itself, at most 5 per epoch), then the progress command; an approved amendment goes through criteria.md's amend
 → repeat until every C passes, or STOP-NO-PROGRESS, STOP-CAP or a budget limit
 → review: a general-purpose agent [sonnet/high] with the review header; it reads the criterion lines, the original and the change, and looks for a check met in a way that misses the problem (a row deleted instead of merged, a value blanked, a definition read another way)
 → criteria.md's three runs (run 1 the original, run 2 the change, run 3 the negative control)
