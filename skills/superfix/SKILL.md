@@ -11,11 +11,8 @@ description: >-
 ---
 
 # Superfix Orchestrator
-
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
-
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
-
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
 ## Model & Effort Policy
@@ -28,7 +25,6 @@ Applied automatically. No user configuration required.
 | Expert panel, brainstorming, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
 
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
-
 Skill names are Claude Code names. If a name does not resolve, use the opencode equivalent from the inventory; if neither exists, do the step inline from its stated purpose and write `ran inline: <skill>` in the PR body. Never skip tests or verification.
 
 ## Input Handling
@@ -48,9 +44,7 @@ If `gh issue view` fails (auth error, repo not set, issue not found), surface th
 
 ## Phase 0 - Problem Profile
 Read the full input - body, labels, all comments - before classifying. Never classify from title alone.
-
 Run the Coverage check (Classification Rules) first, then type and tier.
-
 Produce a **Problem Profile**:
 
 ```
@@ -66,9 +60,7 @@ Agent execution: [yes - all Moderate and Complex]
 ```
 
 **Compound issues:** When an issue spans two types (e.g. bug + security, UX + performance), set both `primary_type` and `secondary_type`. Merge skill manifests - run Phase 1 exploration tools from both types; append Phase 3 execute additions from the secondary type to the primary path.
-
 Do not post it as a comment. The Problem Profile goes in the AI detail part of the one decision comment at the Stop gate.
-
 State it in conversation if no issue.
 
 ## GitHub Issue as Work Journal
@@ -81,7 +73,6 @@ into the `Labels:` field. Failed or skipped: never stop; the field reads `not se
 superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
 
 ## Classification Rules
-
 ### Coverage check (before type and tier)
 | Row | Matches when the report mentions | I can |
 |-----|----------------------------------|-------|
@@ -120,7 +111,6 @@ If a security signal and another type both match (for example "XSS error"), `sec
 | **Complex** | Architectural impact, unclear scope, cross-cutting concerns, or risky changes |
 
 **Complexity can be upgraded** (Simple→Moderate, Moderate→Complex) after exploration reveals more scope. It cannot be downgraded.
-
 **Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
 
 ## Phase 1 - Explore and Diagnose
@@ -140,7 +130,6 @@ message if there is no issue.
 
 ### After exploration: confirm complexity tier
 Re-assess the provisional tier. If scope is larger than described, upgrade and state why. Put the confirmed tier in the decision comment.
-
 End of Phase 1, every tier: write `## Problems`, the evidence note (failing check
 and output, baseline, cause confirmed or suspected, ruled out and how, Tools
 used). Later steps read evidence from here.
@@ -159,7 +148,6 @@ fast lane. Nothing is drawn before a yes. After go: diagrams.md's subagent in it
 folder and clone compared after); source checks, render, Read, diagrams.md's upload command only.
 
 ## Stop gate
-
 Every tier, every run, unless the fast lane was asked for in this run.
 
 1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
@@ -226,32 +214,9 @@ what leaked where.
 Pictures: no upload except through evidence.md's upload command; a pattern hit in a picture blocks it.
 
 ## Phase 2 - Design & Plan
-
 Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
-
-### Design step (type-specific, before writing-plans)
-| Type | Design approach |
-|------|----------------|
-| `bug` | No design step - exploration output feeds directly into plan |
-| `performance` | Plan based on measured baseline; state target improvement metric |
-| `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
-| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
-| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
-| `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
-
-### Plan
-Invoke `superpowers:writing-plans` [sonnet/high]. Save to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`.
-
-Plan must document:
-- What files change and why
-- Key design decisions made
-- What is explicitly NOT in scope
-- For performance: baseline measurement and target
-
-### Context file
-After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
-
-**Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
+At go (Moderate, Complex): Read references/execute.md in full BEFORE Phase 2. Its Design step, Plan and
+Context file sections hold the design table, the plan file rules and the context file rule.
 
 ### Expert panel (all Moderate + Complex - blocking)
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
@@ -267,7 +232,6 @@ Invoke `expert-panel` [opus/high] after plan is written, at the plan→implement
 If the panel overturns the approved option or breaks the approved budget, go back to the owner at once with one batched decision message (Stop gate form) and wait. That is not a pass. Must-fix items left after pass 2 go to the owner in the same message form.
 
 ## Phase 3 - Execute
-
 Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the final comment, or in your next message to the user if there is no issue.
 
 ### Budget
@@ -338,9 +302,7 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 - A message starting BUDGET STOP (the main thread posts it, see Budget)
 
 The agent may commit, push and open the PR only after the redaction checks pass (briefs.md states the rule). Issue comments and the Status line are posted by the main thread, which re-runs the budget commands and the redaction checks itself first.
-
 The agent ticks the plan file's task checkboxes as each task completes.
-
 On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/runs/<run-key>/secrets` (the same key, built again: the run key on the journal's issue line, else the issue number, else the journal file name; redaction.md); do not start a new one, and a NO-RUN-FOLDER stops. Continue from the first unfinished stage. Do not redo finished stages.
 Also re-read the `**Labels:**` line and the last `Diagram:` and `Gap note:` lines; run the label
 commands so the labels match the Status line; search before filing any gap note (gaps.md).
@@ -379,15 +341,11 @@ Status "Waiting for you: 1 question". Never re-diagnose quietly.
 These are in `references/execute.md`. Read it in full before implementing (see the start of Phase 3).
 
 ## Phase 4 - Close
-
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
-
 If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
-
 The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
-
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
 The final comment also carries the `Labels:`, `Diagram:` and `Gap note:` lines (journal.md).
@@ -432,5 +390,4 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 ---
 
 ## Skill Inventory Reference
-
 The table of every skill this orchestrator can employ, with the opencode name or fallback for each, is in `references/inventory.md`. Read it only when a named skill does not resolve (see Model & Effort Policy).
