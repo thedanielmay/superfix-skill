@@ -85,9 +85,9 @@ superfix-awaiting-decision` (or superfix-approved) and the body carries the mark
 ### Coverage check (before type and tier)
 | Row | Matches when the report mentions | I can |
 |-----|----------------------------------|-------|
-| Code | files in this repo, a test, a stack trace, CLI or page output from this repo | diagnose and fix |
+| Code | source, tests, build or config files in this repo, a stack trace, CLI or page output from this repo | diagnose and fix |
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
-| Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence |
+| Everything else | documents, including prose files inside the repo (README, ONBOARDING.md, guides) when the problem is the writing, not code; process, sheets, business, anything not above | diagnose only, low confidence |
 
 Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile
 (the plain coverage line for the decision message is in `references/journal.md`).

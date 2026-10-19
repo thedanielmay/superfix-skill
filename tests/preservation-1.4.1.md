@@ -6,6 +6,9 @@ Check: `python3 tests/preservation-check.py "$PWD" --tag v1.4.0` must print `0 u
 
 ## Justifications
 
+- skills/superfix/SKILL.md > Coverage check (before type and tier) :: | Code | files in this repo, a test, a stack trace, CLI or page output from this repo | diagnose and fix | :: review 1 of 1.4.1 (coordinator decision 6): "files in this repo" also caught a README or guide whose problem is the writing, so such a problem was called Code and got no gap note. Same place, same row; the trigger list now reads "source, tests, build or config files in this repo, a stack trace, CLI or page output from this repo".
+- skills/superfix/SKILL.md > Coverage check (before type and tier) :: | Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence | :: review 1 of 1.4.1 (coordinator decision 6): the other half of the same fix. Same place, same row; it now names prose files inside the repo (README, ONBOARDING.md, guides) when the problem is the writing, not code. Nothing else in the row changed.
+
 ## Deviations from the plan (builder, 19 Oct 2026)
 
 Each is the safest reading of the plan, or a fix for something its wording would have broken. Found while building and probing on testbed tags `seed-1.4` and `seed-1.4.1`.
