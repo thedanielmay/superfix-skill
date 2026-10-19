@@ -8,6 +8,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 - `~/.agents/skills/superfix` is a symlink to this clone. opencode and anything else reading that path sees your checkout directly. Do not edit through it, edit here.
 - `~/.claude/plugins/cache/thedanielmay/superfix/` is Claude Code's installed copy. Never edit it. A plugin update overwrites it.
 - Work is tracked in GitHub issues. Start from the epic labelled `epic`.
+- At run time each Superfix run keeps its credential list and scratch files in `~/.superfix/runs/<owner>+<repo>+<issue number or journal file name>/` (all lowercase; see `skills/superfix/references/redaction.md`); the journal files stay in `~/.superfix/journal/`.
 
 ## The two SKILL.md files must match
 
@@ -22,7 +23,9 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 1. Pick an issue. Update main: `git switch main && git pull`.
 2. Branch in a separate worktree, never in this clone, because opencode reads this clone and it must stay on `main`: `git worktree add ../superfix-<short-slug> -b fix/<issue-number>-<short-slug> origin/main`. Do all the steps below inside that worktree. Remove it after the merge with `git worktree remove ../superfix-<short-slug>`.
 3. Edit `skills/superfix/SKILL.md`, then copy it to the root (above). If behaviour, scope, or installation changed, update `README.md` too: plain human description of what the skill is, what it does, and install directions for Claude Code and opencode.
-4. Run the preservation check: `python3 tests/preservation-check.py "$PWD"`. It lists every line of the last release that is gone from the skill files. Each one needs a line in `tests/preservation-<version>.md` (`- <exact old line> :: <reason>`). It must exit 0. Nothing useful is cut without a named reason. When starting the next release, change the tag in the script (now `v1.2.0`) to the last release and start a new justification file.
+4. Run the preservation check: `python3 tests/preservation-check.py "$PWD"`. It lists every line of the last release that is gone from the skill files. Each one needs a line in `tests/preservation-<version>.md` (format below). It must exit 0. Nothing useful is cut without a named reason. The check takes the release tag to compare against: `--tag v1.3.0` (default: the newest `v*` tag reachable from `HEAD~`, printed on the first line), and reads `tests/preservation-<version in plugin.json>.md` in the format `- <file> > <heading> :: <exact old line> :: <reason>`; a line under a different heading or file is MOVED and its reason names the new place. When starting the next release, start a new justification file.
+   - CI runs the same check on every PR that touches the skill files, so bump `version` in `.claude-plugin/plugin.json` in the first PR of a release: the check reads the justification file named after it.
+   - Known limit: indentation is ignored (lines are compared with spaces stripped), so a line that only changed its indent is not reported.
 5. Test it (next section).
 6. Commit, push, open a PR with `Closes #<issue-number>` in the body. Merge, delete the branch.
 

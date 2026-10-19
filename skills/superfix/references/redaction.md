@@ -4,43 +4,73 @@ New in 1.3.0. SKILL.md ("Decision and redaction") says when to run these checks:
 
 Rules that hold everywhere:
 - Every command below is self-contained. Claude Code's shell keeps no variables between Bash calls, so nothing here depends on an earlier command.
-- Every check prints one explicit word: `CLEAN`, `BLOCKED <files>`, `NO-LIST`, `PATTERN-CLEAN` or `PATTERN-HITS`. **Silence is never a pass.** No word printed, or an `ERROR` line, means the check did not run: fix it and run it again.
+- Every check prints one explicit word: `CLEAN`, `BLOCKED <files>`, `NO-LIST`, `NO-RUN-FOLDER`, `PATTERN-CLEAN` or `PATTERN-HITS`. **Silence is never a pass.** No word printed, or an `ERROR` line, means the check did not run: fix it and run it again. `NO-RUN-FOLDER` is a stop like `ERROR`, never a pass.
 - The exact-string check on session credentials BLOCKS. A pattern hit is REPORTED, and you decide (below).
 - Every post uses `--body-file`. Never pass `--body "..."` inline. A `--title` from chat text is written to a file and checked first, then passed as `--title "$(cat <title file>)"`.
+
+### Run folder (one per run, survives a restart)
+
+New in 1.3.1. Each run keeps its credential list and its scratch files in its own folder, `~/.superfix/runs/<run-key>/`, never in a shared file.
+
+- `<run-key>` is built from facts the run already has, so it needs no remembered variable and comes out the same after a restart. It is always all lowercase, with `+` between the parts (`+` cannot appear in a GitHub owner or repo name, so two different owner and repo pairs never give the same key):
+  - With an issue: `<owner>+<repo>+<issue number>`, for example `thedanielmay+superfix-skill+48`.
+  - Without an issue: `<owner>+<repo>+<journal file name without .md>`, for example `thedanielmay+superfix-skill+2026-10-19-login-loop`.
+  - No remote: `local+<repo folder name>+<journal file name without .md>`.
+  - To print it lowercased: `printf '%s+%s+%s\n' '<owner>' '<repo>' '<issue number or journal file name>' | tr '[:upper:]' '[:lower:]'`.
+  - A journal run that later creates its issue moves the folder to the issue key (journal.md, the issue question) and uses the issue key from then on.
+  - On a restart: the run key named on the journal's issue line if there is one, else the issue key if the journal or the conversation says an issue exists, else the journal key. If that folder is missing the check prints `NO-RUN-FOLDER`: stop and rebuild the key from the facts. If the rebuilt key still has no folder, the list is gone: tell the owner, and ask for any credential again before creating the folder anew.
+- Write the literal folder in every command, for example `$HOME/.superfix/runs/thedanielmay+superfix-skill+48`. A variable set in an earlier Bash call is gone.
+- Create the folder as soon as the key is known, before any credential could be given: on an issue, before the first command of Phase 0; without one, as soon as the journal file name is chosen. It holds a `key` file with the literal key, which the checks look for:
+
+```bash
+umask 077; D="$HOME/.superfix/runs/<run-key>"; mkdir -p "$D" && chmod 700 "$D" && printf '%s\n' '<run-key>' > "$D/key" && echo "RUN-FOLDER-READY $D"
+```
+
+- The folder is mode 700 and `secrets` in it is mode 600 (created under `umask 077`). Every scratch file (diff, msgs, body, comment and title files) is also written under `umask 077`, so it is mode 600.
+- Two runs on two different issues never share a list: each has its own folder, and the end-of-run step deletes only its own.
+- Two runs on the SAME issue at the same time are not supported. They share one folder and one list, and the first to finish deletes the folder the other is still using, so the other's check then prints `NO-RUN-FOLDER` and stops.
+- The journal files stay in `~/.superfix/journal/`, outside the run folder, and are never deleted by the end-of-run step.
 
 ### Session list (a fixed file, survives a restart)
 
 Every exact string the owner gave as a credential, password or token, in any message, plus any found in tool output. One per line. Append with a quoted heredoc, so quotes and `$` survive unchanged:
 
 ```bash
-mkdir -p ~/.superfix && (umask 077; cat >> ~/.superfix/session-secrets <<'EOF'
+D="$HOME/.superfix/runs/<run-key>"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else (umask 077; cat >> "$D/secrets" <<'EOF'
 <exact string>
 EOF
-) && chmod 600 ~/.superfix/session-secrets && echo LIST-SAVED
+) && chmod 600 "$D/secrets" && echo LIST-SAVED; fi
 ```
 
+- `NO-RUN-FOLDER` here means the key is wrong or the folder was never made: nothing was saved. Rebuild the key from the facts and append again.
+
 - The list is a file, so it survives a restart. Blank lines are ignored by the check.
-- At the end of the run: `rm -f ~/.superfix/session-secrets && rm -rf ~/.superfix/check && echo LIST-DELETED`.
+- At the end of the run, delete this run's folder and nothing else. The guard prints `REFUSED` instead of deleting when the path is not one folder inside `~/.superfix/runs/` (an empty key, `..`, or a `/` in the key; a `+` is fine), so it can never delete `~/.superfix/runs/` itself:
+
+```bash
+D="$HOME/.superfix/runs/<run-key>"; K="${D#"$HOME/.superfix/runs/"}"; if [ "$K" = "$D" ] || [ -z "$K" ] || [ "$K" = . ] || [ "$K" = .. ] || [ "$K" != "${K%/*}" ]; then echo "REFUSED: not a run folder: $D"; else rm -rf "$D" && echo LIST-DELETED; fi
+```
 
 ### Files to check
 
 Body files (comment, issue body, PR body, title file) are checked as they are. After a branch exists, also write the diff and the commit messages to files:
 
 ```bash
-mkdir -p ~/.superfix/check && git diff <approval-sha>..HEAD > ~/.superfix/check/diff && git log --format=%B <approval-sha>..HEAD > ~/.superfix/check/msgs && echo FILES-READY
+umask 077; D="$HOME/.superfix/runs/<run-key>"; git diff <approval-sha>..HEAD > "$D/diff" && git log --format=%B <approval-sha>..HEAD > "$D/msgs" && echo FILES-READY
 ```
 
-`<files>` below means the paths written out in full, for example `~/.superfix/check/diff ~/.superfix/check/msgs /tmp/body.md` (zsh does not split a variable into several file names).
+`<files>` below means the paths written out in full, for example `~/.superfix/runs/<run-key>/diff ~/.superfix/runs/<run-key>/msgs ~/.superfix/runs/<run-key>/body-<N>.md` (zsh does not split a variable into several file names).
 
 ### Exact-string check (blocks; catches a password with no keyword)
 
 ```bash
-L="$HOME/.superfix/session-secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - <files>)"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi
+D="$HOME/.superfix/runs/<run-key>"; L="$D/secrets"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - <files>)"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi; fi
 ```
 
 - `CLEAN`: no session credential in those files.
 - `BLOCKED <files>`: a session credential is in the named files. Do not post, push or commit. In a comment, body, title or commit message file, replace it with `[redacted]` and run the check again. In the diff (source code), never write `[redacted]`: stop and ask the owner.
-- `NO-LIST`: the list file is missing or empty, which means no credential was given this session. Run the pattern check anyway.
+- `NO-LIST`: the run folder and its `key` file exist, but the list file is missing or empty, which means no credential was given this session. It is a pass only then. Run the pattern check anyway.
+- `NO-RUN-FOLDER <folder>`: the run folder or its `key` file is missing, so the key is wrong or the folder is gone. Treat it like `ERROR`: stop, post nothing, rebuild the key from the facts (Run folder above) and run the check again.
 - It prints file names only (`-l`), never the matching line, so the secret does not land in the transcript.
 
 ### Pattern check (reports; you decide)
