@@ -4,7 +4,7 @@ New in 1.3.0. SKILL.md Phase 1 says when to read this file. The exploration skil
 
 Before approval the only writes allowed are the journal, a scratch folder outside the repo, and a detached worktree inside that folder (removed before the stop). No branch, no edits to tracked files, no Qik writes, no change to org data, roles or permissions. Run installs and test commands (`npm install`, `pip install`, a build) in the scratch worktree, never in the repo, so no stray file such as `package-lock.json` is left. If `git status --porcelain` is not empty at the stop, remove the stray file and say so.
 
-Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to its `assets` release through the upload gate in references/evidence.md.
+Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
 
 ### Method
 

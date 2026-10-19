@@ -130,7 +130,7 @@ Diagnosis fixes nothing. Before approval the only writes allowed are the
 journal, a scratch folder outside the repo, and a detached worktree in it
 (removed before the stop): no branch, no edits to tracked files, no Qik writes.
 Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to
-its `assets` release through the upload gate in references/evidence.md.
+its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
 Write `Loaded: explore.md, diagnose.md` in the decision comment, or in your next
 message if there is no issue.
 
@@ -144,10 +144,9 @@ used). Later steps read evidence from here.
 
 ### Evidence pictures: if the problem is something you could see on a screen, take them (read references/evidence.md first)
 Read `references/evidence.md` in full before the first picture; write `Loaded: evidence.md` in the decision comment. A web page, app screen, rendered document or UI always counts as a screen: `NONE (no screen)` is only for command output, tests, servers and config.
-- Command, test, log and backend output stays text, never an image.
-- Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
+- Command, test, log and backend output stays text, never an image. Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
 - Red box numbered like the problem, one caption that says it all in words. Width or height 0: no mark.
-- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing. Any entry in the secrets list: upload nothing until the owner has looked and replied "post the pictures".
+- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing. Any entry in the secrets list, or a saved login: upload nothing until the owner has looked and replied "post the pictures" (after those pictures, in this run).
 - Never paste a session secret into a browser tool call; Claude in Chrome is never a picture source. Never read a mark-*.side file.
 
 ## Stop gate
@@ -157,7 +156,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
 1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
-   The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)` line (journal.md); a stop without it is not complete.
+   The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -176,6 +175,7 @@ question has none: unless the owner says yes to it explicitly, it is no (keep
 the journal file, create nothing), on public and private repos alike. A reply that answers only some questions: ask
 only the rest. Anything else (a question, a new fact): answer it, update the
 record, stay stopped.
+The `assets` release question (evidence.md) has no recommended answer either: anything but an explicit yes to it is no.
 
 On go: write ## Decision (below) as a body update, no comment. Run `git fetch
 origin`, then record approval-sha = `git rev-parse origin/<default-branch>` and

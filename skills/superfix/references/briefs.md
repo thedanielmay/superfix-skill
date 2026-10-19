@@ -11,6 +11,9 @@ Before every commit, run the budget commands; over any limit, stop and return
 a message whose first line is exactly BUDGET STOP, then done, left, used
 versus budget. Run the solved check before declaring done. Tick plan
 checkboxes as you go.
+PICTURES RULE (do not skip): every problem with a before picture gets an after
+picture in solved-check run 2 (references/evidence.md, retake), or a stated
+reason; return a `Pictures:` line (journal.md) with your result.
 
 GitHub rule (the only one): you may commit locally, push the branch and open
 the PR, each only after the redaction checks in references/redaction.md
