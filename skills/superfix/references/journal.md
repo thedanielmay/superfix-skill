@@ -13,7 +13,7 @@ Keep the issue body current, but never overwrite what the reporter wrote.
 - After Phase 0 and after any plan is written or significantly revised, update those sections. They should always answer: "what are we building, why, and what's out of scope?"
 - Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
 - After Phase 0 the update sets the Status line to `Diagnosing` and writes the Summary. `## Problems`, `## Options` and `## Done when` are filled at the Stop gate. `## Decision` stays empty until the owner answers.
-- The body file is a fixed path, because the shell keeps no variables between calls. Build it (first block), run both checks in `references/redaction.md` on it and wait for `CLEAN` or `NO-LIST` plus `PATTERN-CLEAN` or decided hits, then post it (second block). If a hit is inside `## Original report`, stop: see "The reporter's own issue body" in redaction.md.
+- The body file is a fixed path in this run's folder `~/.superfix/runs/<run-key>/` (redaction.md says how to build `<run-key>`; write it out literally in each command), because the shell keeps no variables between calls. Build it (first block), run both checks in `references/redaction.md` on it and wait for `CLEAN` or `NO-LIST` plus `PATTERN-CLEAN` or decided hits, then post it (second block). If a hit is inside `## Original report`, stop: see "The reporter's own issue body" in redaction.md.
 
 ```bash
 BODY="$(gh issue view <N> --json body -q .body)"
@@ -23,7 +23,7 @@ if printf '%s\n' "$BODY" | grep -q '^## Original report$'; then
 else
   ORIG="$BODY"
 fi
-F="$HOME/.superfix/check/body-<N>.md"; mkdir -p "$HOME/.superfix/check"
+F="$HOME/.superfix/runs/<run-key>/body-<N>.md"; (umask 077; mkdir -p "$HOME/.superfix/runs/<run-key>")
 cat > "$F" <<'EOF'
 **Status:** <value> (updated <YYYY-MM-DD HH:MM>)
 
@@ -79,7 +79,7 @@ printf '\n## Original report\n%s\n' "$ORIG" >> "$F" && echo "BODY-READY $F"
 After the checks, in a new call:
 
 ```bash
-gh issue edit <N> --body-file ~/.superfix/check/body-<N>.md
+gh issue edit <N> --body-file ~/.superfix/runs/<run-key>/body-<N>.md
 ```
 
 **Status line**
@@ -114,13 +114,13 @@ explanation, no dashes as punctuation. Dense detail for AI readers follows.
 Post with `gh issue comment <N> --body-file <file>`, never inline --body.
 
 ```bash
-mkdir -p ~/.superfix/check && cat > ~/.superfix/check/comment-<N>.md <<'EOF'
+(umask 077; mkdir -p ~/.superfix/runs/<run-key>) && cat > ~/.superfix/runs/<run-key>/comment-<N>.md <<'EOF'
 > **In plain English:** <what was done, one sentence>. <what is needed from you, or "Nothing needed from you now.">
 
 <detail for AI readers>
 EOF
-# new call, after both checks on ~/.superfix/check/comment-<N>.md:
-gh issue comment <N> --body-file ~/.superfix/check/comment-<N>.md
+# new call, after both checks on ~/.superfix/runs/<run-key>/comment-<N>.md:
+gh issue comment <N> --body-file ~/.superfix/runs/<run-key>/comment-<N>.md
 ```
 
 ### Decision message (posted at the Stop gate)
@@ -163,7 +163,7 @@ The LAST numbered question of the decision message, always, so the owner's numbe
 - Get the visibility first: `gh repo view --json visibility -q .visibility`.
 - If the repo is PUBLIC, the question adds: "It is public, so anyone can read it. The text it would post is below." and shows the redacted Original report.
 - If the duplicate search (`gh issue list --state open --search "<3 key words>" --limit 5`) found a likely match, name it in the question and offer to use it instead.
-- Yes: write the title to `~/.superfix/check/title.txt` and the body to a file, run both checks on both, then `gh issue create --title "$(cat ~/.superfix/check/title.txt)" --body-file <body file>`, add a line under the journal file's Status line pointing to the issue, and continue on the issue. No: keep going in the journal file.
+- Yes: write the title to `~/.superfix/runs/<run-key>/title.txt` and the body to a file, run both checks on both, then `gh issue create --title "$(cat ~/.superfix/runs/<run-key>/title.txt)" --body-file <body file>`, add a line under the journal file's Status line pointing to the issue, then move the run folder to the issue key with `mv ~/.superfix/runs/<journal run-key> ~/.superfix/runs/<owner>-<repo>-<N> && echo RUN-MOVED` (both written out), and continue on the issue. No: keep going in the journal file.
 
 ### File-mode journal (no issue)
 
