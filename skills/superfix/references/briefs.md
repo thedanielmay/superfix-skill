@@ -14,6 +14,7 @@ checkboxes as you go.
 PICTURES RULE (do not skip): every problem with a before picture gets an after
 picture in solved-check run 2 (references/evidence.md, retake), or a stated
 reason; return a `Pictures:` line (journal.md) with your result.
+Return each retake's CROP-ALIGNED, CROP-WIDENED or CROP-DIFFERENT word with the picture name.
 
 GitHub rule (the only one): you may commit locally, push the branch and open
 the PR, each only after the redaction checks in references/redaction.md
@@ -21,6 +22,7 @@ the PR, each only after the redaction checks in references/redaction.md
 decided, on the diff, the commit messages and the PR body file. Open the PR
 with `--body-file`. Never post issue comments, edit the issue body or change
 the Status line: return those results to the caller, which posts them.
+Never add or remove labels and never write gap notes or diagrams; the main thread does those.
 NO-RUN-FOLDER (the folder or its key file is missing) is a stop: commit,
 push and post nothing, and return it to the caller.
 

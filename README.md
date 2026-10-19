@@ -87,6 +87,19 @@ When a problem shows on a screen (a page, a rendered component), Superfix takes 
 - **Needs:** a Python 3 that has the `playwright` module and a Chromium browser, plus `tesseract` and ImageMagick (`brew install tesseract imagemagick`). On this Mac, Xcode's `/usr/bin/python3` already has playwright with its browsers; Homebrew's `python3` does not, and Superfix does not use it for pictures. On another Mac, use a virtual environment: `python3 -m venv ~/.superfix/venv && ~/.superfix/venv/bin/pip install playwright && ~/.superfix/venv/bin/python -m playwright install chromium`, then that `python` is found by the probe only if it is first on PATH as `python3`. Without these, Superfix takes no pictures and says so under Not tested.
 - **Qik draft pages (untested in 1.4.0):** they need a one-time saved login. Run `/usr/bin/python3 -m playwright codegen --save-storage=$HOME/.superfix/auth/<host>.json <draft url>`, log in in the window that opens, close it, then `chmod 600 ~/.superfix/auth/<host>.json`. That file holds your session cookies: never put it in a repo. Without it, no Qik picture.
 
+### Labels, diagrams and gap notes (1.4.1)
+
+- **Labels.** Superfix puts a yellow `superfix:awaiting-decision` label on the issue whenever it waits for you (a question, a stop, or a PR ready for your review), and a green `superfix:approved` label while it fixes. None while it diagnoses or when it is done. It only uses labels on repos you own with no workflow that reacts to issues or labels; otherwise the issue body carries a hidden marker instead (`<!-- marker superfix-awaiting-decision -->`) and the comment says "not set".
+  - Everything waiting for you, on the website: https://github.com/issues?q=is%3Aopen+label%3A%22superfix%3Aawaiting-decision%22+user%3Athedanielmay
+  - The same in a terminal: `gh search issues --label "superfix:awaiting-decision" --owner thedanielmay --state open`
+  - What the saved search misses: issues that only carry the body marker, and issues in repos you do not own. The GitHub app's own label filter was not tested. Searching for the marker words (`superfix-awaiting-decision`) does find marked issues after a few minutes, but also any issue that mentions those words.
+- **Diagrams, only when you say yes.** For Moderate or Complex work where 3 or more parts interact, the decision comment asks one numbered question with a recommended yes (so "keep executing" means yes). The diagrams are drawn after your go, by a subagent following the `diagram-design` skill's files (default style, chosen by Claude; change it with `diagram-design:profile`), checked for secrets and posted in the issue description: at most two, the cause today and the change. Private repos only, like the pictures. Rules in `references/diagrams.md`.
+- **Private gap notes.** When a problem is something Superfix does not cover (a document, a process, a sheet), it writes a short note about that KIND of problem: what a playbook would need. The note never names a client, repo, person, path or link and never repeats your words. Rules in `references/gaps.md`.
+  - Setup: put `gap_repo=<you>/<private repo>` in `~/.superfix/config` (or set `SUPERFIX_GAP_REPO`). The repo must be private, owned by you, with no other collaborators and no webhook.
+  - GitHub Apps cannot be checked from the `gh` login. Look at https://github.com/settings/installations, make sure no App can read the gap repo, then add the line `gap_repo_no_apps=<you>/<gap repo> <YYYY-MM-DD>` (the repo you checked, a space, today's date) to `~/.superfix/config`. Without that line for the same repo, or when it is older than 90 days, every note goes to `~/.superfix/gaps/` on your Mac instead. A `SUPERFIX_GAP_REPO` set anywhere else (for example by a project's settings) only counts when this line names the same repo.
+  - All open notes, most seen first: `https://github.com/<you>/<gap repo>/issues?q=is%3Aopen+sort%3Acomments-desc`
+- **Before and after pictures line up.** The after picture uses the same page area as the before picture. If the thing moved out of that area, the after picture is widened and the caption says so.
+
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
 Type-specific design step (brainstorming, threat modelling, UX iteration), then a written plan saved to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md` plus a context file passed to every subagent. All Moderate and Complex work goes through a blocking expert panel review before implementation.
@@ -148,6 +161,7 @@ Nothing is hard-required. Superfix names Claude Code skills; any step whose skil
 - `security` (threat-model step) - no such skill exists in either harness; the closest family is the memstack security skills ([cwinvestments/memstack](https://github.com/cwinvestments/memstack)). Always runs inline.
 - `webapp-testing` - ships as `example-skills:webapp-testing` in [anthropics/skills](https://github.com/anthropics/skills); where it is not installed the Playwright steps run inline.
 - `simplify` - bundled with some Claude Code versions, not a plugin. The fallback is the `code-simplifier` agent, then `refactor` above, else inline.
+- `diagram-design` (1.4.1) - Superfix never invokes it; a subagent reads its files from the installed plugin folder to draw the optional diagrams. Without it, no diagrams.
 
 ---
 
@@ -198,6 +212,8 @@ skills/
       briefs.md                 Execution brief for the fix agent (read only after approval)
       redaction.md              Credential check before any post, commit or PR
       evidence.md               Pictures: when, the capture script, the upload command, captions (1.4.0)
+      diagrams.md               Diagrams: when to ask, the brief, the source check, render and upload (1.4.1)
+      gaps.md                   Private gap notes: what they hold, the repo checks, the local folder (1.4.1)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
       inventory.md              Every skill used, with its opencode name or fallback
@@ -207,6 +223,7 @@ tests/
   preservation-1.3.0.md         One justification per removed or changed line
   preservation-1.3.1.md         The same for 1.3.1, keyed by file and heading
   preservation-1.4.0.md         The same for 1.4.0, with the builder's deviations from the plan
+  preservation-1.4.1.md         The same for 1.4.1
 .claude-plugin/plugin.json      Plugin manifest and version
 .github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
@@ -220,3 +237,5 @@ Since 1.4.0 the picture step writes a Python script from `references/evidence.md
 ## Status
 
 1.4.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.4.0. Pictures of Qik draft pages are untested in 1.4.0 (they need the one-time saved login above).
+
+1.4.1 adds the labels, the optional diagrams, the private gap notes and aligned before and after pictures (above).

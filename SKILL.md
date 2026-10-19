@@ -19,7 +19,6 @@ It diagnoses first and stops for approval before fixing: one decision message pe
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
 ## Model & Effort Policy
-
 Applied automatically. No user configuration required.
 
 | Task category | Model | Effort |
@@ -33,7 +32,6 @@ State model+effort inline at every dispatch: `[sonnet/high - codebase exploratio
 Skill names are Claude Code names. If a name does not resolve, use the opencode equivalent from the inventory; if neither exists, do the step inline from its stated purpose and write `ran inline: <skill>` in the PR body. Never skip tests or verification.
 
 ## Input Handling
-
 | Input form | How to get context |
 |------------|-------------------|
 | `/issue #N` | `gh issue view N` - read title, body, labels, all comments |
@@ -49,7 +47,6 @@ comment, body edit or journal entry.
 If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
 
 ## Phase 0 - Problem Profile
-
 Read the full input - body, labels, all comments - before classifying. Never classify from title alone.
 
 Run the Coverage check (Classification Rules) first, then type and tier.
@@ -75,28 +72,35 @@ Do not post it as a comment. The Problem Profile goes in the AI detail part of t
 State it in conversation if no issue.
 
 ## GitHub Issue as Work Journal
-
 When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced or the file-mode journal is needed, before the first comment, body edit or journal entry, and write `Loaded: journal.md` in the decision comment.
+
+Labels follow the Status line (journal.md, Labels): "Waiting for you", "Stopped" or "Ready for review"
+means `superfix:awaiting-decision`, "Fixing" means `superfix:approved`, else neither. After every
+Status change run journal.md's label commands; each prints one word, never silenced. Copy LABELS-NOW
+into the `Labels:` field. Failed or skipped: never stop; the field reads `not set (<word>); marker
+superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
 
 ## Classification Rules
 
 ### Coverage check (before type and tier)
-
 | Row | Matches when the report mentions | I can |
 |-----|----------------------------------|-------|
-| Code | files in this repo, a test, a stack trace, CLI or page output from this repo | diagnose and fix |
+| Code | source, tests, build or config files in this repo, including `.md` files a program reads (skills, prompts, templates); a wrong command, code sample, link or version in a README or docs page; a docs page that renders wrongly; a stack trace, CLI or page output from this repo | diagnose and fix |
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
-| Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence |
+| Everything else | prose files (README, ONBOARDING.md, guides, CHANGELOG) when the problem is only how they are written; documents, process, sheets, business, anything not above | diagnose only, low confidence |
 
 Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile
 (the plain coverage line for the decision message is in `references/journal.md`).
 Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
 "Everything else" stop at diagnosis even after approval.
+Each "Everything else" problem, and each problem whose row's tools were missing (partial), gets one
+gap note at the Stop gate: read references/gaps.md first. The note names the KIND of problem only;
+it goes to the private gap repo only when every gaps.md check passes, else to ~/.superfix/gaps/.
+Never the work repo or a public repo. Never edit this skill because of a gap note.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
 
 ### Type detection (apply in priority order; security signals win over every other type)
-
 | Signals | Type |
 |---------|------|
 | Labels: `security`, `vuln`, `cve`; keywords: "injection", "auth bypass", "XSS", "CSRF", "exposed", "CVE", "vulnerability" | `security` |
@@ -109,7 +113,6 @@ Several problems are "P1, P2"; "compound" still means one issue spanning two typ
 If a security signal and another type both match (for example "XSS error"), `security` is primary and the other type is secondary (see Compound issues).
 
 ### Complexity tier (provisional from issue text; confirmed after exploration)
-
 | Tier | Criteria |
 |------|----------|
 | **Simple** | 1-3 files, fix obvious from description, no design decisions |
@@ -121,7 +124,6 @@ If a security signal and another type both match (for example "XSS error"), `sec
 **Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
 
 ## Phase 1 - Explore and Diagnose
-
 Run before writing a single line of code. Exploration is type-aware.
 Read `references/explore.md` and `references/diagnose.md` in full now. Run the
 exploration for the primary (and secondary) type inside the diagnosis method:
@@ -131,11 +133,12 @@ journal, a scratch folder outside the repo, and a detached worktree in it
 (removed before the stop): no branch, no edits to tracked files, no Qik writes.
 Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to
 its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
+Also allowed before approval: the superfix labels on the issue (journal.md, Labels) and gap
+notes in the checked private gap repo or ~/.superfix/gaps/ (references/gaps.md). Diagrams wait for go.
 Write `Loaded: explore.md, diagnose.md` in the decision comment, or in your next
 message if there is no issue.
 
 ### After exploration: confirm complexity tier
-
 Re-assess the provisional tier. If scope is larger than described, upgrade and state why. Put the confirmed tier in the decision comment.
 
 End of Phase 1, every tier: write `## Problems`, the evidence note (failing check
@@ -149,6 +152,12 @@ Read `references/evidence.md` in full before the first picture; write `Loaded: e
 - Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing. Any entry in the secrets list, or a saved login: upload nothing until the owner has looked and replied "post the pictures" (after those pictures, in this run).
 - Never paste a session secret into a browser tool call; Claude in Chrome is never a picture source. Never read a mark-*.side file.
 
+### Diagrams (ask first, always; read references/diagrams.md before the question)
+Moderate or Complex, a problem that will be fixed, and 3 or more parts that interact: diagrams.md's
+numbered question, recommended yes, before the assets and create-issue questions. Never Simple or the
+fast lane. Nothing is drawn before a yes. After go: diagrams.md's subagent in its own temp folder (run
+folder and clone compared after); source checks, render, Read, diagrams.md's upload command only.
+
 ## Stop gate
 
 Every tier, every run, unless the fast lane was asked for in this run.
@@ -157,6 +166,8 @@ Every tier, every run, unless the fast lane was asked for in this run.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
    The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
+   It also has `Labels: <LABELS-NOW>`, `Diagram: ASKED (<why>) | NONE (<why>)` and
+   `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)`; a stop without them is not complete.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -192,7 +203,6 @@ a notice; the redaction check, budget and solved check all still apply.
 Otherwise say in one line why it does not apply, and stop.
 
 ### Decision and redaction
-
 Write the ## Decision section only after the owner answers, in your own
 words: what was chosen, for which problem, any condition. Never paste the owner's message.
 Example: "P1: option A (fix the loop bound). Budget as proposed. Approved by the
@@ -220,7 +230,6 @@ Pictures: no upload except through evidence.md's upload command; a pattern hit i
 Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
 
 ### Design step (type-specific, before writing-plans)
-
 | Type | Design approach |
 |------|----------------|
 | `bug` | No design step - exploration output feeds directly into plan |
@@ -231,7 +240,6 @@ Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop 
 | `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
 
 ### Plan
-
 Invoke `superpowers:writing-plans` [sonnet/high]. Save to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`.
 
 Plan must document:
@@ -241,13 +249,11 @@ Plan must document:
 - For performance: baseline measurement and target
 
 ### Context file
-
 After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
 
 **Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
 
 ### Expert panel (all Moderate + Complex - blocking)
-
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
 
 - Format: synthesised must-fixes / should-fixes / verdict only - no per-panelist narration
@@ -265,7 +271,6 @@ If the panel overturns the approved option or breaks the approved budget, go bac
 Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the final comment, or in your next message to the user if there is no issue.
 
 ### Budget
-
 Proposed in the decision message, fixed at approval. Defaults: Simple 6 commits,
 2 hours, the files named in ## Options plus their tests; Moderate 15 commits, 4
 hours, the files in the plan plus their tests; Complex as stated in the plan.
@@ -283,7 +288,6 @@ BUDGET STOP; the main thread posts it (callout first), sets the status line to
 scope, 3 stop. Never continue past a limit on your own.
 
 ### Qik configuration (provisional)
-
 Qik configuration (provisional). Load the qik skill first. No branch.
 Moderate or Complex Qik work: plan and context files go in `~/.superfix/journal/<name>/`,
 never in a repo, and the fix agent brief carries the four rules below.
@@ -298,7 +302,6 @@ never in a repo, and the fix agent brief carries the four rules below.
 Qik records solved-check runs 1 and 2 only; run 3 (restore, then re-apply) goes under Not tested.
 
 ### Simple path (main thread, no agent)
-
 Create branch before touching any file (shared block, both paths):
 ```bash
 git status --porcelain            # must print nothing, else stop and ask
@@ -315,7 +318,6 @@ create branch → (bug: failing test or repro command first) → implement → i
 ```
 
 ### Moderate + Complex path (autonomous agent)
-
 Create branch with the shared block above before dispatching the agent (except Qik work, which has no branch). Architecture: create the worktree from `<approval-sha>` instead of creating a branch first.
 
 Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. Pass:
@@ -340,9 +342,10 @@ The agent may commit, push and open the PR only after the redaction checks pass 
 The agent ticks the plan file's task checkboxes as each task completes.
 
 On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/runs/<run-key>/secrets` (the same key, built again: the run key on the journal's issue line, else the issue number, else the journal file name; redaction.md); do not start a new one, and a NO-RUN-FOLDER stops. Continue from the first unfinished stage. Do not redo finished stages.
+Also re-read the `**Labels:**` line and the last `Diagram:` and `Gap note:` lines; run the label
+commands so the labels match the Status line; search before filing any gap note (gaps.md).
 
 ### Solved check
-
 Runs inside `verification-before-completion`, on both paths. Code only (Qik: see above).
 "Solved" means three runs, each recorded with output in the final comment.
 <s1>, <s3> are new folders outside the repo (`mktemp -d`), written out in full.
@@ -352,6 +355,7 @@ Runs inside `verification-before-completion`, on both paths. Code only (Qik: see
   Run 2, fix passes: the same check on the branch.
      Run 2 also takes the after picture of each problem that had a before
      picture: same page and size, green box, same number (evidence.md).
+     Same page AREA: `retake` reuses the before area; on CROP-WIDENED or CROP-DIFFERENT the caption says so.
   Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
      `git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R`;
      run the check in <s3>, expect failure. The branch is never touched.
@@ -372,7 +376,6 @@ Two failed run-2 attempts, whatever the cause given: stop. Post:
 Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
 ### Execute sequences by type, code review rules, test scope
-
 These are in `references/execute.md`. Read it in full before implementing (see the start of Phase 3).
 
 ## Phase 4 - Close
@@ -387,6 +390,7 @@ thing not checked, and why. An empty list says "Nothing known untested". Never l
 
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
+The final comment also carries the `Labels:`, `Diagram:` and `Gap note:` lines (journal.md).
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
@@ -417,6 +421,8 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
 - Uploading a picture without the upload command, or to a public repo
+- Drawing a diagram without the owner's yes, or writing it inside the clone
+- A gap note with the owner's words, a name, path or link, or outside the checked repo or local folder
 
 ## Out of Scope
 

@@ -64,8 +64,10 @@ Interface (every command prints one word line; it never prints a secret, a match
 - `"<python>" "$D/shot.py" ocr --run "$D" --name <name>` reads the posted picture, the 2x copy and a larger grey copy with tesseract into `evidence/ocr-<name>.txt` and prints `OCR-READY`. The upload command runs it.
 - `"<python>" "$D/shot.py" verify --run "$D" --name <name>` prints `OCR-CLEAN` or `OCR-BLOCKED`, then `VIEW-MATCH`, `VIEW-MISMATCH` or `NOT-VIEWED`. The OCR part looks for every secret exactly (spaces removed), and as every 6-character piece after folding the letters OCR confuses (o and 0, l, i and 1, g and 9, b and 8, z and 2, s and 5, rn and m). For a secret of 13 or more characters one misread character cannot hide it; a shorter secret with a misread near its middle can pass, and OCR can miss small or pale text altogether. Any Python 3 runs it; it needs no browser. The upload command runs it; you do not need to.
 - `"<python>" "$D/shot.py" retake --run "$D" --source <before name> --name <after name> [--url <url>] [--serve <dir>]` takes the after picture exactly as the before one was taken (it reads `evidence/<before name>.json`: address, served folder, target, hidden elements, saved login, number), with a green box unless `--colour` says otherwise. Pass `--url` or `--serve` only when the page now lives elsewhere (for example the clone in place of the scratch worktree). A before picture taken on the MCP path prints `ERROR`: take the after one on the MCP path too, which is allowed only when the list prints `NO-LIST`.
+  - `retake` scrolls to where the before picture was taken and keeps its area (Aligned crops, below). It prints `CROP-ALIGNED`, `CROP-WIDENED` or `CROP-DIFFERENT` on the line before `SAVED`.
 - `"<python>" "$D/shot.py" pair --run "$D" --before <name> --after <name> --name <pair name>` makes the side-by-side picture (below) and prints `SAVED <file>`.
 - `"<python>" "$D/shot.py" mcp-code ...` and `mcp-save ...`: the MCP path only (below).
+- `"<python>" "$D/shot.py" diagram ...` and `diagram-verify ...` (1.4.1): diagrams only, in the run folder's `diagrams/` folder, never `evidence/` (references/diagrams.md).
 
 The script, exactly as the command above writes it:
 
@@ -258,6 +260,11 @@ MCP_JS = """async (page) => {
   return 'SHOT ' + m.side;
 }"""
 
+# 1.4.1 aligned crops: the same window-only centring as in shoot, used again when a retake cannot reach the stored scroll.
+CENTRE_JS = "s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }"
+# 1.4.1: the box round all the marks (the drawn box and its number), and the window size.
+MARKS_JS = "() => { const rs = [...document.querySelectorAll('[data-sf-mark]')].map(e => e.getBoundingClientRect()); return [Math.min(...rs.map(r => r.left)), Math.min(...rs.map(r => r.top)), Math.max(...rs.map(r => r.right)), Math.max(...rs.map(r => r.bottom)), innerWidth, innerHeight]; }"
+
 LIMIT = 30  # seconds for each page step; past it the script prints ERROR timeout and stops
 NAME = re.compile(r"^[A-Za-z0-9._+-]+$")
 
@@ -397,6 +404,16 @@ def shoot(a, secrets):
             # Scroll the window only. scrollIntoView would also scroll an overflow:hidden box and hide the bug.
             ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }", a.selector)
             page.wait_for_timeout(200)
+            # 1.4.1 aligned crops: a retake scrolls to where the before picture was taken, so both show the same page area.
+            al, crop, off = getattr(a, "align", None), None, None
+            if al:
+                got = ev_("p => { window.scrollTo(p[0], p[1]); return [scrollX, scrollY]; }", al["scroll"])
+                page.wait_for_timeout(200)
+                if [round(v) for v in got] != [round(v) for v in al["scroll"]]:
+                    # The page cannot scroll there now (for example it got shorter): centre the target again, as in 1.4.0.
+                    ev_(CENTRE_JS, a.selector)
+                    page.wait_for_timeout(200)
+                    al = dict(al, reach=False)
             w, h = ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }", a.selector)
             if w == 0 or h == 0:
                 return say("ZERO-SIZE")
@@ -408,6 +425,25 @@ def shoot(a, secrets):
                 return say("UNREACHABLE " + " ".join(left))
             timed(mark_closed_shadow_roots, cdp)
             m = ev_(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
+            if al:
+                # Inside the before area: the same area. Inside the window: the union of both areas. Else: 1.4.0 behaviour.
+                mk, c = ev_(MARKS_JS), al["clip"]
+                if al.get("reach") is False or mk[0] < 0 or mk[1] < 0 or mk[2] > mk[4] or mk[3] > mk[5]:
+                    crop = "CROP-DIFFERENT"
+                    if al.get("reach") is not False:
+                        ev_("() => document.querySelectorAll('[data-sf-mark]').forEach(e => e.remove())")
+                        ev_(CENTRE_JS, a.selector)
+                        page.wait_for_timeout(200)
+                        m = ev_(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
+                elif mk[0] >= c["x"] and mk[1] >= c["y"] and mk[2] <= c["x"] + c["width"] and mk[3] <= c["y"] + c["height"]:
+                    crop, off, m["clip"] = "CROP-ALIGNED", [0, 0], dict(c)
+                else:
+                    u = m["clip"]
+                    x0, y0 = min(c["x"], u["x"]), min(c["y"], u["y"])
+                    x1, y1 = max(c["x"] + c["width"], u["x"] + u["width"]), max(c["y"] + c["height"], u["y"] + u["height"])
+                    crop, off = "CROP-WIDENED", [c["x"] - x0, c["y"] - y0]
+                    m["clip"] = {"x": x0, "y": y0, "width": x1 - x0, "height": y1 - y0}
+            sc = ev_("() => [scrollX, scrollY]")
             kinds = ev_(SCAN_JS, m["clip"])
             if kinds:
                 return say("UNREACHABLE " + " ".join(kinds))
@@ -426,9 +462,14 @@ def shoot(a, secrets):
         with open(os.path.join(ev, a.name + ".json"), "w") as f:
             rec = {"path": "script", "python": sys.executable, "url": a.url, "serve": a.serve, "selector": a.selector,
                    "hide": a.hide or [], "storage": a.storage, "colour": a.colour, "num": a.num, "held": False}
+            cl = m["clip"]
+            rec["page_clip"] = {"x": cl["x"] + sc[0], "y": cl["y"] + sc[1], "width": cl["width"], "height": cl["height"]}
+            rec["scroll"], rec["crop"], rec["offset"] = sc, crop or "", off
             if a.storage:
                 rec.update(held=True, reason="taken with a saved login")
             json.dump(rec, f)
+        if crop:
+            say(crop)
         say("SAVED " + out)
     finally:
         if os.path.exists(raw):
@@ -451,6 +492,7 @@ def retake(a, secrets):
             j[k] = getattr(a, k)
     a.url, a.serve, a.selector, a.hide, a.storage = j["url"], j["serve"], j["selector"], j["hide"], j["storage"]
     a.colour, a.num = a.colour or "green", j["num"]
+    a.align = {"clip": {"x": j["page_clip"]["x"] - j["scroll"][0], "y": j["page_clip"]["y"] - j["scroll"][1], "width": j["page_clip"]["width"], "height": j["page_clip"]["height"]}, "scroll": j["scroll"]} if j.get("page_clip") and j.get("scroll") is not None else None
     shoot(a, secrets)
 
 
@@ -526,6 +568,37 @@ def verify(a, secrets):
     say("VIEW-MATCH" if ok else "VIEW-MISMATCH")
 
 
+def size(path):
+    """1.4.1: width and height of a picture, read by magick."""
+    r = subprocess.run([shutil.which("magick") or "magick", "identify", "-format", "%w %h", path], check=True, capture_output=True, text=True)
+    return [int(v) for v in r.stdout.split()[:2]]
+
+
+def pad_halves(ev, a, b, f):
+    """1.4.1: put halves of unequal size on one canvas, grey #e5e5e5 where nothing was captured.
+    A CROP-WIDENED after picture records where the before area sits inside it (offset); otherwise centred."""
+    sb, sf = size(b), size(f)
+    if sb == sf:
+        return b, f, []
+    try:
+        with open(os.path.join(ev, a.after + ".json")) as fh:
+            j = json.load(fh)
+    except (FileNotFoundError, ValueError):
+        j = {}
+    W, H = max(sb[0], sf[0]), max(sb[1], sf[1])
+    res, pads = [], []
+    for src, (w, h), tag, o in ((b, sb, "before", j.get("offset") if j.get("crop") == "CROP-WIDENED" else None), (f, sf, "after", None)):
+        if [w, h] == [W, H]:
+            res.append(src)
+            continue
+        o = o or [(W - w) // 2, (H - h) // 2]
+        p = os.path.join(ev, "%s-%s.pad.raw.png" % (a.name, tag))
+        magick("-size", "%dx%d" % (W, H), "xc:#e5e5e5", src, "-geometry", "+%d+%d" % (round(o[0]), round(o[1])), "-composite", p)
+        res.append(p)
+        pads.append(p)
+    return res[0], res[1], pads
+
+
 def pair(a):
     ev = os.path.join(a.run, "evidence")
     b, f, out = (os.path.join(ev, n + ".png") for n in (a.before, a.after, a.name))
@@ -533,7 +606,11 @@ def pair(a):
         return say("ERROR before or after picture missing")
     clear(ev, a.name)
     lab = ["-background", "white", "-gravity", "North", "-splice", "0x44", "-pointsize", "28", "-annotate", "+0+8"]
+    # 1.4.1 aligned crops: halves of unequal size (CROP-WIDENED or CROP-DIFFERENT) go on one canvas first, so they line up.
+    b, f, pads = pad_halves(ev, a, b, f)
     magick(*(["(", b] + lab + ["Before", ")", "(", f] + lab + ["After", ")", "+append", "-strip", "-resize", "1600x>", out]))
+    for p in pads:
+        os.remove(p)
     bo, fo = (os.path.join(ev, n + ".ocr.png") for n in (a.before, a.after))
     if os.path.isfile(bo) and os.path.isfile(fo):
         magick(bo, fo, "+append", "-strip", os.path.join(ev, a.name + ".ocr.png"))
@@ -553,6 +630,109 @@ def pair(a):
     say("SAVED " + out)
 
 
+
+
+def diagram(a, secrets):
+    """1.4.1 diagrams (references/diagrams.md): render the first <svg> of a checked diagram file to a PNG.
+    Page scripts off; only file: and Google Fonts are let through; paper background; 1 to 9 node groups."""
+    dg = os.path.join(a.run, "diagrams")
+    src = os.path.realpath(a.html)
+    if os.path.dirname(src) != os.path.realpath(dg) or not src.endswith(".html") or not os.path.isfile(src):
+        return say("ERROR the diagram file must be an .html file in the run folder's diagrams folder")
+    if not shutil.which("magick"):
+        return say("ERROR magick not installed")
+    for old in (a.name + ".png", a.name + ".ocr.png", a.name + ".viewed", a.name + ".json", "ocr-%s.txt" % a.name):
+        if os.path.exists(os.path.join(dg, old)):
+            os.remove(os.path.join(dg, old))
+    from playwright.sync_api import sync_playwright
+    import urllib.parse
+    raw = os.path.join(dg, a.name + ".raw.png")
+    out, big = os.path.join(dg, a.name + ".png"), os.path.join(dg, a.name + ".ocr.png")
+    blocked = []
+
+    def gate(route):
+        u = route.request.url
+        host = re.sub(r"^[a-z]+://([^/:?#]*).*$", r"\1", u, flags=re.S) if "://" in u else ""
+        # Only the diagram file itself among file: addresses; any other file (<use href>, @import, url()) is blocked.
+        if u.startswith("file:") and urllib.parse.unquote(urllib.parse.urlsplit(u).path) == src:
+            return route.continue_()
+        if u.startswith("https://") and host in ("fonts.googleapis.com", "fonts.gstatic.com"):
+            return route.continue_()
+        blocked.append("local-file" if u.startswith("file:") else "remote-asset")
+        return route.abort()
+
+    try:
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            ctx = b.new_context(viewport={"width": 1280, "height": 800}, device_scale_factor=2, java_script_enabled=False)
+            ctx.route("**/*", gate)
+            page = ctx.new_page()
+            page.set_default_timeout(LIMIT * 1000)
+            timed(page.goto, "file://" + src)
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            if blocked:
+                return say("UNREACHABLE " + " ".join(sorted(set(blocked))))
+            if not timed(page.evaluate, "() => !!document.querySelector('svg')"):
+                return say("NO-SVG")
+            n = timed(page.evaluate, "() => document.querySelectorAll('svg g[data-sf-node]').length")
+            if n < 1 or n > 9:
+                return say("ERROR boxes %d" % n)
+            box = timed(page.evaluate, "() => { const r = document.querySelector('svg').getBoundingClientRect(); return {x: r.left, y: r.top, width: r.width, height: r.height}; }")
+            kinds = timed(page.evaluate, SCAN_JS, box)
+            if timed(page.evaluate, "() => document.getElementsByTagNameNS('http://www.w3.org/2000/svg', 'foreignObject').length"):
+                kinds = sorted(set(kinds) | {"foreign-object"})
+            if kinds:
+                return say("UNREACHABLE " + " ".join(kinds))
+            if not timed(page.evaluate, "async () => { await document.fonts.ready; return document.fonts.check('600 12px Geist'); }"):
+                return say("ERROR fonts: the Geist font did not load (no network?)")
+            timed(lambda: page.locator("svg").first.screenshot(path=raw))
+            b.close()
+        magick(raw, "-background", "#f5f5f5", "-flatten", "-strip", big)
+        magick(raw, "-background", "#f5f5f5", "-flatten", "-resize", "50%", "-strip", "-resize", "1600x>", out)
+        os.remove(raw)
+        if not small_enough(out):
+            return say("ERROR picture over 1 MB")
+        with open(os.path.join(dg, a.name + ".json"), "w") as f:
+            json.dump({"path": "diagram", "html": src, "nodes": n, "held": bool(secrets), "reason": "a secret is on the list" if secrets else ""}, f)
+        say("SAVED " + out)
+    finally:
+        if os.path.exists(raw):
+            os.remove(raw)
+
+
+def diagram_verify(a, secrets):
+    """1.4.1: OCR the rendered diagram, look for every listed secret, and check the self-report Viewed line."""
+    dg = os.path.join(a.run, "diagrams")
+    png, big, txt = (os.path.join(dg, x) for x in (a.name + ".png", a.name + ".ocr.png", "ocr-%s.txt" % a.name))
+    if not os.path.isfile(png):
+        return say("ERROR no picture")
+    tess = shutil.which("tesseract")
+    if not tess:
+        return say("NO-OCR")
+    up = os.path.join(dg, a.name + ".up.png")
+    try:
+        magick(big if os.path.isfile(big) else png, "-resize", "200%", "-colorspace", "Gray", "-normalize", up)
+        parts = []
+        for img in (png, big, up):
+            if os.path.isfile(img):
+                r = subprocess.run([tess, img, "-"], capture_output=True, text=True)
+                if r.returncode:
+                    return say("ERROR ocr")
+                parts.append(r.stdout)
+    finally:
+        if os.path.exists(up):
+            os.remove(up)
+    with open(txt, "w", encoding="utf-8") as f:
+        f.write("\n".join(parts))
+    say("OCR-BLOCKED" if ocr_hit("\n".join(parts), secrets) else "OCR-CLEAN")
+    viewed = os.path.join(dg, a.name + ".viewed")
+    if not os.path.isfile(viewed) or os.path.getmtime(viewed) < os.path.getmtime(png):
+        return say("NOT-VIEWED")
+    with open(viewed, encoding="utf-8") as f:
+        say("VIEWED-SELF-REPORT" if f.readline().startswith("Viewed (self-report): diagram, ") else "NOT-VIEWED")
 
 
 def mcp_code(a, secrets):
@@ -591,6 +771,10 @@ def main():
     s.add_argument("--selector", required=True); s.add_argument("--num", required=True)
     s.add_argument("--colour", choices=["red", "green"], required=True); s.add_argument("--name", required=True)
     s.add_argument("--storage"); s.add_argument("--hide", action="append")
+    dg = sub.add_parser("diagram")  # 1.4.1, references/diagrams.md
+    dg.add_argument("--run", required=True); dg.add_argument("--html", required=True); dg.add_argument("--name", required=True)
+    dv = sub.add_parser("diagram-verify")  # 1.4.1
+    dv.add_argument("--run", required=True); dv.add_argument("--name", required=True)
     rt = sub.add_parser("retake")
     rt.add_argument("--run", required=True); rt.add_argument("--source", required=True); rt.add_argument("--name", required=True)
     rt.add_argument("--colour", choices=["red", "green"]); rt.add_argument("--url"); rt.add_argument("--serve")
@@ -620,6 +804,15 @@ def main():
     if not all(NAME.match(n) for n in names):
         return say("ERROR bad picture name")
     secrets = read_secrets(a.run)
+    if a.cmd in ("diagram", "diagram-verify"):
+        # 1.4.1 diagrams: their own commands and their own folder (diagrams/), so the picture count stays as in 1.4.0.
+        try:
+            (diagram if a.cmd == "diagram" else diagram_verify)(a, secrets)
+        except Exception as e:
+            kind = type(e).__name__
+            code = "timeout" if kind == "TimeoutError" else ("browser" if kind == "Error" else "python")
+            say("ERROR timeout" if code == "timeout" else "ERROR %s: %s" % (code, tidy(str(e), secrets)))
+        return
     try:
         {"shoot": lambda: shoot(a, secrets), "retake": lambda: retake(a, secrets), "verify": lambda: verify(a, secrets),
          "ocr": lambda: ocr(a), "pair": lambda: pair(a), "mcp-code": lambda: mcp_code(a, secrets),
@@ -634,6 +827,16 @@ if __name__ == "__main__":
     main()
 # --- shot.py end ---
 ```
+
+### Aligned crops
+
+New in 1.4.1. In 1.4.0 `retake` centred the moved target again, so the after picture showed a different page area. Now `shoot` stores the area it cut (`page_clip`, in page terms) and the scroll position in `evidence/<name>.json`, and `retake` scrolls back to that position, measures the after target and its mark, then:
+- `CROP-ALIGNED`: the mark is inside the stored area. The after picture uses exactly the before area.
+- `CROP-WIDENED`: the mark is partly outside the stored area but inside the window. The after picture shows both areas together (their union); `pair` puts the before picture on a canvas of that size at its place, grey `#e5e5e5` where nothing was captured, so the two halves line up. The caption adds: "the after side shows a wider area because <target> moved; grey means not in the before picture".
+- `CROP-DIFFERENT`: the mark is outside the window at that scroll position, or the page can no longer scroll there. The 1.4.0 behaviour: the target is centred again. `pair` centres the smaller half on a grey canvas so the halves are the same size, and the caption says the two sides show different areas of the page.
+- No full-page shot for the large case: the marks are `position:fixed`, and a full-page shot would move them.
+- A before picture taken by 1.4.0 (no stored area) is retaken as in 1.4.0, with no CROP word. The MCP path keeps the 1.4.0 behaviour (Not tested).
+- The result is also stored as `crop` in the after picture's `evidence/<name>.json` (that file may be read; only `mark-*.side` may not). Whoever writes the caption reads it there, so the caption is right even when the fix agent took the after picture.
 
 ### Looking at each picture (the Viewed line)
 
@@ -724,6 +927,8 @@ umask 077; D="$HOME/.superfix/runs/<run-key>"; R='<owner>/<repo>'; ME="$(gh api 
 - `ASSETS-EXISTS` or `ASSETS-CREATED`: go on to the upload commands.
 - `ASK-FIRST`: the signed-in user does not own the repo (whether or not the release exists). `ASK-FIRST-TAG`: a tag named `assets` exists but no release. `ASK-FIRST-WORKFLOWS`: some file under `.github/workflows/` (any depth, any case) contains one of the words `push`, `release`, `create`, `tags`, `workflow_run`, `workflow_call` or `repository_dispatch`, or writes `on:` in flow syntax (`on: [...]` or `on: {...}`), or could not be read (`FLAG` and `UNREAD` lines name the files). False alarms are fine: the check is a text search, on purpose. No workflow files at all (or an empty repo) means none. In every ASK case upload nothing yet. The decision message carries this numbered question, just before the create-issue question, which stays last: "May I create a release named assets in <owner>/<repo> to hold the pictures? It adds a tag named assets, which can start workflows that run on new tags or releases and notifies people who watch the repo's releases; webhooks, GitHub Apps and repository rules cannot be checked from here and may also react. (yes / no)". It has NO recommended answer, like the create-issue question: "keep executing" does not cover it, and anything but an explicit yes to it is no. On a yes, run `gh release create assets --repo <owner>/<repo> --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED`, then the upload commands, then add the pictures to the body. Without a yes, use `A='keep'`, and the `Pictures:` line says `NOT-POSTED (the assets release needs your yes)`.
 - Creating the `assets` release and its tag, only after these ownership and workflow checks, and uploading to it are the only writes before approval that leave the machine, and only for a PRIVATE repo you own (SKILL.md Phase 1).
+- Labels and gap notes (SKILL.md Phase 1) are also allowed before approval.
+- 1.4.1, one deliberate exception to the rule above that creating the release needs an explicit yes with no recommended answer: a yes to the diagram question (references/diagrams.md), which carries a recommended yes, also allows creating it, but only when the dry check there prints `ASSETS-WOULD-CREATE`, meaning the repo is PRIVATE and yours, with no `assets` release or tag, no webhook and no flagged workflow. Every other case keeps the rule above. Why: the owner chose a recommended yes for diagrams, and in that one case every mechanical check has passed.
 
 ### Markdown forms
 
