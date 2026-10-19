@@ -76,6 +76,8 @@ Diagram: ![P1 the change: <full caption>](<url>)  (only after a yes)
 
 ## Done when
 - <each failing check the solved check re-runs>
+- P<k>-C<n> [check|later|owner] <plain name>: <definition>; pass: <pass line>; how: <how>; who: <who>  (criteria mode only; references/criteria.md)
+- P<k>-K<n> [check] <plain name>: <what must not get worse>; pass: <today's value>; how: measure-P<k>-K<n>.py; who: Superfix  (criteria mode only)
 - The owner's description no longer holds: "<owner's words, redacted>"
 
 ## Scope
@@ -106,6 +108,7 @@ Status line, first line of the body, updated in place (a body update by design):
 Values: Diagnosing | Waiting for you: N questions | Fixing problem K of N |
 Stopped: <plain reason> | Ready for review: PR <link> | Waiting for you to
 publish | Done
+1.5.0, criteria mode (references/criteria.md): Waiting for you: re-check on <date> | Waiting for you: sign-off on <name> | Waiting for you: put it back and give me an export
 
 **Progress comments = timestamped changelog**
 Each significant phase transition gets a progress comment, not an edit to the body, except the Status line and ## Decision, which are body updates by design. Comments accumulate as a readable audit trail of what happened and when.
@@ -119,12 +122,14 @@ Comment triggers:
 | Plan approved after panel (Moderate, Complex) | plan and key decisions | Plan, Key decisions |
 | Budget stop, diagnosis wrong, blocker | stop message | Status |
 | PR open and CI green | final result: solved check, Not tested, PR link | Status |
+| Re-check, sign-off or export | final result or stop message | Status |
 
 Every message in this table carries the required Labels: line, and every Status change runs the label commands (Labels, below). Go's body update also adds the diagrams after they pass diagrams.md.
 
 - Any significant scope change or blocker encountered
 - Child issues, when they exist: progress goes on the parent only.
 - A Simple fix posts 2 comments (decision request, final result). A Moderate or Complex fix posts 3 (plus the plan comment).
+- Criteria mode: the "Keep executing does not approve" notice is appended to the decision comment, edited by its recorded id (`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<comment file>`, after the checks; never `--edit-last`), so it adds no comment and these counts stay the same.
 
 Comment format:
 Every comment and journal entry starts with:
@@ -229,6 +234,8 @@ Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (pu
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <ASKED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
+Criteria: <PROPOSED n (P1, P2)[; NONE (P3: why)] | APPROVED n (...) | NONE (no Everything else problem)>
+Criteria check: <criteria mode: plain name RESULT (value), ...; else NONE (no Everything else problem)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -237,7 +244,7 @@ Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
 - One coverage line per problem, in plain words, before the numbered questions:
   - Code: This is a code problem, because you wrote "<quote>". I can find the cause and fix it.
   - Qik: This is a Qik settings problem, because you wrote "<quote>". I can fix it in the draft, but my Qik fixing is not yet proven by a test, so you check it and publish.
-  - Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
+  - Everything else: This is not code or Qik, because you wrote "<quote>". I can fix it only against checks you approve below, on a copy, never your original. For a process I only draft the change.
 - Simple with one problem: the short form, three lines (problem, fix, effort) and "Go?". The effort line carries the budget in its plain wording.
 - Write `Loaded: journal.md` (and the other references read so far) in the AI detail part.
 - Question count: write the numbered questions first, then the callout, and state the number in digits ("I need 3 answers"). Before posting, check that the callout's number matches the numbered lines above the `---` (the Simple short form, with "Go?" and no numbered lines, is exempt):
@@ -252,6 +259,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {prin
 F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<owner>/<repo>'; if [ "$K" = decision ]; then A="$(awk '/^[`][`][`]/{f=!f; next} f{next} /^---$/{b=""; next} {b=b $0 "\n"} END{printf "%s", b}' "$F")"; else A="$(awk '/^[`][`][`]/{f=!f; next} !f' "$F")"; fi; M=""; for k in Pictures Labels Diagram 'Gap note'; do [ "$(printf '%s\n' "$A" | grep -c "^$k: ")" = 1 ] || M="$M $k"; done; if [ -n "$M" ]; then echo "LINES-MISSING$M"; else V="$(printf '%s\n' "$A" | sed -n 's/^Labels: //p')"; if [ "$R" = none ]; then if [ "$V" = 'none (no issue)' ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: none (no issue)"; fi; elif S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then S="${S:-none}"; case "$V" in "$S"|"$S (ready for your review)") echo LINES-OK;; "not set ("*) if [ "$S" = none ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: $S"; fi;; *) echo "LABELS-MISMATCH line: $V; issue: $S";; esac; else echo LABELS-READ-FAILED; fi; fi
 ```
 
+- 1.5.0, criteria mode: right after `LINES-OK`, criteria.md's comment check also fails with `LINES-GAP-WITH-CRITERIA` when `Gap note:` counts a note, or a gap-list sentence names a problem, whose checks are proposed (only a problem marked `NONE` on the `Criteria:` line, or one with an `owner` criterion, may have a note).
 - Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
 - Required in every decision comment and decision journal entry, and in the final comment, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)`. A stop is not complete without it. `NOT-POSTED` is for `NO-OCR`, no ImageMagick and an `assets` release waiting for a yes. `TAKEN <n>` must equal the `PICTURES-SAVED` count from evidence.md. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
@@ -262,6 +270,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<
   - `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)` (references/gaps.md); the final comment adds "open notes in your gap list: <n>".
 - The diagram question (exact text in references/diagrams.md) goes after the problem and budget questions and before the `assets` and create-issue questions; the create-issue question stays last.
 - The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.
+- 1.5.0, criteria mode (references/criteria.md): above the numbered questions, after the coverage lines, the plain block (one line per criterion: "<plain name>. Today: <number> (rows <N>, <N> and <N>). Must be <pass line>.", the bracket holding row numbers only); the two shared questions after the problem questions and before the budget question, asked ONCE for all criteria-mode problems ("P1, P2 and P3"; once per group when the problems touch different people or files), with no recommended answer; the sandbox and data-commit questions (only when they apply) before the budget question, with no recommended answer; after the budget question, in this order: the diagram question, the reminder question for a `later` criterion (no recommended answer), the `assets` question, the create-issue question last. `Criteria:` and `Criteria check:` go after `Gap note:` in the AI detail; the comment check prints `CRITERIA-OK` before posting, after `LINES-OK`.
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -322,6 +331,8 @@ Pictures: <the same required line, now for the after pictures too>
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <POSTED n | NO (owner said no) | HELD (why) | LOCAL (why) | NOT-POSTED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>; open notes in your gap list: <n>
+Criteria check: <criteria mode: plain name RESULT (before -> after), ...; else NONE (no Everything else problem)>
+| check | before | after | must be | result |  (criteria mode only: one row per criterion, references/criteria.md)
 ## Not tested
 - <item, and why>
 ```
