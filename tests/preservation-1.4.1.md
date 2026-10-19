@@ -49,3 +49,20 @@ SKILL.md and placement
 - **20 blank lines directly after headings removed** (after the `##` headings Model & Effort Policy, Input Handling, Phase 0, GitHub Issue as Work Journal, Phase 1, and every `###` heading from Coverage check to Execute sequences). C2 and C5 each carry one blank separator line, so 26 lines were added. SKILL.md is 436 lines.
 - **briefs.md (C14):** the plan's anchor line is the middle of a sentence, so the new line goes after the end of that sentence (`the Status line: return those results to the caller, which posts them.`).
 - **Commit trailer** names Sonnet 5.5 as the coordinator asked; the builder ran on Opus.
+
+## Review 1 (19 Oct 2026)
+
+Changes made on the coordinator's 14 decisions, each tested locally with a fake HOME (read-only calls to the testbed only; nothing created on GitHub, `thedanielmay/superfix-gaps` not touched):
+- **Gap note names (1):** the note check also blocks the work repo's owner, repo name and run key (any case, also with `-` and `_` as spaces or left out; 5 or more letters anywhere, shorter as whole words) and the issue number as a word of its own (not inside a version such as `1.4.1`). New reason word `GAP-NOTE-BLOCKED names`. The reviewer's title (`... Alison Fiske khub onboarding`, work repo `thedanielmay/khub`) and a body with `thedanielmay+khub+51` are blocked. `Seen again` (repo and local) is written by the command: the date and an 8-character hash of the run key, never the run key; the local note also carries the hash, not the run key. Known limit: a client name that is not part of the repo name (here "Alison Fiske") is not known to the check; only the writing rule covers it.
+- **Attestation (2):** `gap_repo_no_apps=<owner>/<repo> <YYYY-MM-DD>`; it must name the chosen repo. `SUPERFIX_GAP_REPO` is treated as untrusted and counts only with a matching line. The old date-only form is `GAP-REPO-APPS-UNCHECKED`. README says how to write it.
+- **Diagram subagent (3, 4):** it writes only into its own `mktemp -d` folder under `~/.superfix/tmp`; the main thread records `SECRETS-SHA` and `CLONE-STATE` (commit, branch, status hash) before, compares both after (`DIAGRAM-RUN-FOLDER-CHANGED`, `CLONE-CHANGED`), deletes nothing on a change, and only then copies the two files in (`CLONE-CLEAN DIAGRAMS-COPIED <n>`).
+- **Lines check (5):** `LINES-OK`, `LINES-MISSING <which>`, `LABELS-MISMATCH`, `LABELS-READ-FAILED`, comparing the `Labels:` value with a fresh read-back. The final value is the read-back plus the fixed suffix ` (ready for your review)`.
+- **Coverage rows (6):** the two SKILL.md rows are changed in place (justified above); SKILL.md stays 436 lines.
+- **Renderer (7):** `file:` is let through only for the diagram file itself; a linked or `@import`ed stylesheet or a CSS `url()` image prints `UNREACHABLE local-file`. An external `<use href>` was not fetched at all by Chromium in the probe, so it cannot leak.
+- **Diagram text (8):** `/Users/`, `~/` and URLs with a query string are checked on the shown text (`<name>.text.txt`), not the source, which always holds the Google Fonts address.
+- **Gap repo workflows (9):** `GAP-REPO-WORKFLOWS`, with the strict word list (adds `issues`, `label`).
+- **Webhooks and quotes (10, 11):** the label check prints `LABELS-SKIPPED hooks` for any webhook; quotes and YAML anchors are removed before the workflow scan, which catches `'on': &trig [...]` and `on: &a {...}` that the 1.4.0-style pattern missed.
+- **Local fallback (12):** the local file never holds a `Source:` line.
+- **Gap link (13):** `GAP-LINK-OK` only for a PRIVATE work repo whose collaborators are only the owner; otherwise no gap repo name or link.
+- **Kind (14):** written by quoted heredoc to `gap-<k>-kind.txt`, checked (`GAP-KIND-OK`, `GAP-KIND-BAD`), read with `"$(cat ...)"` and `grep -F -f`; `$(touch x)`, a backtick and a quote are refused and nothing ran.
+- **Found while fixing:** the invisible-character class in the Python of `diagrams.md` and `gaps.md` had been written as literal invisible characters (and in diagrams.md one range was malformed); both now use ASCII `\u` escapes.
