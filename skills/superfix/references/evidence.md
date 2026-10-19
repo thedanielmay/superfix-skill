@@ -1,9 +1,10 @@
 # Evidence pictures
 
-New in 1.4.0 ([superfix-skill#47](https://github.com/thedanielmay/superfix-skill/issues/47)). SKILL.md ("Evidence pictures") says when to read this file: in full, before the first picture. Pictures are taken by a script, checked for secrets by a second script and OCR, and uploaded by one command per file. Nothing here replaces a rule in `references/redaction.md`; it adds the picture rules.
+New in 1.4.0 ([superfix-skill#47](https://github.com/thedanielmay/superfix-skill/issues/47)). SKILL.md ("Evidence pictures") says when to read this file: in full, before the first picture. Pictures are taken by a script, checked for secrets in several layers, and uploaded by one command per file. Nothing here replaces a rule in `references/redaction.md`; it adds the picture rules.
 
 ### When, names, cap, size, captions
 
+- **A credential given in this run means no automatic upload.** When the run's `secrets` list has any entry (the owner gave a password or token in this run), no picture is uploaded on its own: the upload command keeps it on the Mac (it prints `HELD`), and the decision and final comments say: `Pictures are not posted because you gave me a password or token in this run. They are on your Mac at <path>. Look at them, then reply "post the pictures" if you want them on the issue.` A reply "post the pictures" uploads them, still through the upload command and all its checks (`A='approved'`). Blanking and OCR are a second line of defence, not proof; the owner's own look is the check that counts. With an empty list there is no known secret, so the normal flow applies.
 - Take a picture only for a problem the owner can see on a screen: a page, a rendered component, a Qik draft page. Command, test, log and backend output stays text, never an image: text can be searched and checked by the redaction grep, a picture of it cannot.
 - **Before** pictures: end of Phase 1, after the failing check ran. **After** pictures: during solved-check run 2, on the branch, same page, same viewport, same target.
 - **Marks:** a 3px box with a white outer edge round the target, and a numbered label in clear space beside it (right, left or below, never above, because a label above covers text). Before is red `#e00`, after is green `#080`, same number as the problem (1 for P1). A second mark on P1 is a second picture with the label `1b`.
@@ -47,10 +48,13 @@ Interface (every command prints one word line; it never prints a secret, a match
 
 - `"<python>" "$D/shot.py" shoot --run "$D" --url <url> [--serve <dir>] --selector '<css>' --num 1 --colour red|green --name <name> [--hide '<css>']... [--storage <file>]` prints exactly one of `SAVED <file>`, `NO-MATCH`, `ZERO-SIZE`, `UNREACHABLE <kinds>`, `ERROR <reason>`, `NO-RUN-FOLDER <folder>`.
   - `--url` is a `file://` or `http://` address. With `--serve <dir>`, the script serves that folder itself on 127.0.0.1 (a free port, in a thread, stopped when it ends; no background process) and `--url` is the path inside it, for example `--serve <clone>/public --url /pricing.html`.
-  - Inside, in order: read `$D/secrets` (if present); open the page at 1280 by 800; hide each `--hide` element (`visibility:hidden`); find the target (`NO-MATCH`); scroll the window only, so the target is centred (never `scrollIntoView`, which also scrolls an `overflow:hidden` box and can hide the very bug); measure it, `ZERO-SIZE` on 0 width or height (no mark is drawn on nothing); blank every exact secret, then the 1.3.1 token patterns and e-mail addresses, in every text node, input and textarea value, and the `placeholder`, `title`, `alt`, `aria-label` and `value` attributes, in open shadow roots and same-origin frames too, all replaced by `[redacted]`; stop with `ERROR` if a secret is still in the page text; draw the box and the label; scan the picture area for what blanking cannot reach (canvas, img, video, svg image, object or embed, a cross-origin iframe, a closed shadow root): any one found prints `UNREACHABLE <kinds>` and saves nothing; else screenshot the area, `magick -strip -resize '1600x>'`, record the label side in `evidence/mark-<name>.side`, print `SAVED`.
+  - Inside, in order: read `$D/secrets` (if present); open the page at 1280 by 800 (2x pixels); wait for the network to go quiet (at most 5 seconds) and 300 ms more; **stop the page's own scripts** (`Emulation.setScriptExecutionDisabled`), so no timer or late fetch can write text after the checks; hide each `--hide` element (`visibility:hidden`); find the target (`NO-MATCH`); scroll the window only, so the target is centred (never `scrollIntoView`, which also scrolls an `overflow:hidden` box and can hide the very bug); measure it, `ZERO-SIZE` on 0 width or height (no mark is drawn on nothing); blank every exact secret in every text node and every attribute, and the 1.3.1 token patterns and e-mail addresses in text, input and textarea values and the `placeholder`, `title`, `alt`, `aria-label` and `value` attributes, in open shadow roots and same-origin frames too, all replaced by `[redacted]`; **check** that no exact secret (spaces removed) is left in the page text as shown (`innerText`, which catches a secret split over two elements), in a same-origin frame, or in the CSS `content` of any `::before`, `::after` or `::marker`: any hit it cannot blank prints `UNREACHABLE split-text`, `frame-text` or `css-content`; draw the box and the label; scan the picture area for what blanking cannot reach (canvas, img, video, svg image, object or embed, a cross-origin iframe, a closed shadow root): any one found prints `UNREACHABLE <kinds>` and saves nothing; blank and check once more right before the screenshot; take it at 2x, keep that as `evidence/<name>.ocr.png` for OCR, and post a 1x copy (`magick -strip -resize`, at most 1600 px wide, under 1 MB); record the label side in `evidence/mark-<name>.side` and how the picture was taken in `evidence/<name>.json`; print `SAVED`.
   - `UNREACHABLE`: take it again with `--hide '<css of that element>'` when the element is not the problem itself, and say in the caption that it was hidden. If the target itself is such a region, no picture: use the Not tested line below.
   - `--storage <file>`: a saved login (Qik draft pages; below). Never a file inside a repo.
-- `"<python>" "$D/shot.py" verify --run "$D" --name <name>` prints `OCR-CLEAN` or `OCR-BLOCKED` (every secret checked against `evidence/ocr-<name>.txt` exactly, spaces removed, and as every 8-character piece, after folding the letters OCR confuses, so one misread character does not pass), then `VIEW-MATCH`, `VIEW-MISMATCH` or `NOT-VIEWED`. Any Python 3 runs it; it needs no browser. The upload command below runs it; you do not need to.
+  - Every page step has a 30 second limit and the whole run 120 seconds; past it the script prints `ERROR timeout` and stops.
+- `"<python>" "$D/shot.py" ocr --run "$D" --name <name>` reads the posted picture, the 2x copy and a larger grey copy with tesseract into `evidence/ocr-<name>.txt` and prints `OCR-READY`. The upload command runs it.
+- `"<python>" "$D/shot.py" verify --run "$D" --name <name>` prints `OCR-CLEAN` or `OCR-BLOCKED`, then `VIEW-MATCH`, `VIEW-MISMATCH` or `NOT-VIEWED`. The OCR part looks for every secret exactly (spaces removed), and as every 6-character piece after folding the letters OCR confuses (o and 0, l, i and 1, g and 9, b and 8, z and 2, s and 5, rn and m). For a secret of 13 or more characters one misread character cannot hide it; a shorter secret with a misread near its middle can pass, and OCR can miss small or pale text altogether. Any Python 3 runs it; it needs no browser. The upload command runs it; you do not need to.
+- `"<python>" "$D/shot.py" retake --run "$D" --source <before name> --name <after name> [--url <url>] [--serve <dir>]` takes the after picture exactly as the before one was taken (it reads `evidence/<before name>.json`: address, served folder, target, hidden elements, saved login, number), with a green box unless `--colour` says otherwise. Pass `--url` or `--serve` only when the page now lives elsewhere (for example the clone in place of the scratch worktree). A before picture taken on the MCP path prints `ERROR`: take the after one on the MCP path too, which is allowed only when the list prints `NO-LIST`.
 - `"<python>" "$D/shot.py" pair --run "$D" --before <name> --after <name> --name <pair name>` makes the side-by-side picture (below) and prints `SAVED <file>`.
 - `"<python>" "$D/shot.py" mcp-code ...` and `mcp-save ...`: the MCP path only (below).
 
@@ -91,7 +95,12 @@ BLANK_JS = r"""({secrets, pats}) => {
     const tw = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = tw.nextNode(); n; n = tw.nextNode()) { n.nodeValue = clean(n.nodeValue); texts.push(n.nodeValue); }
     for (const el of root.querySelectorAll('*')) {
-      for (const a of ATTRS) if (el.hasAttribute(a)) { el.setAttribute(a, clean(el.getAttribute(a))); texts.push(el.getAttribute(a)); }
+      for (const at of [...el.attributes]) {
+        const v = at.value;
+        const c = ATTRS.includes(at.name) ? clean(v) : secrets.reduce((t, x) => t.split(x).join('[redacted]'), v);
+        if (c !== v) el.setAttribute(at.name, c);
+        texts.push(c);
+      }
       if ('value' in el && typeof el.value === 'string' && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) {
         if (el.tagName !== 'SELECT') el.value = clean(el.value);
         texts.push(el.value);
@@ -103,6 +112,26 @@ BLANK_JS = r"""({secrets, pats}) => {
   walk(document);
   const all = texts.join('\n');
   return secrets.some(x => all.includes(x));
+}"""
+
+CHECK_JS = r"""(secrets) => {
+  const flat = s => (s || '').replace(/\s+/g, '');
+  const ss = secrets.map(flat).filter(x => x);
+  const has = s => { const f = flat(s); return ss.some(x => f.includes(x)); };
+  const kinds = new Set();
+  const doc = (d, top) => {
+    if (d.body && has(d.body.innerText)) kinds.add(top ? 'split-text' : 'frame-text');
+    for (const el of d.querySelectorAll('*')) {
+      for (const ps of ['::before', '::after', '::marker']) {
+        const c = d.defaultView.getComputedStyle(el, ps).content;
+        if (c && c !== 'none' && c !== 'normal' && has(c)) kinds.add('css-content');
+      }
+      if (el.shadowRoot && has(el.shadowRoot.textContent)) kinds.add('split-text');
+      if (/^(IFRAME|FRAME)$/.test(el.tagName)) { try { if (el.contentDocument) doc(el.contentDocument, false); } catch (e) {} }
+    }
+  };
+  doc(document, true);
+  return [...kinds].sort();
 }"""
 
 MARK_JS = r"""({sel, colour, num}) => {
@@ -185,6 +214,34 @@ SCAN_JS = r"""(clip) => {
 }"""
 
 
+
+MCP_JS = """async (page) => {
+  await page.setViewportSize({width: 1280, height: 800});
+  const sel = %(sel)s, hide = %(hide)s, out = %(out)s;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setScriptExecutionDisabled', {value: true});
+  for (const h of hide) if (await page.evaluate(s => { const l = document.querySelectorAll(s); l.forEach(e => e.style.setProperty('visibility', 'hidden', 'important')); return l.length; }, h) === 0) return 'ERROR hide selector matched nothing';
+  if (!(await page.evaluate(s => !!document.querySelector(s), sel))) return 'NO-MATCH';
+  await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }, sel);
+  await page.waitForTimeout(200);
+  const [w, h] = await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }, sel);
+  if (w === 0 || h === 0) return 'ZERO-SIZE';
+  await page.evaluate(%(blank)s, {secrets: [], pats: %(pats)s});
+  const stack = [(await cdp.send('DOM.getDocument', {depth: -1, pierce: true})).root];
+  while (stack.length) { const n = stack.pop();
+    for (const r of n.shadowRoots || []) if (r.shadowRootType === 'closed') await cdp.send('DOM.setAttributeValue', {nodeId: n.nodeId, name: 'data-sf-closed', value: '1'});
+    stack.push(...(n.children || []), ...(n.shadowRoots || []), ...(n.contentDocument ? [n.contentDocument] : [])); }
+  const m = await page.evaluate(%(mark)s, {sel, colour: %(colour)s, num: %(num)s});
+  const kinds = await page.evaluate(%(scan)s, m.clip);
+  if (kinds.length) return 'UNREACHABLE ' + kinds.join(' ');
+  await page.screenshot({path: out, clip: m.clip});
+  return 'SHOT ' + m.side;
+}"""
+
+LIMIT = 30  # seconds for each page step; past it the script prints ERROR timeout and stops
+NAME = re.compile(r"^[A-Za-z0-9._+-]+$")
+
+
 def read_secrets(run):
     try:
         with open(os.path.join(run, "secrets"), encoding="utf-8") as f:
@@ -197,10 +254,43 @@ def say(word, secrets=()):
     for s in secrets:
         word = word.replace(s, "[redacted]")
     print(word.splitlines()[0] if word else "ERROR")
+    sys.stdout.flush()
 
 
-def mark_closed_shadow_roots(page):
-    cdp = page.context.new_cdp_session(page)
+def timed(fn, *args):
+    """Run one page step; if it takes longer than LIMIT, print ERROR timeout and stop the process."""
+    t = threading.Timer(LIMIT, lambda: (say("ERROR timeout"), os._exit(3)))
+    t.start()
+    try:
+        return fn(*args)
+    finally:
+        t.cancel()
+
+
+def magick(*args):
+    exe = shutil.which("magick")
+    if not exe:
+        raise RuntimeError("magick not installed")
+    subprocess.run([exe] + list(args), check=True, capture_output=True)
+
+
+def small_enough(out):
+    """At most 1 MB, else one smaller try, else the picture is removed."""
+    if os.path.getsize(out) > 1000000:
+        magick(out, "-strip", "-resize", "1280x>", "-colors", "256", out)
+    if os.path.getsize(out) > 1000000:
+        os.remove(out)
+        return False
+    return True
+
+
+def clear(ev, name):
+    for old in (name + ".png", name + ".ocr.png", name + ".viewed", name + ".json", "mark-%s.side" % name, "ocr-%s.txt" % name):
+        if os.path.exists(os.path.join(ev, old)):
+            os.remove(os.path.join(ev, old))
+
+
+def mark_closed_shadow_roots(cdp):
     root = cdp.send("DOM.getDocument", {"depth": -1, "pierce": True})["root"]
     hosts, stack = [], [root]
     while stack:
@@ -218,72 +308,114 @@ def mark_closed_shadow_roots(page):
 def shoot(a, secrets):
     ev = os.path.join(a.run, "evidence")
     os.makedirs(ev, mode=0o700, exist_ok=True)
-    for old in (a.name + ".png", a.name + ".viewed", "mark-%s.side" % a.name, "ocr-%s.txt" % a.name):
-        if os.path.exists(os.path.join(ev, old)):
-            os.remove(os.path.join(ev, old))
-    magick = shutil.which("magick")
-    if not magick:
+    clear(ev, a.name)
+    if not shutil.which("magick"):
         return say("ERROR magick not installed")
     url, server = a.url, None
     if a.serve:
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *x):
                 pass
-        handler = functools.partial(Quiet, directory=a.serve)
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=a.serve))
         threading.Thread(target=server.serve_forever, daemon=True).start()
         url = "http://127.0.0.1:%d/%s" % (server.server_address[1], a.url.lstrip("/"))
     from playwright.sync_api import sync_playwright
+    raw = os.path.join(ev, a.name + ".raw.png")
+    out, ocr = os.path.join(ev, a.name + ".png"), os.path.join(ev, a.name + ".ocr.png")
     try:
         with sync_playwright() as p:
             b = p.chromium.launch()
-            kw = {"viewport": {"width": 1280, "height": 800}, "device_scale_factor": 1}
+            # 2x pixels: the OCR copy keeps them; the posted picture is scaled back to 1x.
+            kw = {"viewport": {"width": 1280, "height": 800}, "device_scale_factor": 2}
             if a.storage:
                 if not os.path.isfile(a.storage):
                     return say("ERROR no saved login file")
                 kw["storage_state"] = a.storage
             page = b.new_context(**kw).new_page()
-            page.goto(url, wait_until="load")
-            page.wait_for_timeout(300)
+            page.set_default_timeout(LIMIT * 1000)
+            page.set_default_navigation_timeout(LIMIT * 1000)
+            timed(page.goto, url)
+            try:
+                page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception:
+                pass
+            timed(page.wait_for_timeout, 300)
+            cdp = timed(page.context.new_cdp_session, page)
+            # From here the page's own scripts cannot run, so nothing can write text after the checks.
+            timed(cdp.send, "Emulation.setScriptExecutionDisabled", {"value": True})
+            ev_ = lambda js, arg=None: timed(page.evaluate, js, arg)
             for h in a.hide or []:
-                if page.evaluate("s => { const l = document.querySelectorAll(s); l.forEach(e => e.style.setProperty('visibility', 'hidden', 'important')); return l.length; }", h) == 0:
+                if ev_("s => { const l = document.querySelectorAll(s); l.forEach(e => e.style.setProperty('visibility', 'hidden', 'important')); return l.length; }", h) == 0:
                     return say("ERROR hide selector matched nothing")
-            if page.evaluate("s => !!document.querySelector(s)", a.selector) is False:
+            if ev_("s => !!document.querySelector(s)", a.selector) is False:
                 return say("NO-MATCH")
             # Scroll the window only. scrollIntoView would also scroll an overflow:hidden box and hide the bug.
-            page.evaluate("s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }", a.selector)
+            ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }", a.selector)
             page.wait_for_timeout(200)
-            w, h = page.evaluate("s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }", a.selector)
+            w, h = ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }", a.selector)
             if w == 0 or h == 0:
                 return say("ZERO-SIZE")
-            if page.evaluate(BLANK_JS, {"secrets": secrets, "pats": PATS}):
-                return say("ERROR a secret is still on the page after blanking")
-            mark_closed_shadow_roots(page)
-            m = page.evaluate(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
-            kinds = page.evaluate(SCAN_JS, m["clip"])
+            arg = {"secrets": secrets, "pats": PATS}
+            if ev_(BLANK_JS, arg):
+                return say("UNREACHABLE text")
+            left = ev_(CHECK_JS, secrets)
+            if left:
+                return say("UNREACHABLE " + " ".join(left))
+            timed(mark_closed_shadow_roots, cdp)
+            m = ev_(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
+            kinds = ev_(SCAN_JS, m["clip"])
             if kinds:
                 return say("UNREACHABLE " + " ".join(kinds))
-            raw = os.path.join(ev, a.name + ".raw.png")
-            out = os.path.join(ev, a.name + ".png")
-            page.screenshot(path=raw, clip=m["clip"])
+            # Blank and check once more, right before the screenshot.
+            if ev_(BLANK_JS, arg) or ev_(CHECK_JS, secrets):
+                return say("UNREACHABLE text")
+            timed(lambda: page.screenshot(path=raw, clip=m["clip"]))
             b.close()
-        subprocess.run([magick, raw, "-strip", "-resize", "1600x>", out], check=True, capture_output=True)
+        magick(raw, "-strip", ocr)
+        magick(raw, "-resize", "50%", "-strip", "-resize", "1600x>", out)
         os.remove(raw)
-        if os.path.getsize(out) > 1000000:
-            subprocess.run([magick, out, "-strip", "-resize", "1280x>", "-colors", "256", out], check=True, capture_output=True)
-        if os.path.getsize(out) > 1000000:
-            os.remove(out)
+        if not small_enough(out):
             return say("ERROR picture over 1 MB")
         with open(os.path.join(ev, "mark-%s.side" % a.name), "w") as f:
             f.write("%s %s %s\n" % (m["side"], a.colour, a.num))
+        with open(os.path.join(ev, a.name + ".json"), "w") as f:
+            json.dump({"path": "script", "python": sys.executable, "url": a.url, "serve": a.serve, "selector": a.selector,
+                       "hide": a.hide or [], "storage": a.storage, "colour": a.colour, "num": a.num}, f)
         say("SAVED " + out)
     finally:
+        if os.path.exists(raw):
+            os.remove(raw)
         if server:
             server.shutdown()
 
 
+def retake(a, secrets):
+    ev = os.path.join(a.run, "evidence")
+    try:
+        with open(os.path.join(ev, a.source + ".json")) as f:
+            j = json.load(f)
+    except (FileNotFoundError, ValueError):
+        return say("ERROR no record of " + a.source)
+    if j.get("path") == "mcp":
+        return say("ERROR the before picture was taken on the MCP path: take this one with mcp-code too (only after NO-LIST)")
+    for k in ("url", "serve"):
+        if getattr(a, k):
+            j[k] = getattr(a, k)
+    a.url, a.serve, a.selector, a.hide, a.storage = j["url"], j["serve"], j["selector"], j["hide"], j["storage"]
+    a.colour, a.num = a.colour or "green", j["num"]
+    shoot(a, secrets)
+
+
+# OCR folding: letters OCR confuses become one character, on both sides.
+FOLD = [("rn", "m"), ("vv", "w")]
+TABLE = str.maketrans("oil|gbzs", "01119825")
+
+
 def norm(s):
-    return re.sub(r"[^a-z0-9]", "", s.lower().translate(str.maketrans("oil|s", "01115")))
+    s = s.lower()
+    for x, y in FOLD:
+        s = s.replace(x, y)
+    return re.sub(r"[^a-z0-9]", "", s.translate(TABLE))
 
 
 def ocr_hit(text, secrets):
@@ -292,19 +424,46 @@ def ocr_hit(text, secrets):
         if re.sub(r"\s", "", s) in flat:
             return True
         ns = norm(s)
-        pieces = [ns[i:i + 8] for i in range(len(ns) - 7)] if len(ns) >= 8 else ([ns] if len(ns) >= 4 else [])
+        pieces = [ns[i:i + 6] for i in range(len(ns) - 5)] if len(ns) >= 6 else ([ns] if len(ns) >= 4 else [])
         if any(p in nt for p in pieces):
             return True
     return False
 
 
+def ocr(a):
+    ev = os.path.join(a.run, "evidence")
+    png, big = os.path.join(ev, a.name + ".png"), os.path.join(ev, a.name + ".ocr.png")
+    up = os.path.join(ev, a.name + ".up.png")
+    if not os.path.isfile(png):
+        return say("ERROR no picture")
+    tess = shutil.which("tesseract")
+    if not tess:
+        return say("NO-OCR")
+    try:
+        # The posted picture, the 2x copy, and a larger grey copy: small or pale text is read best in one of them.
+        magick(big if os.path.isfile(big) else png, "-resize", "200%", "-colorspace", "Gray", "-normalize", up)
+        parts = []
+        for img in (png, big, up):
+            if os.path.isfile(img):
+                r = subprocess.run([tess, img, "-"], capture_output=True, text=True)
+                if r.returncode:
+                    return say("ERROR ocr")
+                parts.append(r.stdout)
+        with open(os.path.join(ev, "ocr-%s.txt" % a.name), "w", encoding="utf-8") as f:
+            f.write("\n".join(parts))
+        say("OCR-READY")
+    finally:
+        if os.path.exists(up):
+            os.remove(up)
+
+
 def verify(a, secrets):
     ev = os.path.join(a.run, "evidence")
-    png, ocr = os.path.join(ev, a.name + ".png"), os.path.join(ev, "ocr-%s.txt" % a.name)
-    if not os.path.isfile(ocr):
+    png, txt = os.path.join(ev, a.name + ".png"), os.path.join(ev, "ocr-%s.txt" % a.name)
+    if not os.path.isfile(txt):
         say("ERROR no OCR file")
     else:
-        with open(ocr, encoding="utf-8", errors="replace") as f:
+        with open(txt, encoding="utf-8", errors="replace") as f:
             say("OCR-BLOCKED" if ocr_hit(f.read(), secrets) else "OCR-CLEAN")
     viewed, side = os.path.join(ev, a.name + ".viewed"), os.path.join(ev, "mark-%s.side" % a.name)
     if not os.path.isfile(viewed):
@@ -324,34 +483,18 @@ def pair(a):
     b, f, out = (os.path.join(ev, n + ".png") for n in (a.before, a.after, a.name))
     if not (os.path.isfile(b) and os.path.isfile(f)):
         return say("ERROR before or after picture missing")
+    clear(ev, a.name)
     lab = ["-background", "white", "-gravity", "North", "-splice", "0x44", "-pointsize", "28", "-annotate", "+0+8"]
-    subprocess.run(["magick", "(", b] + lab + ["Before", ")", "(", f] + lab + ["After", ")",
-                    "+append", "-strip", "-resize", "1600x>", out], check=True, capture_output=True)
+    magick(*(["(", b] + lab + ["Before", ")", "(", f] + lab + ["After", ")", "+append", "-strip", "-resize", "1600x>", out]))
+    bo, fo = (os.path.join(ev, n + ".ocr.png") for n in (a.before, a.after))
+    if os.path.isfile(bo) and os.path.isfile(fo):
+        magick(bo, fo, "+append", "-strip", os.path.join(ev, a.name + ".ocr.png"))
+    if not small_enough(out):
+        return say("ERROR picture over 1 MB")
     shutil.copyfile(os.path.join(ev, "mark-%s.side" % a.before), os.path.join(ev, "mark-%s.side" % a.name))
     say("SAVED " + out)
 
 
-MCP_JS = """async (page) => {
-  await page.setViewportSize({width: 1280, height: 800});
-  const sel = %(sel)s, hide = %(hide)s, out = %(out)s;
-  for (const h of hide) if (await page.evaluate(s => { const l = document.querySelectorAll(s); l.forEach(e => e.style.setProperty('visibility', 'hidden', 'important')); return l.length; }, h) === 0) return 'ERROR hide selector matched nothing';
-  if (!(await page.evaluate(s => !!document.querySelector(s), sel))) return 'NO-MATCH';
-  await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }, sel);
-  await page.waitForTimeout(200);
-  const [w, h] = await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }, sel);
-  if (w === 0 || h === 0) return 'ZERO-SIZE';
-  await page.evaluate(%(blank)s, {secrets: [], pats: %(pats)s});
-  const cdp = await page.context().newCDPSession(page);
-  const stack = [(await cdp.send('DOM.getDocument', {depth: -1, pierce: true})).root];
-  while (stack.length) { const n = stack.pop();
-    for (const r of n.shadowRoots || []) if (r.shadowRootType === 'closed') await cdp.send('DOM.setAttributeValue', {nodeId: n.nodeId, name: 'data-sf-closed', value: '1'});
-    stack.push(...(n.children || []), ...(n.shadowRoots || []), ...(n.contentDocument ? [n.contentDocument] : [])); }
-  const m = await page.evaluate(%(mark)s, {sel, colour: %(colour)s, num: %(num)s});
-  const kinds = await page.evaluate(%(scan)s, m.clip);
-  if (kinds.length) return 'UNREACHABLE ' + kinds.join(' ');
-  await page.screenshot({path: out, clip: m.clip});
-  return 'SHOT ' + m.side;
-}"""
 
 
 def mcp_code(a, secrets):
@@ -359,9 +502,9 @@ def mcp_code(a, secrets):
         return say("ERROR the secrets list is not empty: use the script path, never the MCP path")
     ev = os.path.join(a.run, "evidence")
     os.makedirs(ev, mode=0o700, exist_ok=True)
-    for old in (a.name + ".png", a.name + ".viewed", "mark-%s.side" % a.name, "ocr-%s.txt" % a.name):
-        if os.path.exists(os.path.join(ev, old)):
-            os.remove(os.path.join(ev, old))
+    clear(ev, a.name)
+    with open(os.path.join(ev, a.name + ".json"), "w") as f:
+        json.dump({"path": "mcp", "selector": a.selector, "hide": a.hide or [], "colour": a.colour, "num": a.num}, f)
     j = json.dumps
     print(MCP_JS % {"sel": j(a.selector), "hide": j(a.hide or []), "out": j(os.path.join(ev, a.name + ".raw.png")),
                     "blank": BLANK_JS, "pats": j(PATS), "mark": MARK_JS, "colour": j(COLOURS[a.colour]),
@@ -373,8 +516,10 @@ def mcp_save(a):
     raw, out = os.path.join(ev, a.name + ".raw.png"), os.path.join(ev, a.name + ".png")
     if not os.path.isfile(raw):
         return say("ERROR no raw picture")
-    subprocess.run(["magick", raw, "-strip", "-resize", "1600x>", out], check=True, capture_output=True)
+    magick(raw, "-strip", "-resize", "1600x>", out)
     os.remove(raw)
+    if not small_enough(out):
+        return say("ERROR picture over 1 MB")
     with open(os.path.join(ev, "mark-%s.side" % a.name), "w") as f:
         f.write("%s %s %s\n" % (a.side, a.colour, a.num))
     say("SAVED " + out)
@@ -388,7 +533,11 @@ def main():
     s.add_argument("--selector", required=True); s.add_argument("--num", required=True)
     s.add_argument("--colour", choices=["red", "green"], required=True); s.add_argument("--name", required=True)
     s.add_argument("--storage"); s.add_argument("--hide", action="append")
-    v = sub.add_parser("verify"); v.add_argument("--run", required=True); v.add_argument("--name", required=True)
+    rt = sub.add_parser("retake")
+    rt.add_argument("--run", required=True); rt.add_argument("--source", required=True); rt.add_argument("--name", required=True)
+    rt.add_argument("--colour", choices=["red", "green"]); rt.add_argument("--url"); rt.add_argument("--serve")
+    for n in ("verify", "ocr"):
+        v = sub.add_parser(n); v.add_argument("--run", required=True); v.add_argument("--name", required=True)
     pr = sub.add_parser("pair"); pr.add_argument("--run", required=True); pr.add_argument("--before", required=True)
     pr.add_argument("--after", required=True); pr.add_argument("--name", required=True)
     mc = sub.add_parser("mcp-code")
@@ -402,16 +551,23 @@ def main():
     ms.add_argument("--side", choices=["right", "left", "below"], required=True)
     a = ap.parse_args()
     os.umask(0o077)
+    # Whole-run limit as well, for a step that hangs outside timed().
+    whole = threading.Timer(LIMIT * 4, lambda: (say("ERROR timeout"), os._exit(3)))
+    whole.daemon = True
+    whole.start()
     if not os.path.isfile(os.path.join(a.run, "key")):
         return say("NO-RUN-FOLDER " + a.run)
-    if not re.match(r"^[A-Za-z0-9._+-]+$", a.name) or (a.cmd == "pair" and not all(re.match(r"^[A-Za-z0-9._+-]+$", n) for n in (a.before, a.after))):
+    names = [a.name] + [getattr(a, k) for k in ("before", "after", "source") if getattr(a, k, None)]
+    if not all(NAME.match(n) for n in names):
         return say("ERROR bad picture name")
     secrets = read_secrets(a.run)
     try:
-        {"shoot": lambda: shoot(a, secrets), "verify": lambda: verify(a, secrets), "pair": lambda: pair(a),
-         "mcp-code": lambda: mcp_code(a, secrets), "mcp-save": lambda: mcp_save(a)}[a.cmd]()
+        {"shoot": lambda: shoot(a, secrets), "retake": lambda: retake(a, secrets), "verify": lambda: verify(a, secrets),
+         "ocr": lambda: ocr(a), "pair": lambda: pair(a), "mcp-code": lambda: mcp_code(a, secrets),
+         "mcp-save": lambda: mcp_save(a)}[a.cmd]()
     except Exception as e:
-        say("ERROR %s: %s" % (type(e).__name__, str(e).strip() or "no detail"), secrets)
+        timeout = type(e).__name__ == "TimeoutError"
+        say("ERROR timeout" if timeout else "ERROR %s: %s" % (type(e).__name__, str(e).strip() or "no detail"), secrets)
 
 
 if __name__ == "__main__":
@@ -428,7 +584,8 @@ umask 077; printf '%s\n' 'Viewed: label 1 red, right of the Subscribe button' > 
 ```
 
 - Form, exactly: `Viewed: label <number> <red|green>, <right of|left of|below> <the target in words>`.
-- Never read, print, list with contents or grep a `mark-*.side` file. The upload command compares your line with the side the script drew and prints `VIEW-MATCH` or `VIEW-MISMATCH`. A Viewed line written before the picture was (re)taken is a `VIEW-MISMATCH`.
+- Never read, print, list with contents or grep a `mark-*.side` file. The upload command compares your line with what the script drew (side, colour and number) and prints `VIEW-MATCH` or `VIEW-MISMATCH`. A Viewed line written before the picture was (re)taken is a `VIEW-MISMATCH`.
+- What this is worth: a speed bump, not proof. It makes a line written without opening the picture likely to fail (the side depends on the page), but the colour and number are known in advance and a lucky guess passes, so it does not prove the picture was looked at. It is not what protects a credential: a run with any credential holds every picture until the owner has looked (top of this file).
 - `VIEW-MISMATCH`: Read the picture again and rewrite the line from what you see. Never edit the side file.
 - The side-by-side picture: describe the left (before) mark.
 - The same Viewed line goes in the AI detail of the comment that carries the picture.
@@ -440,9 +597,10 @@ Only when the shell probe found no `BROWSER-SCRIPT`, the Playwright MCP tools ar
 1. Write `shot.py` into the run folder (command above). Any `python3` runs these two commands; they need no browser.
 2. `python3 "$D/shot.py" mcp-code --run "$D" --selector '<css>' --num 1 --colour red --name <name> [--hide '<css>']` prints a function. It refuses with `ERROR` if the list has any entry.
 3. `browser_navigate` to the page. If a `file://` address is refused, serve the folder with the dev server rule below, for example `python3 -m http.server <port> --bind 127.0.0.1 --directory <dir>`.
-4. `browser_run_code` with that function, unchanged. It returns `SHOT <side>`, `NO-MATCH`, `ZERO-SIZE`, `UNREACHABLE <kinds>` or `ERROR ...`, and writes `evidence/<name>.raw.png`.
+4. `browser_run_code` with that function, unchanged. It stops the page's own scripts first, as the script path does. It returns `SHOT <side>`, `NO-MATCH`, `ZERO-SIZE`, `UNREACHABLE <kinds>` or `ERROR ...`, and writes `evidence/<name>.raw.png`.
 5. `python3 "$D/shot.py" mcp-save --run "$D" --name <name> --num 1 --colour red --side <side from step 4>` strips and resizes it and prints `SAVED <file>`.
 6. Read the picture and write the Viewed line as above. On this path the side came back in a tool result, so the Viewed line is a self-report: write `Viewed (MCP path, self-report): ...` in the AI detail.
+7. The after picture of a problem pictured this way is taken the same way (`retake` refuses it), and only when the list still prints `NO-LIST`. The MCP path takes the picture at 1x, so OCR reads it from a larger copy only.
 
 ### A project's own dev server
 
@@ -461,33 +619,49 @@ D="$HOME/.superfix/runs/<run-key>"; if [ -f "$D/server.pid" ]; then kill "$(cat 
 
 ### The upload command (one per file)
 
-One command per picture. It runs every check on that exact file and uploads only when they just printed `CLEAN` or `NO-LIST`, `OCR-CLEAN`, `VIEW-MATCH` and `PATTERN-CLEAN`. Write every value literally: `<run-key>`, `<name>` (no `.png`), `<owner>/<repo>`, `<python>` (any Python 3), and `A` = `upload` (an issue on a PRIVATE repo) or `keep` (a public repo, or no issue: the picture goes to the journal pictures folder, below). The exact-string part is the redaction.md check and the pattern part is the redaction.md pattern check plus e-mail, both on the OCR text file.
+One command per picture. It runs every check on that exact file and uploads only when they just printed `CLEAN` or `NO-LIST`, `OCR-CLEAN`, `VIEW-MATCH` and `PATTERN-CLEAN`. Write every value literally: `<run-key>`, `<name>` (no `.png`), `<owner>/<repo>`, `<python>` (any Python 3), and `A`:
+- `upload`: an issue on a PRIVATE repo. When the secrets list has any entry it prints `HELD` and keeps the picture instead (top of this file).
+- `approved`: only after the owner replied "post the pictures" for this run's held pictures. It uploads with every check, list or no list.
+- `keep`: a public repo, or no issue. The picture goes to the journal pictures folder (below). Any other value also means `keep`.
+
+The exact-string part is the redaction.md check and the pattern part is the redaction.md pattern check plus e-mail, both on the OCR text file.
 
 ```bash
-umask 077; D="$HOME/.superfix/runs/<run-key>"; N='<name>'; R='<owner>/<repo>'; A='<upload or keep>'; PY='<python>'; F="$D/evidence/$N.png"; O="$D/evidence/ocr-$N"; if ! command -v tesseract >/dev/null; then echo NO-OCR; elif [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ "$A" = upload ] && [ "$(gh repo view "$R" --json visibility -q .visibility)" != PRIVATE ]; then echo NOT-PRIVATE; elif ! grep -q '^Viewed: ' "$D/evidence/$N.viewed" 2>/dev/null; then echo NOT-VIEWED; elif ! tesseract "$F" "$O" >/dev/null 2>&1; then echo "ERROR: ocr"; else E="$(L="$D/secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$O.txt")"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi)"; V="$("$PY" "$D/shot.py" verify --run "$D" --name "$N" | tr '\n' ' ')"; P="$(H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$O.txt" | grep -v 'Claude-Session: https://claude.ai/code/session_'; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@' "$O.txt"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; next if $s=~/^[0-9a-f]{40}$/i; next if $s=~/^[0-9a-f]{64}$/i && /sha256/i; print "$ARGV:$.:\n" } close ARGV if eof' "$O.txt"; grep -H -n -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$O.txt"; } | cut -d: -f1,2 | sort -u )"; if [ -n "$H" ]; then echo "PATTERN-HITS (file:line, read each one, then decide):"; echo "$H"; else echo PATTERN-CLEAN; fi)"; echo "$E / $V/ $P"; case "$E" in CLEAN|NO-LIST) ;; *) E=BAD;; esac; if [ "$E" != BAD ] && [ "$V" = "OCR-CLEAN VIEW-MATCH " ] && [ "$P" = PATTERN-CLEAN ]; then if [ "$A" = upload ]; then gh release upload assets "$F" --repo "$R" && echo "UPLOADED $N"; else T="$HOME/.superfix/journal/${R%%/*}-${R#*/}/pictures/${D##*/}"; mkdir -p "$T" && cp "$F" "$T/" && echo "KEPT $N $T"; fi; else echo "NOT-UPLOADED $N"; fi; fi
+umask 077; D="$HOME/.superfix/runs/<run-key>"; N='<name>'; R='<owner>/<repo>'; A='<upload, approved or keep>'; PY='<python>'; F="$D/evidence/$N.png"; O="$D/evidence/ocr-$N"; if ! command -v tesseract >/dev/null; then echo NO-OCR; elif [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else if [ "$A" = upload ] && grep -q '[^[:space:]]' "$D/secrets" 2>/dev/null; then A=keep; echo "HELD $N: a credential was given in this run, so the picture stays on the Mac until the owner says post the pictures"; fi; case "$A" in upload|approved) U=yes;; *) U=no;; esac; if [ "$U" = yes ] && [ "$(gh repo view "$R" --json visibility -q .visibility)" != PRIVATE ]; then echo NOT-PRIVATE; elif ! grep -q '^Viewed: ' "$D/evidence/$N.viewed" 2>/dev/null; then echo NOT-VIEWED; elif [ "$("$PY" "$D/shot.py" ocr --run "$D" --name "$N")" != OCR-READY ]; then echo "ERROR: ocr"; else E="$(L="$D/secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$O.txt")"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi)"; V="$("$PY" "$D/shot.py" verify --run "$D" --name "$N" | tr '\n' ' ')"; P="$(H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$O.txt" | grep -v 'Claude-Session: https://claude.ai/code/session_'; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@' "$O.txt"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; next if $s=~/^[0-9a-f]{40}$/i; next if $s=~/^[0-9a-f]{64}$/i && /sha256/i; print "$ARGV:$.:\n" } close ARGV if eof' "$O.txt"; grep -H -n -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$O.txt"; } | cut -d: -f1,2 | sort -u )"; if [ -n "$H" ]; then echo "PATTERN-HITS (file:line, read each one, then decide):"; echo "$H"; else echo PATTERN-CLEAN; fi)"; echo "$E / $V/ $P"; case "$E" in CLEAN|NO-LIST) ;; *) E=BAD;; esac; if [ "$E" != BAD ] && [ "$V" = "OCR-CLEAN VIEW-MATCH " ] && [ "$P" = PATTERN-CLEAN ]; then if [ "$U" = yes ]; then gh release upload assets "$F" --repo "$R" && echo "UPLOADED $N"; else T="$HOME/.superfix/journal/${R%%/*}-${R#*/}/pictures/${D##*/}"; mkdir -p "$T" && cp "$F" "$T/" && echo "KEPT $N $T"; fi; else echo "NOT-UPLOADED $N"; fi; fi; fi
 ```
 
 What each word means:
 - `UPLOADED <name>` or `KEPT <name> <folder>`: done. Anything else: nothing left the run folder.
+- `HELD <name>`: a credential was given in this run. The picture is checked and kept (`KEPT`), never uploaded, until the owner replies "post the pictures"; then run the command again with `A='approved'`.
 - `NO-OCR`: tesseract is not installed, so no picture can be checked for secrets: nothing is uploaded in 1.4.0 (Not tested line below).
 - `NOT-PRIVATE`: the repo is not PRIVATE (or `gh` could not say): never upload. Run it again with `A='keep'`.
 - `NOT-VIEWED`: you have not written the Viewed line: Read the picture first.
 - `NOT-UPLOADED <name>` after the check line:
-  - `BLOCKED` or `OCR-BLOCKED`: a session secret is in the picture. Take it again with that area hidden (`--hide`), or no picture. A false `OCR-BLOCKED` (a long run of digits on the page that matches 8 characters of a secret) is treated the same way.
+  - `BLOCKED` or `OCR-BLOCKED`: a session secret, or a 6-character piece of one, is in the picture's OCR text. Take it again with that area hidden (`--hide`), or no picture. A false `OCR-BLOCKED` (page text that happens to share 6 characters with a secret) is treated the same way.
   - `PATTERN-HITS`: a pattern hit in a picture blocks it. There is no "you decide" for pictures: take it again with that area hidden, or no picture.
   - `VIEW-MISMATCH` or `NOT-VIEWED`: Read the picture again and rewrite the Viewed line.
   - `NO-RUN-FOLDER` or `ERROR`: the check did not run. Fix it and run again. Silence is never a pass.
 - A failed `gh release upload` (for example the name is already there) prints its own error and no `UPLOADED`: retake under the next `<i>`, never overwrite a posted picture.
 
+### What each check does, and what it cannot do
+
+- **Blanking** (in the page, before the picture) replaces each exact secret, and the token patterns and e-mail addresses, with `[redacted]`. It cannot reach text drawn as pixels (canvas, images, video), text inside a cross-origin frame or a closed shadow root, or CSS text from a stylesheet file, so those make the picture `UNREACHABLE`. It only knows the secrets in the list and the patterns.
+- **The page check** (after blanking, and again just before the picture) looks for each exact secret in the text as shown, across elements, in same-origin frames and in `::before`, `::after` and `::marker` content. A secret it cannot blank stops the picture.
+- **Stopping the page's scripts** keeps a timer or a late network answer from writing text between the check and the picture.
+- **OCR** reads the picture three ways and looks for each secret and its 6-character pieces. It can miss small, pale or unusual text, and a short secret with one misread character.
+- **The owner's look** is the only check that counts when a credential was given in this run: those pictures are held until the owner says "post the pictures".
+- **Viewed** is a speed bump against posting a picture nobody opened, not proof (above).
+
 ### The `assets` release (once per repo)
 
-Pictures are release assets of one standing release named `assets`, as in `thedanielmay/pullstruder`. Before the first upload, one command:
+Pictures are release assets of one standing release named `assets`, as in `thedanielmay/pullstruder`. Creating that release adds a tag named `assets` to the repo, which can start workflows that run on new tags or releases, and notifies people who watch the repo's releases. So it is never created blind. Before the first upload, one command:
 
 ```bash
-R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if gh release view assets --repo "$R" >/dev/null 2>&1; then echo ASSETS-EXISTS; elif [ -z "$ME" ] || [ "${R%%/*}" != "$ME" ]; then echo "ASK-FIRST $R"; else gh release create assets --repo "$R" --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED; fi
+umask 077; D="$HOME/.superfix/runs/<run-key>"; R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ -z "$ME" ] || [ "${R%%/*}" != "$ME" ]; then echo "ASK-FIRST $R"; elif gh release view assets --repo "$R" >/dev/null 2>&1; then echo ASSETS-EXISTS; else L="$(gh api "repos/$R/contents/.github/workflows" -q '.[].path' 2>&1)"; rc=$?; if [ $rc -ne 0 ] && ! printf '%s\n' "$L" | grep -q 'HTTP 404'; then echo "ERROR: could not read the workflows"; else : > "$D/workflow-flags"; if [ $rc -eq 0 ]; then printf '%s\n' "$L" | while IFS= read -r p; do [ -z "$p" ] && continue; T="$(gh api "repos/$R/contents/$p" -q .content 2>/dev/null | base64 -d 2>/dev/null)"; if [ -z "$T" ]; then echo "UNREAD $p" >> "$D/workflow-flags"; elif printf '%s\n' "$T" | grep -qE 'release|tags|create'; then echo "FLAG $p" >> "$D/workflow-flags"; elif printf '%s\n' "$T" | grep -qE '(^|[^a-z_])push' && ! printf '%s\n' "$T" | grep -q 'branches'; then echo "FLAG $p" >> "$D/workflow-flags"; fi; done; fi; if [ -s "$D/workflow-flags" ]; then echo "ASK-FIRST-WORKFLOWS $R"; cat "$D/workflow-flags"; else gh release create assets --repo "$R" --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED; fi; fi; fi
 ```
 
-- `ASK-FIRST`: the repo's owner is not the signed-in user, and a release adds a tag that can start release workflows. Upload nothing yet. The decision message carries this numbered question, just before the create-issue question when there is one: "May I create a release named assets in <owner>/<repo> to hold the pictures? (no unless you say yes)". It has no recommended answer, so "keep executing" does not say yes to it. Pictures stay in the run folder until a yes; on a yes, run `gh release create assets --repo <owner>/<repo> --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED`, then the upload commands, then add the pictures to the body. Without a yes, use `A='keep'`.
+- `ASSETS-EXISTS` or `ASSETS-CREATED`: go on to the upload commands.
+- `ASK-FIRST`: the signed-in user does not own the repo (whether or not the release exists). `ASK-FIRST-WORKFLOWS`: a workflow file mentions `release`, `tags` or `create`, has a push trigger with no branch limit, or could not be read (`FLAG` and `UNREAD` lines name the files); a 404 for the workflows folder means none. In both cases upload nothing yet. The decision message carries this numbered question, just before the create-issue question when there is one: "May I create a release named assets in <owner>/<repo> to hold the pictures? It adds a tag named assets, which can start workflows that run on new tags or releases and notifies people who watch the repo's releases. (recommended: no)". "Keep executing" therefore means no. On a yes, run `gh release create assets --repo <owner>/<repo> --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED`, then the upload commands, then add the pictures to the body. Without a yes, use `A='keep'`.
 - Creating the release and uploading to it are the only writes before approval that leave the machine, and only on a PRIVATE repo (SKILL.md Phase 1).
 
 ### Markdown forms
@@ -496,6 +670,7 @@ R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if gh release view assets --r
   `![P1 before: the Subscribe button (red box 1) is cut in half by the bottom edge of the price card](https://github.com/<owner>/<repo>/releases/download/assets/sf-<N>-p1-before-1.png)`
   `P1 before: the Subscribe button (red box 1) is cut in half by the bottom edge of the price card.`
 - Every comment with a picture carries this line once, after the pictures: `Pictures show on the website, not in the GitHub app: https://github.com/<owner>/<repo>/issues/<N>`
+- A credential was given in this run (any `HELD`): in place of the pictures, the decision comment and the final comment say `Pictures are not posted because you gave me a password or token in this run. They are on your Mac at ~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/. Look at them, then reply "post the pictures" if you want them on the issue.` That reply is not a numbered question and "keep executing" does not say it.
 - Where they go:
   - Issue body: every picture, under its problem (`- Picture:` in the journal.md template).
   - Decision comment: the first picture of each problem, below the numbered questions, with its caption and the website line. The two-line callout and the questions never depend on a picture.
@@ -508,7 +683,8 @@ R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if gh release view assets --r
 
 - In 1.4.0 nothing is uploaded to a public repo, ever. Pictures are still taken and checked, with `A='keep'`, which copies each clean picture to `~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/`, outside the run folder, so it survives the end-of-run delete. A picture that failed a check is not kept; it is deleted with the run folder.
 - The decision comment says, in place of the picture: `Pictures are on the owner's Mac, not posted because this repo is public: ~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/`
-- No issue (file-mode journal): the same `A='keep'`; the journal names the local files. If the owner says yes to creating the issue and the repo is PRIVATE, run the upload command for each picture after `gh issue create`, then add them to the new issue's body.
+- No issue (file-mode journal): the same `A='keep'`; the journal names the local files. If the owner says yes to creating the issue and the repo is PRIVATE, run the upload command for each picture after `gh issue create` (`A='upload'`, so a credential in the list still holds them), then add them to the new issue's body.
+- Held pictures at the end of the run: when pictures are still held at the final comment, the end-of-run delete waits for the owner's answer ("post the pictures", or no), because the upload command needs the run folder and its list. Status: "Waiting for you: post the pictures?". Any other reply, or a restart that finds no answer, asks once more and then deletes the run folder as usual; the kept copies stay in the journal pictures folder.
 
 ### Qik draft pages (saved login, untested in 1.4.0)
 
@@ -518,14 +694,21 @@ R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if gh release view assets --r
 
 ### Leaked picture
 
-If a picture with a secret was uploaded: `gh release delete-asset assets <file> --repo <owner>/<repo> --yes`, then remove its link from the body and comments (redaction.md, Leak handling), check the body and every comment again for the image link, tell the owner what leaked where, and ask them to rotate the credential.
+If a picture with a secret was posted (redaction.md, Leak handling):
+1. Delete the comment that shows it (`gh api -X DELETE repos/<o>/<r>/issues/comments/<id>`); never edit a comment, GitHub keeps edit history.
+2. Edit the issue BODY only to remove the picture's link, and tell the owner the old body stays in the edit history until they delete that revision on the GitHub page.
+3. Delete the file: `gh release delete-asset assets <file> --repo <o>/<r> --yes`. Check the body and every comment again for the link.
+4. Tell the owner to rotate the credential, and say what leaked where.
 
 ### Not tested lines (exact)
 
+Name the kind in plain words: canvas is "a drawing area", img "an image", video "a video", svg-image "a drawn image", embed "an embedded object", cross-origin-iframe "a page inside another page", closed-shadow-root "a hidden part of the page", split-text "text split across parts of the page", frame-text "text in a page inside another page", css-content "text added by the page's style sheet", text "text that could not be cleaned".
+
 - `Pictures: not taken, because no browser was available in this run (checked: Playwright MCP, Python playwright with a browser). Run again where Playwright works to get them.`
 - `Pictures: taken but not posted, because this repo is public. They are on the owner's Mac at <path>.`
-- `Picture of P<k> not taken: the page area holds a <kind> that cannot be checked for secrets.`
+- `Picture of P<k> not taken: the page area holds <kind in plain words> that cannot be checked for secrets.`
 - `Pictures: not posted, because OCR (tesseract) is not installed, so they could not be checked for secrets.`
 - `Qik draft picture not taken: the draft site needs a one-time saved login (README).`
 - `Pictures: not taken, because ImageMagick (magick) is not installed.`
 - `Pictures: not posted, because the assets release needs your yes in <owner>/<repo>. They are on the owner's Mac at <path>.`
+- `Pictures: not posted, because you gave me a password or token in this run. They are on the owner's Mac at <path>.`
