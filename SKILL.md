@@ -184,7 +184,7 @@ Otherwise say in one line why it does not apply, and stop.
 Write the ## Decision section only after the owner answers, in your own
 words: what was chosen, for which problem, any condition. Never paste the owner's message.
 Example: "P1: option A (fix the loop bound). Budget as proposed. Approved by the
-owner in chat, 2026-10-19 14:32. approval-sha: <40 hex>."
+owner in chat, 2026-10-19 14:32." Last line, not for the owner: "Internal: approval-sha <40 hex>".
 
 Keep a session list of every credential, password or token the owner gives you,
 in any message, in the fixed file `~/.superfix/session-secrets` (recipe in
@@ -345,7 +345,7 @@ it is not counted as a pass:
     meaningfully (only by import or missing command)
 Two failed run-2 attempts, whatever the cause given: stop. Post:
   "My fix failed twice, so my diagnosis was wrong. Work kept on the branch.
-   Used 1h10 of 2h. 1 re-diagnose (about 20 min), 2 stop."
+   Used 1 hour 10 minutes of 2 hours. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."
 Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
 ### Execute sequences by type, code review rules, test scope

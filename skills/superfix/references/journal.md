@@ -54,7 +54,7 @@ Tools used: <what ran, with fallbacks>. Missing: <what was not available>.
 Proposed budget: Up to <N> hours, touching these <N> files: <files>. I stop and ask if I go over.
 
 ## Decision
-<empty until the owner answers; then the paraphrase and approval-sha>
+<empty until the owner answers; then the paraphrase in plain words, and last a line "Internal: approval-sha <40 hex>, approved <YYYY-MM-DD HH:MM>">
 
 ## Done when
 - <each failing check the solved check re-runs>
