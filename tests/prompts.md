@@ -126,3 +126,7 @@ Copied word for word from section (d) of the 1.5.0 plan ([superfix-skill#54](htt
 
 - Gates: S0 (1.4.2); N1, N2, N3, N4, N10, G1' (3 of 3), R1, R14 (1.5.0). The rest pass or go under Not tested.
 - **Cost.** Without repeats about 69 USD planned (gates 45.5, other tests 13.5, re-runs 10); with repeats about 92. History says 0.9x to 2x, so without repeats the likely range is 60 to 100 USD. **This is at or over Daniel's 70 USD limit**, hence D7. Order: free tests, S0, tag 1.4.2, then N1, G1', N2, N3, N4, N10, R1, R14, then the rest, then repeats. Cut order: N8, N5, N6, N7, then the review re-runs cut to the tests they touch. Never cut a gate. Hard stop: 100 USD (D7 A) or 70 USD (D7 B, cuts from 55), with a report. The two reviews cost about 5 to 10 USD in the coordinator session, outside this budget.
+
+### Numbering after the live tests (1.5.0)
+
+The two criteria questions ("would you consider these solved?" and "what must not get worse?") are asked ONCE per issue for all criteria-mode problems, or once per group when the problems touch different people or files (references/criteria.md section 4). Expected count for N1 (three small problems in one members sheet): 7 numbered questions, that is 4 problem questions (the duplicate rule, which row wins, how `03/04/2025` is read, how fees are read), the 2 shared criteria questions, and 1 budget question. The live run before this change asked 11.
