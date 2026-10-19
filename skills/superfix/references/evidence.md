@@ -258,6 +258,11 @@ MCP_JS = """async (page) => {
   return 'SHOT ' + m.side;
 }"""
 
+# 1.4.1 aligned crops: the same window-only centring as in shoot, used again when a retake cannot reach the stored scroll.
+CENTRE_JS = "s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }"
+# 1.4.1: the box round all the marks (the drawn box and its number), and the window size.
+MARKS_JS = "() => { const rs = [...document.querySelectorAll('[data-sf-mark]')].map(e => e.getBoundingClientRect()); return [Math.min(...rs.map(r => r.left)), Math.min(...rs.map(r => r.top)), Math.max(...rs.map(r => r.right)), Math.max(...rs.map(r => r.bottom)), innerWidth, innerHeight]; }"
+
 LIMIT = 30  # seconds for each page step; past it the script prints ERROR timeout and stops
 NAME = re.compile(r"^[A-Za-z0-9._+-]+$")
 
@@ -397,6 +402,16 @@ def shoot(a, secrets):
             # Scroll the window only. scrollIntoView would also scroll an overflow:hidden box and hide the bug.
             ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); window.scrollBy(r.left + r.width / 2 - innerWidth / 2, r.top + r.height / 2 - innerHeight / 2); }", a.selector)
             page.wait_for_timeout(200)
+            # 1.4.1 aligned crops: a retake scrolls to where the before picture was taken, so both show the same page area.
+            al, crop, off = getattr(a, "align", None), None, None
+            if al:
+                got = ev_("p => { window.scrollTo(p[0], p[1]); return [scrollX, scrollY]; }", al["scroll"])
+                page.wait_for_timeout(200)
+                if [round(v) for v in got] != [round(v) for v in al["scroll"]]:
+                    # The page cannot scroll there now (for example it got shorter): centre the target again, as in 1.4.0.
+                    ev_(CENTRE_JS, a.selector)
+                    page.wait_for_timeout(200)
+                    al = dict(al, reach=False)
             w, h = ev_("s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.width, r.height]; }", a.selector)
             if w == 0 or h == 0:
                 return say("ZERO-SIZE")
@@ -408,6 +423,25 @@ def shoot(a, secrets):
                 return say("UNREACHABLE " + " ".join(left))
             timed(mark_closed_shadow_roots, cdp)
             m = ev_(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
+            if al:
+                # Inside the before area: the same area. Inside the window: the union of both areas. Else: 1.4.0 behaviour.
+                mk, c = ev_(MARKS_JS), al["clip"]
+                if al.get("reach") is False or mk[0] < 0 or mk[1] < 0 or mk[2] > mk[4] or mk[3] > mk[5]:
+                    crop = "CROP-DIFFERENT"
+                    if al.get("reach") is not False:
+                        ev_("() => document.querySelectorAll('[data-sf-mark]').forEach(e => e.remove())")
+                        ev_(CENTRE_JS, a.selector)
+                        page.wait_for_timeout(200)
+                        m = ev_(MARK_JS, {"sel": a.selector, "colour": COLOURS[a.colour], "num": a.num})
+                elif mk[0] >= c["x"] and mk[1] >= c["y"] and mk[2] <= c["x"] + c["width"] and mk[3] <= c["y"] + c["height"]:
+                    crop, off, m["clip"] = "CROP-ALIGNED", [0, 0], dict(c)
+                else:
+                    u = m["clip"]
+                    x0, y0 = min(c["x"], u["x"]), min(c["y"], u["y"])
+                    x1, y1 = max(c["x"] + c["width"], u["x"] + u["width"]), max(c["y"] + c["height"], u["y"] + u["height"])
+                    crop, off = "CROP-WIDENED", [c["x"] - x0, c["y"] - y0]
+                    m["clip"] = {"x": x0, "y": y0, "width": x1 - x0, "height": y1 - y0}
+            sc = ev_("() => [scrollX, scrollY]")
             kinds = ev_(SCAN_JS, m["clip"])
             if kinds:
                 return say("UNREACHABLE " + " ".join(kinds))
@@ -426,9 +460,14 @@ def shoot(a, secrets):
         with open(os.path.join(ev, a.name + ".json"), "w") as f:
             rec = {"path": "script", "python": sys.executable, "url": a.url, "serve": a.serve, "selector": a.selector,
                    "hide": a.hide or [], "storage": a.storage, "colour": a.colour, "num": a.num, "held": False}
+            cl = m["clip"]
+            rec["page_clip"] = {"x": cl["x"] + sc[0], "y": cl["y"] + sc[1], "width": cl["width"], "height": cl["height"]}
+            rec["scroll"], rec["crop"], rec["offset"] = sc, crop or "", off
             if a.storage:
                 rec.update(held=True, reason="taken with a saved login")
             json.dump(rec, f)
+        if crop:
+            say(crop)
         say("SAVED " + out)
     finally:
         if os.path.exists(raw):
@@ -451,6 +490,7 @@ def retake(a, secrets):
             j[k] = getattr(a, k)
     a.url, a.serve, a.selector, a.hide, a.storage = j["url"], j["serve"], j["selector"], j["hide"], j["storage"]
     a.colour, a.num = a.colour or "green", j["num"]
+    a.align = {"clip": {"x": j["page_clip"]["x"] - j["scroll"][0], "y": j["page_clip"]["y"] - j["scroll"][1], "width": j["page_clip"]["width"], "height": j["page_clip"]["height"]}, "scroll": j["scroll"]} if j.get("page_clip") and j.get("scroll") is not None else None
     shoot(a, secrets)
 
 
@@ -526,6 +566,37 @@ def verify(a, secrets):
     say("VIEW-MATCH" if ok else "VIEW-MISMATCH")
 
 
+def size(path):
+    """1.4.1: width and height of a picture, read by magick."""
+    r = subprocess.run([shutil.which("magick") or "magick", "identify", "-format", "%w %h", path], check=True, capture_output=True, text=True)
+    return [int(v) for v in r.stdout.split()[:2]]
+
+
+def pad_halves(ev, a, b, f):
+    """1.4.1: put halves of unequal size on one canvas, grey #e5e5e5 where nothing was captured.
+    A CROP-WIDENED after picture records where the before area sits inside it (offset); otherwise centred."""
+    sb, sf = size(b), size(f)
+    if sb == sf:
+        return b, f, []
+    try:
+        with open(os.path.join(ev, a.after + ".json")) as fh:
+            j = json.load(fh)
+    except (FileNotFoundError, ValueError):
+        j = {}
+    W, H = max(sb[0], sf[0]), max(sb[1], sf[1])
+    res, pads = [], []
+    for src, (w, h), tag, o in ((b, sb, "before", j.get("offset") if j.get("crop") == "CROP-WIDENED" else None), (f, sf, "after", None)):
+        if [w, h] == [W, H]:
+            res.append(src)
+            continue
+        o = o or [(W - w) // 2, (H - h) // 2]
+        p = os.path.join(ev, "%s-%s.pad.raw.png" % (a.name, tag))
+        magick("-size", "%dx%d" % (W, H), "xc:#e5e5e5", src, "-geometry", "+%d+%d" % (round(o[0]), round(o[1])), "-composite", p)
+        res.append(p)
+        pads.append(p)
+    return res[0], res[1], pads
+
+
 def pair(a):
     ev = os.path.join(a.run, "evidence")
     b, f, out = (os.path.join(ev, n + ".png") for n in (a.before, a.after, a.name))
@@ -533,7 +604,11 @@ def pair(a):
         return say("ERROR before or after picture missing")
     clear(ev, a.name)
     lab = ["-background", "white", "-gravity", "North", "-splice", "0x44", "-pointsize", "28", "-annotate", "+0+8"]
+    # 1.4.1 aligned crops: halves of unequal size (CROP-WIDENED or CROP-DIFFERENT) go on one canvas first, so they line up.
+    b, f, pads = pad_halves(ev, a, b, f)
     magick(*(["(", b] + lab + ["Before", ")", "(", f] + lab + ["After", ")", "+append", "-strip", "-resize", "1600x>", out]))
+    for p in pads:
+        os.remove(p)
     bo, fo = (os.path.join(ev, n + ".ocr.png") for n in (a.before, a.after))
     if os.path.isfile(bo) and os.path.isfile(fo):
         magick(bo, fo, "+append", "-strip", os.path.join(ev, a.name + ".ocr.png"))
