@@ -4,7 +4,7 @@ New in 1.4.1 ([superfix-skill#51](https://github.com/thedanielmay/superfix-skill
 
 ### Which problems get a note
 
-- Every criterion Superfix had no way to check (no tool or access), so it fell to later or owner.
+- Every "Everything else" problem with no checkable criterion (Superfix could not draft one and the owner gave none), which stops at diagnosis, and every criterion Superfix had no tool or access to check, so it fell to later or owner.
 - A Code or Qik problem whose diagnosis fell to low confidence because its row's own tools were missing (partial). For Qik that means the Qik read tools were missing; a Qik problem is not partial otherwise.
 - When: at the Stop gate, before the decision comment. This is a write before approval, allowed by SKILL.md Phase 1.
 - One note per kind of problem per run.
@@ -19,7 +19,7 @@ Holds the KIND only:
 > **In plain English:** Superfix met a kind of problem it does not cover: <kind, in plain words>. This note says what a playbook for it would need.
 
 Kind of problem: <generic>
-Coverage row: <Everything else (criterion not checkable) | Code, partial (tools missing) | Qik, partial (read tools missing)>
+Coverage row: <Everything else (no checkable criterion) | Everything else (criterion not checkable) | Code, partial (tools missing) | Qik, partial (read tools missing)>
 Why it stopped at diagnosis: <generic>
 What was tried: <tools and steps, generic>
 What a playbook would need: recognisers (<words or signs>); evidence (<what to collect>); failing check form (<how to show it fails>); what done means (<generic>); tools (<generic>)
