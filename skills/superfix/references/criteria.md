@@ -77,9 +77,9 @@ Exact, after the problem questions and before the budget question, two per probl
   - "yes" to the first approves the `C` lines; "no ..." means rewrite them and ask again; anything else means not approved yet.
   - "those" keeps the suggested `K` lines; added words become new `K` lines, shown back for a yes; "none" means no guard, recorded in ## Decision as `P<k>: You chose no 'must not get worse' check, so a fix could break something unnoticed.`
   - Only "yes" to the first plus an answer to the second approves problem <k>.
-- "Keep executing" (or "keep going", "yes to all") does not approve them, because these questions have no recommended answer. Say once, in chat and in the decision comment: `Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>.` The notice is APPENDED to the existing decision comment (the comment file gains it at the end, the checks run again, then `gh issue comment <N> --edit-last --body-file <file>`), never a new comment, so the comment counts in journal.md stay the same. Ask again once more, at most; then park that problem with Status `Waiting for you: <n> questions` (the label rule applies). Code and Qik problems in the same issue go ahead on their own answers.
+- "Keep executing" (or "keep going", "yes to all") does not approve them, because these questions have no recommended answer. Say once, in chat and in the decision comment: `Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>.` The notice is APPENDED to the existing decision comment, never a new comment, so the comment counts in journal.md stay the same: record the decision comment's id when it is posted (the number after `#issuecomment-` in the URL `gh issue comment` prints) in `$HOME/.superfix/runs/<run-key>/decision-comment-id`, add the notice to the comment file, run the checks again, then `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<comment file>`. Never `--edit-last` (it edits the newest comment by whoever is logged in). Ask again once more, at most; then park that problem with Status `Waiting for you: <n> questions` (the label rule applies). Code and Qik problems in the same issue go ahead on their own answers.
 - Two more criteria questions, each with NO recommended answer (anything but an explicit yes is no), after the two above and before the budget question, only when they apply:
-  - `<n>. The measure scripts cannot run in the macOS sandbox here (SANDBOX-MISSING), so nothing would stop a script reaching the network or writing files. Run them without it? (yes / no)`
+  - `<n>. The measure scripts cannot run in the macOS sandbox here (SANDBOX-MISSING), so nothing would stop a script reaching the network or writing files. Run them without it? (yes / no)` When it applies it is asked FIRST and alone (no baseline can be measured without it): stop on it; after an explicit yes, write `Internal: unsandboxed approved by <gh login, or the owner at the keyboard>, <YYYY-MM-DD HH:MM>` in ## Decision, then measure with `--unsandboxed-ok`. Every record and attempt line made that way is stamped (`SANDBOX off`, `sbx off`), and every criteria comment of that epoch carries the line `UNSANDBOXED: the measure scripts ran without the macOS sandbox, as you agreed.`
   - `<n>. Commit the changed <files> to <owner/repo>? GitHub keeps every pushed commit even if the PR is closed, and they become public if the repo is ever made public. Do these files hold names or contact details of customers or staff? (commit: yes / no, keep them on my Mac; names or contact details: yes / no)` (section 9). Asked only on a repo `visibility` reports PRIVATE.
 - Order of the optional questions after the budget question: the diagram question (diagrams.md; never for an Everything else problem), the reminder question (section 16), the `assets` question, and the create-issue question always last.
 
@@ -99,7 +99,9 @@ Every command below starts `python3 -I "$HOME/.superfix/runs/<run-key>/crit.py"`
 
 Every path argument is resolved to its real path before the tool changes folder. Words: `CRIT-READY`, then the words of each command below; `BODY-UNREADABLE` when the body cannot be read.
 
-**Honest limit: the tool is DETECTIVE, not preventive.** It finds changed, missing or hand-made records (a hash chain, run ids, record hashes), and it re-runs the locked scripts itself, but a model that can edit files can still forge a record by working the chain out. The owner's own check is one line: each attempt writes `<criteria folder>/VERIFY.txt`, a command that re-runs the locked scripts on the same files and compares the numbers (`VERIFY-OK <n>` or `VERIFY-MISMATCH <id> attempts <a> now <b>`). The decision comment and the final comment say where it is: `To check my numbers yourself, run the command in <criteria folder>/VERIFY.txt on your Mac.`
+**The posted record.** Every tool write to the attempts file refreshes `<criteria folder>/head` (its line count and the first 8 hex of the newest line's sha256), and every criteria comment carries the public line `attempts: <n> lines, head <8 hex>` (the tool prints it after each write; the comment check compares it). On every later check the tool reads the newest such line already posted: from the issue's comments (`--issue`), from `--prev-comment <file>`, or from the journal file (`--body`), and prints `ATTEMPTS-TRUNCATED` when the file has fewer lines or another line at that place, and `ATTEMPTS-MISSING` when a lock exists but the attempts file, or its line for that lock, is gone.
+
+**Honest limit: the tool is DETECTIVE, not preventive.** It finds changed, missing or hand-made records (a hash chain, run ids, record hashes), and it re-runs the locked scripts itself, but a model that can edit files can still forge a record by working the chain out. The owner's own check is one line: each attempt writes `<criteria folder>/VERIFY.txt`, a command that first prints the sha256 of the copy of the tool it runs (to compare with the posted `Internal: crit-sha` line; `CRIT-SHA-MISMATCH` when they differ), checks every script against the lock, then re-runs the scripts on the files named, which the owner may replace with his own copy (Superfix's work copies are deleted at the end): the same file gives `VERIFY-OK <n>` or `VERIFY-MISMATCH <id> attempts <a> now <b>`; another file gives `VERIFY-DIFFERENT-DATA <id>` with both numbers, for information, never a false alarm; a file that is gone gives `VERIFY-NO-FILE`. The decision comment and the final comment say where it is: `To check my numbers yourself, run the command in <criteria folder>/VERIFY.txt on your Mac.`
 
 After `RUN-MOVED` (journal.md, the create-issue question), move the criteria folder to the issue key too, before the lock:
 
@@ -135,16 +137,17 @@ print("ITEMS", " ".join(map(str, items)) or "none")
 ```
 
 - Read data with the `csv` module, never by splitting on commas: a quoted field with a comma (`"Nguyen, Linh"`) breaks a split. Row numbers count records for `.csv` and `.tsv` files and lines for every other file.
-- How the tool runs a script (`attempt`, `measure`, `verify`): under `/usr/bin/sandbox-exec` only (never a `sandbox-exec` found on PATH), with a profile that denies the network, denies every file write outside a temporary folder it deletes afterwards, and denies every file read except the script, the data file, that folder, system paths and the Python install (and explicitly `~/.ssh`, `~/.superfix`, `~/Library/Keychains`, `~/.config`, `~/.gnupg`, `~/.aws`, shell profiles and histories, `~/.gitconfig`, `~/.netrc`); with `python3 -I -B`, a cleaned environment, a 120 second limit, no shell, in its own process group, which is killed after a timeout AND after a normal exit (so a child it started cannot live on).
+- How the tool runs a script (`baseline`, `attempt`, `amend`, `measure`, `verify`): under `/usr/bin/sandbox-exec` only (never a `sandbox-exec` found on PATH), with a DENY-BY-DEFAULT profile (probed on this Mac): it may start only the Python binary (so `osascript`, `security`, `pbpaste`, `curl` or any child program cannot start), read only the script, the data file, a temporary folder it deletes afterwards, system library paths and the Python install, read metadata only on those paths and their parent folders (so it cannot list or stat the home folder), write only in that temporary folder, and use no network and no other service; with `python3 -I -B`, a cleaned environment, a 120 second limit, no shell, in its own process group, which is killed after a timeout AND after a normal exit.
+- Residual, said plainly: the one thing a script sends out is its number and its row numbers. A `MEASURE` number of up to 9 digits can carry a few bits of a data value per attempt; the tool keeps that channel small (9 digits, at most 5 attempts per epoch) but cannot close it. The plain block shows only counts and row numbers, and the owner approves the definitions before anything runs.
 - Errors, each a stop and never FAIL: `ERROR <id> <reason>` (a non-zero exit, a timeout, a missing or wrong `MEASURE` or `ITEMS` line, an unexpected line, `ITEMS` not ascending, a `DATA-SHA` that is not the file's), `ERROR-MEASURE-FORMAT`, `ERROR-VERDICT-DISAGREES`, `ERROR-ITEMS-OUT-OF-RANGE` (a row number above the file's row count, header included), `ERROR-SCRIPT-NOT-LOCKED` (not `measure-<id>.py` in the criteria folder, or after go not the locked sha), `ERROR-DATA-NOT-LOCKED` (after go, neither a locked original nor in a run folder's `work/`), `CRITERIA-CHANGED`, `SANDBOX-MISSING` (nothing ran: ask the sandbox question in section 4; only after a yes add `--unsandboxed-ok`), `ASK-FIRST <file>` (a cloud or online-only file: reading it can download it; ask the owner, then add `--asked`).
-- Measuring for an attempt is the `attempt` command (section 14): the tool runs every script itself and writes the records. `measure` is only for run 1, the negative control (section 15) or a look; its output is never an attempt:
+- Measuring for the record is `baseline` (before the stop), `attempt` (after go) and `amend` (after an amendment), section 14: the tool runs every script itself and writes the records. `measure` is only for run 1, the negative control (section 15) or a look; its output is never an attempt:
 
 ```bash
 python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" measure --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --id <id> --script "<criteria folder>/measure-<id>.py" --data "<file>" --out <name> --expect <PASS or FAIL>
 ```
 
   It prints `PASS <id> <value> items <rows>` or `FAIL ...`, then `EXPECTED`, or `UNEXPECTED <id> wanted <a> got <b>` (a stop: it exits non-zero).
-- Before the stop, the baseline is `attempt --label base` on the ORIGINAL (section 14): each `C` must print `FAIL` with `ITEMS` whose first 3 rows are the rows in the plain block (else the failure is for the wrong reason: fix the script); a `C` that passes does not detect the problem: rewrite it; each `K` must print `PASS`.
+- Before the stop, the baseline is `baseline --label base` on the ORIGINAL (section 14): each `C` must print `FAIL` with `ITEMS` whose first 3 rows are the rows in the plain block (else the failure is for the wrong reason: fix the script); a `C` that passes does not detect the problem: rewrite it; each `K` must print `PASS`.
 - Honest limit: a script that misreads the file quietly (no crash) is caught only when its `ITEMS` or its number differ from what the owner sees in the plain block.
 
 ### 8. Business figures
@@ -200,16 +203,17 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" finish --run "$HOME/.superfi
 - `git push` of a changed criteria-mode file without the three conditions in section 9.
 - The one exception: the owner's own reminder task (section 16), only after his explicit yes to that question.
 
-The test harness (S13) checks a run's `stream-json` log, in the main thread and in subagents, with an ALLOWLIST:
+The test harness (S13) checks a run's `stream-json` log, in the main thread and in subagents, with an ALLOWLIST plus a text scan:
 
 ```bash
-python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" sendcheck --log "<run.jsonl>" --repo '<owner>/<repo>' --gap-repo '<owner>/<gap repo>' --allow-dir "<clone>" --allow-dir "<temporary folder>"
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" sendcheck --log "<run.jsonl>" --repo '<owner>/<repo>' --gap-repo '<owner>/<gap repo>' --allow-dir "<clone>" --allow-dir "<temporary folder>" --scripts "<criteria folder>"
 ```
 
-- Allowed tools: `Read`, `Grep`, `Glob`, `Skill`, `Agent`, `TodoWrite`, `ToolSearch`, `AskUserQuestion`; `Write` and `Edit` only into the clone, `~/.superfix` or an `--allow-dir`; MCP tools whose name starts `get_`, `list_`, `read_`, `search_`, `describe_`, `preview_`, `count_` or `summarise_` (and holds no `checkout`, `share`, `send`, `upload` or `publish`). Everything else is a hit, including `WebFetch`, `WebSearch`, `Artifact` and `find_or_upload_image`.
-- Allowed Bash: `git`; `gh issue view|comment|edit|list|create`, `gh pr view|create|checks|list|diff`, `gh label create|list`, `gh repo view` and `gh api` reads, only on the work repo and the gap repo (a `-X` other than GET, a field flag, another repo, `gist`, `release` or `repo create` is a hit); `python3 -I` of `crit.py`, of `-c` code with no network module, or `-m pytest`; `node`, `npm test|run|ci|install`, `pytest`; the shell's own words and the text tools the skill's commands use (`cat`, `ls`, `grep`, `sed`, `head`, `tail`, `wc`, `diff`, `awk`, `perl`, `tr`, `cut`, `sort`, `printf`, `echo`, `test`, `mkdir`, `cp`, `mv`, `rm`, `chmod`, `mktemp`, `shasum`, `date`, `base64`, `jq` and a few more), with `cp`, `mv`, `rm`, `mkdir`, `touch`, `tee`, `sed -i` and redirects only into the clone, `~/.superfix` or an `--allow-dir`. Any other command is a hit (`unknown or network command <name>`).
-- It prints `SEND-CLEAN (<n> tool calls)`, or `SEND-HIT line <n> <route>` per hit, plus `SEND-REVIEW line <n> git push` (a push to check by hand). An empty log, a line that is not JSON, or a log with no tool call prints `SEND-UNKNOWN`, which is a failure, never a pass.
-- **Best effort:** the Bash match reads text, so base64, unusual spellings or a tool hidden in an allowed one (`perl`, `node`) can slip past. It is the second line, behind the sandbox and the tests' `--disallowedTools` and permission settings.
+- Tools: `Read`, `Grep`, `Glob`, `Skill`, `Agent`, `TodoWrite`, `ToolSearch`, `AskUserQuestion`; `Write` and `Edit` only into the clone, `~/.superfix` or an `--allow-dir`; MCP tools whose name starts `get_`, `list_`, `read_`, `search_`, `describe_`, `preview_`, `count_` or `summarise_` AND holds none of `search_custom`, `search_web`, `upload`, `publish`, `create`, `send`, `update`, `delete`, `copy`, `share`, `move`, `checkout`, `find_or_upload`. Everything else is a hit, `WebFetch`, `WebSearch` and `Artifact` included.
+- Bash, the whole text first (heredoc bodies and quoted strings included): any of `curl`, `wget`, `nc`, `ncat`, `ssh`, `scp`, `sftp`, `rsync`, `ftp`, `telnet`, `dig`, `nslookup`, `ping`, `socat`, `osascript`, `mail`, `sendmail`, `openssl s_client`, `pbcopy` with `open`, a here-string `<<<`, a `cd` into a cloud folder, or a write (`cp`, `mv`, `ln`, `tee`, `rsync`, `ditto`, `install`, a redirect) in a command that names a cloud folder (also through a variable set in it), is a hit.
+- Then each simple command: the shell's own words and the text tools the skill's commands use (`cat`, `ls`, `grep`, `head`, `tail`, `wc`, `diff`, `tr`, `cut`, `sort`, `printf`, `echo`, `test`, `mkdir`, `cp`, `mv`, `rm`, `chmod`, `mktemp`, `shasum`, `date`, `base64`, `jq` and a few more), with writes only into the clone, `~/.superfix` or an `--allow-dir`; `sed` without `-i` and without a `w` or `e` command; `awk` and `perl` without `system`, `exec`, `open`, `getline`, a pipe or `-i`; `git`, except `remote` changes and `push`, `fetch`, `pull`, `ls-remote` or `clone` with a URL or another remote than `origin` (a `git push origin ...` is `SEND-REVIEW`); `gh issue view|comment|edit|list|create`, `gh pr view|create|checks|list|diff`, `gh label create|list`, `gh repo view` and `gh api` reads, on the work repo or the gap repo only (`--repo`, `--repo=`, `-R`, an `api repos/...` path; a shell variable counts only when it is `$R` or was set to one of those repos in the same command), with no `--hostname`, no `--edit-last`, and the one write `gh api -X PATCH repos/<work repo>/issues/comments/<id> -F body=@<file>` (section 4); `python3 -I` only of the locked `crit.py` (its sha must equal the lock's crit-sha; its `remind` command is the owner's one exception and is flagged for a look), of a locked measure script, of `-m pytest`, or of `-` with a heredoc that names no network module or cloud folder; `python3 -I -c` is a hit, so a gap note's names check (gaps.md) shows up here and is read by hand; `node`, `npm` (not `install` or `add`), `pytest`. A leading `command`, `builtin`, `env`, `exec`, `time`, `nohup`, `xargs`, `eval`, `source`, `sudo` or `timeout`, and any other command, is a hit.
+- It prints `SEND-CLEAN (<n> tool calls)`, or `SEND-HIT line <n> <route>` per hit and `SEND-REVIEW line <n> <what>` for a look by hand; both fail (non-zero exit). An empty log, a line that is not JSON, or a log with no tool call prints `SEND-UNKNOWN`, a failure, never a pass.
+- **Best effort, said plainly:** it reads text, so base64, unusual spellings or a tool hidden in an allowed one can still slip past. It is the second line, behind the sandbox and the tests' `--disallowedTools` and permission settings.
 
 ### 12. Lock (at go, before any change)
 
@@ -217,10 +221,10 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" sendcheck --log "<run.jsonl>
 python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" lock --run "$HOME/.superfix/runs/<run-key>" --issue '<owner>/<repo>#<N>' --scripts "<criteria folder>" --attempts "<criteria folder>/attempts" --data "<each original data file>" --by "<gh login, or the owner at the keyboard>"
 ```
 
-- It hashes (sha256) every `P<k>-` line of `## Done when` with its checklist lines (each checkbox read as `[ ]`, so ticking a box never changes the lock), every `measure-*.py` in the criteria folder, and the real path of each original named by `--data` (repeat it per file). It writes `<criteria folder>/lock` (the hash, each script's sha, each data path), adds a `locked` line to the attempts file, and prints `Internal: criteria-sha <64 hex> (sha256), locked <YYYY-MM-DD HH:MM>, approved by <who>` and `CRITERIA-LOCKED`.
+- It hashes (sha256) every `P<k>-` line of `## Done when` with its checklist lines (each checkbox read as `[ ]`, so ticking a box never changes the lock), every `measure-*.py` in the criteria folder, and the real path of each original named by `--data` (repeat it per file). It writes `<criteria folder>/lock` (the hash, each script's sha, each data path), adds a `locked` line to the attempts file, and prints `Internal: criteria-sha <64 hex> (sha256), locked <YYYY-MM-DD HH:MM>, approved by <who>`, `Internal: crit-sha <64 hex> (sha256)` (the sha256 of this tool, for the owner's re-check) and `CRITERIA-LOCKED`. Both Internal lines go in ## Decision. The lock is written once; every later change goes through `amend`.
 - It refuses with `CRITERIA-BAD ...` (no criteria, a missing script, no `--data`, no approver, a baseline measured with another version of a script, or a baseline measured on a file not named by `--data`), `CRITERIA-INCOMPLETE <id>` (a `check` or `later` criterion with no baseline measure), or `ATTEMPTS-TAMPERED`.
 - The word `sha256` on the line lets redaction.md's pattern check pass the hash; never redact it. Any other sha in a comment or body is written next to the word `sha256` too.
-- Write that line in ## Decision directly BEFORE the `Internal: approval-sha` line, which stays last. `<who>` is the GitHub login that wrote the approving reply, or "the owner at the keyboard" in chat. After an amendment, the newest line counts.
+- Write those lines in ## Decision directly BEFORE the `Internal: approval-sha` line, which stays last. `<who>` is the GitHub login that wrote the approving reply, or "the owner at the keyboard" in chat. After an amendment, the newest line counts.
 - Before every attempt, and on every restart:
 
 ```bash
@@ -238,36 +242,48 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" signoff --issue '<owner>/<re
 
 ### 13. Amending
 
-Only through new numbered questions (the Stop gate form). ## Decision gains `Criteria change <date>: "<old plain line>" is now "<new plain line>". Approved by <who> in chat <date time>.` and a new lock line. Then the shape check, a new lock (`lock`, which adds a `locked` line), and a new baseline: `attempt --label base2 --new-epoch` (section 14). Without `--new-epoch`, `attempt` refuses under the new lock (`ATTEMPT-REFUSED the criteria were amended`); `--new-epoch` without an amendment (the current epoch has no other lock than the current one) is `ERROR-EPOCH-WITHOUT-AMENDMENT`.
-
-### 14. Attempts, epochs and the stop rule
-
-An attempt is measured BY THE TOOL: it re-runs every locked script itself, in the sandbox, on the files you name, writes its own records and appends the line. It never accepts an output file it did not write.
+Only through new numbered questions (the Stop gate form), and only with the `amend` command, which never dead-ends: it closes the current epoch, re-measures the NEW scripts on the ORIGINAL files as line 0 of a new epoch, and writes the new lock.
+1. Edit the lines in ## Done when (a changed definition, a new criterion, a removed one) and the scripts, after the owner's yes.
+2. ## Decision gains, per change, `Criteria change <date>: "<old plain line>" is now "<new plain line>". Approved by <who> in chat <date time>.`; a removed criterion also needs `Criteria removed <date>: "<its plain name>" ... Approved by <who> ...`.
+3. Run the shape check, then:
 
 ```bash
-python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" attempt --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --label <base, try1, try2, run2 ...> --measure <id>=<file> --measure <id>=<file> ...
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" amend --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --label <base2, base3 ...> --data "<each original>" --by "<who approved>" --measure <id>=<original> ... [--removed <id>]
 ```
 
-- Every `check` criterion must have a `--measure`, and at a baseline (the first attempt, or `--new-epoch`) every `later` criterion too; else `CRITERIA-INCOMPLETE <id>`. Each label is used once.
-- It prints `PASS|FAIL <id> <value> items <rows>` per criterion and `ATTEMPT-SAVED <n> (epoch <e>); your own re-check command: <criteria folder>/VERIFY.txt`; or `ATTEMPT-SAME <n>` (the same file and values as the newest line: nothing written, so a version is never counted twice), `ATTEMPT-REFUSED <id> <error>`, `ATTEMPT-REFUSED label <label> is used already`, `ATTEMPT-REFUSED the criteria were amended ...`, `ERROR-EPOCH-WITHOUT-AMENDMENT`, `ATTEMPTS-TAMPERED`, or a lock word.
-- The records go to `<criteria folder>/records/<label>/<id>.out`, each with the tool's own run id. The attempt line is `<n> <date time> data-sha <sha> from <label> lock <criteria-sha or none> run <run id> rec <sha of the records> body <sha of the body> P1-C1=<value> ... prev <sha of the previous line>`. Every line the tool writes (`epoch`, `locked`, attempts, `neg`, `signoff`) ends with `prev <sha256 of the line before>`, so a line changed, added or removed by hand breaks the chain: `ATTEMPTS-TAMPERED`. A record changed, removed or not written by the tool is `ATTEMPTS-TAMPERED` too.
-- Epochs: the first attempt writes `epoch 1`; `--new-epoch` writes the next epoch line, only after an amendment. Line 0 of the CURRENT epoch is its baseline: comments, progress, the stop rule and `% fewer than today` use only the current epoch. Old epochs stay in the file for audit.
-- A problem whose criteria are all `owner` has no scripts and no attempts file.
-- After every attempt after the baseline:
+4. Write its two Internal lines in ## Decision (as in section 12). Until then every check prints `CRITERIA-CHANGED`.
+- It prints the new baseline, `ATTEMPT-SAVED 0 (epoch <e>)` and `CRITERIA-LOCKED (amended ...)`; or `ERROR-AMEND-NOTHING-CHANGED`, `ERROR-AMEND-NOT-APPROVED` (no new `Criteria change` or `Criteria removed` line), `ERROR-AMEND-REMOVAL-NOT-APPROVED <id>`, `CRITERIA-INCOMPLETE <id>` (every `check` and `later` criterion, new ones too, is measured), `ERROR-AMEND-NOT-ORIGINAL <id>` (a new baseline is measured on the originals named by `--data`), `AMEND-BASELINE-BAD <id>` (the baseline rules again: a `C` that passes on the original does not detect the problem; a `K` that fails is no guard), `CRITERIA-CHANGED` (the body's newest lock line is not the current lock), `ATTEMPTS-*`.
+- The old epochs stay in the attempts file (`epoch-close <e> ... lock <old sha>`), for audit.
+
+### 14. Baseline, attempts, epochs and the stop rule
+
+Every measure for the record is made BY THE TOOL: it re-runs the scripts itself, in the sandbox, on the files you name, writes its own records and appends the line. It never accepts an output file it did not write.
 
 ```bash
-python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" progress --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --cap <attempts cap, default 5>
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" baseline --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --label base --measure <id>=<original> ...
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" attempt --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --label <try1, try2, run2 ...> --measure <id>=<file> ...
+```
+
+- `baseline` (before the stop only) writes `epoch 1` and line 0. It refuses once a lock exists (`ATTEMPT-REFUSED locked already: a new baseline only through amend`) and once a baseline has been posted; before that, `--redo` measures it again (the old one is closed, not erased).
+- `attempt` (after go only; before it, `CRITERIA-UNLOCKED`) adds lines 1 to 5 of the current epoch. Every `check` criterion must have a `--measure` (else `CRITERIA-INCOMPLETE <id>`). The tool allows at most 5 attempts per epoch, whatever the budget says: a sixth is `STOP-CAP 5 of 5 attempts`. `attempt --recheck` measures only `later` criteria (the re-check of section 16), on the data as it now is; such a line is not a try for the stop rule.
+- They print `PASS|FAIL <id> <value> items <rows>` per criterion and `ATTEMPT-SAVED <n> (epoch <e>); attempts: <n> lines, head <h>; your own re-check command: <criteria folder>/VERIFY.txt`; or `ATTEMPT-SAME <n>` (the same file and values as the newest line: nothing written), `ATTEMPT-REFUSED <id> <error>`, `ATTEMPT-REFUSED label <label> is used already`, `ATTEMPT-REFUSED the criteria were amended: run amend`, `ATTEMPTS-MISSING`, `ATTEMPTS-TAMPERED`, `ATTEMPTS-TRUNCATED`, or a lock word.
+- The records go to `<criteria folder>/records/<label>/<id>.out`, each with the tool's own run id, and a `LINE` file with the sha of its attempt line. The attempt line is `<n> <date time> data-sha <sha> from <label> lock <criteria-sha or none> run <run id> rec <sha of the records> body <sha of the body> sbx <on|off> P1-C1=<value> ... prev <sha of the previous line>`. Every line the tool writes (`epoch`, `epoch-close`, `locked`, attempts, `neg`, `signoff`) ends with `prev <sha256 of the line before>`; a line changed, added or removed by hand is `ATTEMPTS-TAMPERED` or `ATTEMPTS-TRUNCATED`, and so is a record changed, removed or not written by the tool.
+- Epochs: `baseline` writes epoch 1, `amend` each later one. Line 0 of the CURRENT epoch is its baseline: comments, progress, the stop rule and `% fewer than today` use only the current epoch. Old epochs stay for audit.
+- A problem whose criteria are all `owner` has no scripts; its attempts file holds only the `locked` line.
+- After every attempt:
+
+```bash
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" progress --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts"
 ```
 
 - Moved: at least one failing `C` got closer to its pass line AND no `C` or `K` got further from its pass line; any worsening is no progress. It prints `CHECKS-PASS <n>` (every `check` criterion meets its pass line: never a stop), `MOVED <n>`, `NO-PROGRESS <n> (worse: <names>)` or `NO-PROGRESS <n> (no failing check improved)`; `PROGRESS-NONE` with only the baseline.
 - Two attempts in a row with no progress: `STOP-NO-PROGRESS` and the stop text, filled in: `"Two tries did not get closer: <plain name> went from <before> to <after> and <plain name> got worse. Work kept on <branch or copy>. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."` Write the branch or copy in place of `<branch or copy>`. Status `Waiting for you: 1 question`.
-- The attempts cap reached: `STOP-CAP <n> of <cap> attempts`; a budget stop (SKILL.md Budget).
-- The owner's re-check: `VERIFY.txt` holds `python3 -I "<criteria folder>/crit.py" verify --scripts ... --attempts ... --line <n> --measure <id>=<file> ...`, which re-runs the scripts and prints `VERIFY-OK <n>` or `VERIFY-MISMATCH <id> attempts <a> now <b>`.
+- The fifth attempt: `STOP-CAP 5 of 5 attempts`, a budget stop (SKILL.md Budget).
 
 ### 15. Three runs (the solved check in criteria mode)
 
 - Run 1, the original: `measure --out run1 --expect FAIL` for each `C` (`--expect PASS` for each `K`) on the original, and its data sha equal to the epoch's line 0 (the original is unchanged).
-- Run 2, the change: `attempt --label run2 --measure <id>=<the changed copy> ...` (it prints `ATTEMPT-SAME` when the last try measured the same file): every `C` `PASS`, every `K` `PASS` and no further from its pass line than in run 1.
+- Run 2, the change: `attempt --label run2 --measure <id>=<the changed copy> ...` (it prints `ATTEMPT-SAME` when the last try measured the same file, and that line counts as run 2): every `C` `PASS`, every `K` `PASS` and no further from its pass line than in run 1.
 - Run 3, negative control: make a scratch copy of the change in `work/neg/` with exactly ONE planted defect (one example row put back, for a `C`; one member deleted, for a `K`), and run `measure --neg-of "<the changed copy>" --defect "<what was planted, in plain words, no row values>" --expect FAIL --attempts "<criteria folder>/attempts"`. The tool refuses `ERROR-NEG-NOT-DISTINCT` (the negative copy equals the change or an original), `ERROR-NEG-NOT-ONE-DEFECT` (not exactly one record added, removed or changed; records by file type, section 7) and `ASK-FIRST` (a cloud or online-only file); it writes a `neg <date> <id> data-sha <sha> defect <words>` line (`NEG-RECORDED`) only after `EXPECTED`. Run 3 outputs are never attempts.
 - Any `ERROR` or `UNEXPECTED`, or a run 3 that passes: stop and ask, because locked criteria are never rewritten quietly.
 - `later` and `owner` criteria are listed as waiting, never counted as passes.
@@ -299,7 +315,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" index remove --job "<journal
 ```
 
   They print `INDEX-ADDED <index>`, `INDEX-REMOVED <index>`, `INDEX-NOT-LISTED <job>`, `INDEX-REFUSED` (`|`, quotes, `$`, backticks, backslashes or control characters) or `INDEX-BUSY` (another run holds the `INDEX.md.lock` folder for over 10 seconds). Every stop message for such a job prints the job's path and the index path.
-- On "continue superfix on #N" (or the journal path): read the lock line, run the lock check, then `attempt --label recheck-<date> --measure <id>=<the data as it now is>` (the locked script counts only cases after the adoption date); report with the process wording.
+- On "continue superfix on #N" (or the journal path): read the lock line, run the lock check, then `attempt --recheck --label recheck-<date> --measure <id>=<the data as it now is>` in a new run folder (the locked script counts only cases after the adoption date; the earlier records in the criteria folder are still checked); report with the process wording.
 - `owner`: the checklist in the final comment, Status `Waiting for you: sign-off on <plain name>`; the reply "signed off" passes it, anything wrong is a new attempt.
 - Every one of these Status values starts "Waiting for you", so journal.md's label rule already applies. The issue stays open; nothing closes on its own.
 
@@ -310,15 +326,16 @@ When the last criterion passes or is signed off: post the final comment, then cl
 ### 18. Comment check (before every post in criteria mode, after LINES-OK)
 
 ```bash
-python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.superfix/runs/<run-key>/comment-<N>.md" --kind <decision, stop or final> --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts"
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.superfix/runs/<run-key>/comment-<N>.md" --kind <decision, stop or final> --run "$HOME/.superfix/runs/<run-key>" --scripts "<criteria folder>" --issue '<owner>/<repo>#<N>' --attempts "<criteria folder>/attempts" --repo '<owner>/<repo>' --gap-repo '<owner>/<gap repo>'
 ```
 
 - Fences: a line starting (after any indent) with three or more backticks or tildes opens one; it closes only on the same character, at least as long, with nothing after it. An unclosed fence is `CRITERIA-FENCE-UNCLOSED`. Lines outside fences are read for the checks below, with their indent removed.
 - `decision`: `Criteria: PROPOSED <n>` (or `APPROVED <n>`) once in the AI detail below the LAST `---`, with `<n>` equal to the `P<k>-` lines; one plain line per criterion above the FIRST `---`, in exactly the section 3 form.
 - Every kind: `Criteria check: ` once, naming every criterion by its plain name, each `<plain name> <PASS|FAIL|ERROR|LATER YYYY-MM-DD|OWNER> (<value>)` or `(<before> -> <after>)`, separated by `, `. **Every criterion is recomputed:** a `check` criterion's word must be the verdict of its newest measured value, and one with no measured value is `CRITERIA-INCOMPLETE <id>`; a `later` criterion's word is `LATER <its re-measure date>` and an `owner` criterion's word is `OWNER`, never PASS.
-- `final`: one table row per criterion, `| <plain name> | <before> | <after> | <must be> | <result> |`. Before and after are plain numbers (a `later` after may be `LATER YYYY-MM-DD`; an `owner` row reads `OWNER` in before, after and result); `must be` is the pass line word for word; the result is the computed one. Any other cell is `TABLE-CELL-UNCHECKED` and fails.
+- Every kind: the line `attempts: <n> lines, head <8 hex>`, equal to the head record now (the tool printed it after its last write); and, when any measure in the epoch ran unsandboxed, the `UNSANDBOXED:` line (section 4).
+- `final`: one table row per criterion, `| <plain name> | <before> | <after> | <must be> | <result> |`. Before and after are plain numbers (a `later` after may be `LATER YYYY-MM-DD`; an `owner` row reads `OWNER` in before, after and result); `must be` is the pass line word for word; the result is the computed one. Note the two forms: the table's result cell is the bare word `LATER` (or `OWNER`), while the `Criteria check:` line writes `LATER <YYYY-MM-DD>`. Any other cell is `TABLE-CELL-UNCHECKED` and fails.
 - Values are compared at fixed places only (the pass line's own number is not a measure): the plain line's Today number and rows against the epoch's line 0 and its records; the `Criteria check:` values against the newest line that has that criterion (`<before>` against line 0); the table cells likewise. The attempt lines and records are checked as in section 14.
-- A personal-data scan reads EVERY line of the comment, fenced text included: an e-mail address, a phone-like number (8 or more digits), a link, a run of 9 or more digits, or a value after a label such as `Name:`, `Customer:` or `Phone:` is `CRITERIA-PII <what> (comment line <n>)`. Only these links are allowed, wherever they appear in a line: `https://github.com/<owner>/<repo>/issues/<N>`, `.../pull/<N>` and the gap list link (`.../issues?q=is%3Aopen+sort%3Acomments-desc`).
+- A personal-data scan reads EVERY line of the comment, fenced text included: an e-mail address, a phone-like number (8 or more digits), a link, a run of 9 or more digits, or a value after a label such as `Name:`, `Customer:` or `Phone:` is `CRITERIA-PII <what> (comment line <n>)`. Only these links are allowed: exactly `https://github.com/<owner>/<repo>/issues/<N>` or `.../pull/<N>`, with nothing after the number (no `#fragment`, query or further path), on the work repo (`--repo`) or the gap repo (`--gap-repo`). Every other link is scanned as text and fails, the gap list link (`...issues?q=...`) included. The numbers the tool validated itself (the Today number, the `Criteria check:` values, the table's before and after cells, the `attempts:` line) are not scanned for long digit runs, so a count of 10 million or more can be shown.
 - It prints `CRITERIA-OK`, or one line each: `CRITERIA-MISSING <what>`, `CRITERIA-COUNT <n>/<m>`, `CRITERIA-IDS-MISSING <names>`, `CRITERIA-INCOMPLETE <id>`, `CRITERIA-PLAIN-BAD <name> (<why>)`, `CRITERIA-VALUE-MISMATCH <name> comment <a> measured <b>` (or `computed <b>`), `TABLE-CELL-UNCHECKED <name> <cell>`, `CRITERIA-PII <what>`, `CRITERIA-FENCE-UNCLOSED`, `ATTEMPTS-TAMPERED`, or a lock word. Post only after `LINES-OK` and `CRITERIA-OK`.
 
 ### 19. Final comment additions
@@ -333,13 +350,14 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 - A problem with no checkable criterion (section 1) stops at diagnosis and gets one note (gaps.md), kind "no checkable criterion".
 - One note when a criterion would have been `check` but Superfix had no tool or access to measure it, so it fell to `later` or `owner`.
 - A problem fully handled in criteria mode gets no note.
+- In a criteria-mode comment the gap note line (gaps.md) ends after the note's own link; the "All notes, most seen first" list link is left out, because the comment check allows only issue and PR links.
 
 ### 21. Not tested lines (exact)
 
 - `Not verified on the real file: you have not sent me an export yet.`
 - `<plain name> is measured later, on <date>; not checked in this run.`
 - `<plain name> needs your sign-off; not checked by me.`
-- `The measure scripts ran without the macOS sandbox, as you agreed.` (only after the sandbox question's yes)
+- `The measure scripts ran without the macOS sandbox, as you agreed.` (only after the sandbox question's yes; the comments also carry the `UNSANDBOXED:` line)
 
 ### The script
 
@@ -565,223 +583,6 @@ def records(path):
     return [(l,) for l in pathlib.Path(path).read_text(encoding="utf-8", errors="replace").splitlines()]
 
 
-# ---------- attempts file: a hash chain ----------
-
-def all_lines(p):
-    return pathlib.Path(p).read_text().splitlines() if p and pathlib.Path(p).exists() else []
-
-
-def append_line(p, text):
-    lines = all_lines(p)
-    prev = sha_text(lines[-1]) if lines else "none"
-    pathlib.Path(p).parent.mkdir(parents=True, exist_ok=True)
-    with open(p, "a") as f:
-        f.write(f"{text} prev {prev}\n")
-
-
-def chain_ok(p):
-    lines = all_lines(p)
-    for n, l in enumerate(lines):
-        want = sha_text(lines[n - 1]) if n else "none"
-        if not l.endswith(f" prev {want}"):
-            raise Stop(f"ATTEMPTS-TAMPERED line {n + 1} (the chain is broken: a line was changed, added or removed by hand)")
-
-
-def parse_row(l):
-    f = l.split()
-    if len(f) >= 17 and f[0].isdigit() and f[3] == "data-sha" and f[5] == "from" and f[7] == "lock" and f[9] == "run" \
-            and f[11] == "rec" and f[13] == "body" and f[-2] == "prev":
-        raw = dict(x.split("=", 1) for x in f[15:-2])
-        return {"n": int(f[0]), "sha": f[4], "from": f[6], "lock": f[8], "run": f[10], "rec": f[12], "line": l,
-                "raw": raw, "v": {k: float(v) for k, v in raw.items()}}
-    return None
-
-
-def epoch_lines(p):
-    out = []
-    for l in all_lines(p):
-        if l.startswith("epoch "):
-            out = []
-        out.append(l)
-    return out
-
-
-def epoch_rows(p):
-    """Attempt lines of the CURRENT epoch only (old epochs stay in the file for audit)."""
-    return [r for l in epoch_lines(p) if (r := parse_row(l))]
-
-
-def epoch_locks(p):
-    s = set()
-    for l in epoch_lines(p):
-        f = l.split()
-        if f and f[0] == "epoch" and len(f) > 5 and f[5] != "none":
-            s.add(f[5])
-        elif f and f[0] == "locked" and len(f) > 3:
-            s.add(f[3])
-        elif (r := parse_row(l)) and r["lock"] != "none":
-            s.add(r["lock"])
-    return s
-
-
-def epochs(p):
-    return sum(1 for l in all_lines(p) if l.startswith("epoch "))
-
-
-def combined(shas):
-    u = sorted(set(shas))
-    return u[0] if len(u) == 1 else sha_text("\n".join(u))
-
-
-def rec_dir(scripts, label):
-    """The tool's own records: in the criteria folder (no data values), so a later re-check still finds them."""
-    return pathlib.Path(scripts) / "records" / label
-
-
-def rec_hash(folder):
-    return sha_text("".join(p.name + "\n" + p.read_text() for p in sorted(pathlib.Path(folder).glob("*.out"))))
-
-
-def check_rows(scripts, rows, lk=None):
-    """Every attempt line's records exist, are the tool's own (run id, hash) and match the line."""
-    bad = []
-    for r in rows:
-        d = rec_dir(scripts, r["from"])
-        outs = {p.stem: read_out(p) for p in d.glob("*.out")}
-        if not d.is_dir() or rec_hash(d) != r["rec"] or set(outs) != set(r["v"]) \
-                or not (d / "LINE").is_file() or (d / "LINE").read_text().strip() != sha_text(r["line"]) \
-                or any(o.get("RUN") != r["run"] or o.get("MEASURE") != r["raw"].get(i) for i, o in outs.items()) \
-                or combined(o.get("DATA-SHA", "") for o in outs.values()) != r["sha"]:
-            bad.append(f"ATTEMPTS-TAMPERED attempt {r['n']} (its records are missing, changed or not written by the tool)")
-            continue
-        if lk and r["lock"] == lk["sha"]:
-            for i, o in outs.items():
-                if o.get("SCRIPT-SHA") != lk["scripts"].get(i):
-                    bad.append(f"ERROR-SCRIPT-NOT-LOCKED {i} (attempt {r['n']})")
-                if not data_allowed(o.get("DATA", ""), None, lk):
-                    bad.append(f"ERROR-DATA-NOT-LOCKED {i} (attempt {r['n']})")
-    return bad
-
-
-# ---------- lock ----------
-
-def norm_lines(text):
-    out = []
-    for c in criteria(text):
-        out += [BOX.sub(r"\1[ ]\2", l) for l in c["raw"]]
-    return out
-
-
-def lock_sha(text, scripts, data):
-    h = hashlib.sha256()
-    for l in norm_lines(text):
-        h.update((l + "\n").encode())
-    for p in sorted(pathlib.Path(scripts).glob("measure-*.py")):
-        h.update(f"script {p.name}\0{sha_file(p)}\n".encode())
-    for d in sorted(data):
-        h.update(f"data {d}\n".encode())
-    return h.hexdigest()
-
-
-def lock_state(text, scripts):
-    """('unlocked', None) | ('ok', rec); raises Stop on a changed lock."""
-    locks = [(m.group(2), n, m.group(1)) for n, l in enumerate(text.splitlines()) if (m := LOCK.match(l.strip()))]
-    lf = pathlib.Path(scripts) / "lock"
-    if not locks:
-        if lf.exists():
-            raise Stop("CRITERIA-CHANGED (a lock file exists but the body has no lock line: stop)")
-        return "unlocked", None
-    want = max(locks)[2]
-    if not lf.is_file():
-        raise Stop("CRITERIA-CHANGED (the lock file is missing: stop)")
-    rec = {"sha": None, "scripts": {}, "data": []}
-    for l in lf.read_text().splitlines():
-        k, _, v = l.partition(" ")
-        if k == "sha":
-            rec["sha"] = v
-        elif k == "script":
-            i, _, s = v.partition(" ")
-            rec["scripts"][i] = s
-        elif k == "data":
-            rec["data"].append(v)
-    if rec["sha"] != want:
-        raise Stop("CRITERIA-CHANGED (the lock file is not the newest lock line: stop)")
-    if lock_sha(text, scripts, rec["data"]) != want:
-        raise Stop("CRITERIA-CHANGED (a criterion line or a measure script changed since the lock: stop)")
-    return "ok", rec
-
-
-def data_allowed(path, run, rec):
-    """A locked original, or a copy in a run folder's work/ (this run's, or an earlier run's for a record)."""
-    if str(real(path)) in rec["data"]:
-        return True
-    if run is not None:
-        return inside(path, pathlib.Path(run) / "work")
-    runs = str(real(pathlib.Path.home() / ".superfix" / "runs")).lower()
-    return bool(re.match(re.escape(runs) + r"/[^/]+/work/", str(real(path)).lower()))
-
-
-def need_ids(cs, baseline):
-    """Every check criterion, and at a baseline every later criterion too."""
-    return [c["id"] for c in cs if c.get("name") and (c["kind"] == "check" or (baseline and c["kind"] == "later"))]
-
-
-def cmd_lock(a):
-    text = body_text(a)
-    cs = criteria(text)
-    if not cs:
-        print("CRITERIA-BAD none (no P<k>- line in ## Done when)")
-        return 1
-    sc = pathlib.Path(a.scripts)
-    miss = [c["id"] for c in cs if c["kind"] in ("check", "later") and not (sc / f"measure-{c['id']}.py").is_file()]
-    if miss or not a.by.strip():
-        print(f"CRITERIA-BAD {' '.join(miss)} how (no script)" if miss else "CRITERIA-BAD approver (say who approved)")
-        return 1
-    data = sorted({str(real(d)) for d in a.data or []})
-    if any(c["kind"] in ("check", "later") for c in cs) and not data:
-        print("CRITERIA-BAD data (name each original file with --data)")
-        return 1
-    chain_ok(a.attempts)
-    rows = epoch_rows(a.attempts)
-    bad = check_rows(a.scripts, rows)
-    if rows:
-        bad += [f"CRITERIA-INCOMPLETE {i} (no baseline measure)" for i in need_ids(cs, True) if i not in rows[0]["v"]]
-    elif need_ids(cs, True):
-        bad += [f"CRITERIA-INCOMPLETE {i} (no baseline measure)" for i in need_ids(cs, True)]
-    for r in rows[:1]:
-        for p in sorted(rec_dir(a.scripts, r["from"]).glob("*.out")):
-            o, s = read_out(p), sc / f"measure-{p.stem}.py"
-            if s.is_file() and o.get("SCRIPT-SHA") != sha_file(s):
-                bad.append(f"CRITERIA-BAD baseline (measured with another script version: {p.stem}; measure again)")
-            if o.get("DATA") not in data:
-                bad.append(f"CRITERIA-BAD baseline data ({p.stem} was measured on a file not named by --data)")
-    if bad:
-        print("\n".join(dict.fromkeys(bad)))
-        return 1
-    sha = lock_sha(text, sc, data)
-    lines = [f"sha {sha}"] + [f"script {p.stem[len('measure-'):]} {sha_file(p)}" for p in sorted(sc.glob("measure-*.py"))] + [f"data {d}" for d in data]
-    (sc / "lock").write_text("\n".join(lines) + "\n")
-    append_line(a.attempts, f"locked {now()} {sha}")
-    print(f"Internal: criteria-sha {sha} (sha256), locked {now()}, approved by {a.by.strip()}")
-    print("CRITERIA-LOCKED")
-    return 0
-
-
-def cmd_lockcheck(a):
-    st, rec = lock_state(body_text(a), a.scripts)
-    if st == "unlocked":
-        print("CRITERIA-UNLOCKED (no criteria-sha line: no fixing)")
-        return 1
-    if a.run and a.attempts:
-        chain_ok(a.attempts)
-        bad = check_rows(a.scripts, epoch_rows(a.attempts), rec)
-        if bad:
-            print("\n".join(bad))
-            return 1
-    print("CRITERIA-LOCK-OK")
-    return 0
-
-
 # ---------- shape ----------
 
 def cmd_shape(a):
@@ -834,23 +635,336 @@ def cmd_shape(a):
     return 1 if bad else 0
 
 
+# ---------- attempts file: a hash chain, a head record, the posted head ----------
+
+MAX_ATTEMPTS = 5                    # per epoch, after the baseline; fixed in the tool, not by the caller
+HEAD_RX = re.compile(r"^attempts: (\d+) lines, head ([0-9a-f]{8}|none)$")
+UNSBX_RX = re.compile(r"^Internal: unsandboxed approved by (.+), (\d{4}-\d{2}-\d{2} \d{2}:\d{2})$")
+CRIT_RX = re.compile(r"^Internal: crit-sha ([0-9a-f]{64}) \(sha256\)$")
+
+
+def all_lines(p):
+    return pathlib.Path(p).read_text().splitlines() if p and pathlib.Path(p).exists() else []
+
+
+def head_of(lines):
+    return (len(lines), sha_text(lines[-1])[:8] if lines else "none")
+
+
+def head_file(p):
+    return pathlib.Path(p).parent / "head"
+
+
+def append_line(p, text):
+    lines = all_lines(p)
+    prev = sha_text(lines[-1]) if lines else "none"
+    pathlib.Path(p).parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "a") as f:
+        f.write(f"{text} prev {prev}\n")
+    n, h = head_of(all_lines(p))
+    head_file(p).write_text(f"lines {n} head {h}\n")           # every tool write refreshes the head record
+
+
+def posted_head(a):
+    """The newest `attempts: <n> lines, head <h>` line already posted: --prev-comment, the issue's comments, or the journal file."""
+    texts = []
+    if getattr(a, "prev_comment", None):
+        texts.append(pathlib.Path(a.prev_comment).read_text())
+    elif getattr(a, "issue", None):
+        m = re.fullmatch(r"([A-Za-z0-9-]+/[A-Za-z0-9._-]+)#(\d+)", a.issue)
+        try:
+            r = subprocess.run(["gh", "api", f"repos/{m.group(1)}/issues/{m.group(2)}/comments", "--paginate", "-q", ".[].body"],
+                               capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            raise Stop("BODY-UNREADABLE (the posted comments could not be read)")
+        if r.returncode:
+            raise Stop("BODY-UNREADABLE (the posted comments could not be read)")
+        texts.append(r.stdout)
+    elif getattr(a, "body", None) and pathlib.Path(a.body).exists():
+        texts.append(pathlib.Path(a.body).read_text())
+    found = None
+    for t in texts:
+        for l in t.splitlines():
+            m = HEAD_RX.match(l.strip())
+            if m:
+                found = (int(m.group(1)), m.group(2))
+    return found
+
+
+def check_file(a, need=True):
+    """Missing, truncated or hand-edited attempts file: raises Stop with the word."""
+    p, lf = a.attempts, pathlib.Path(a.scripts) / "lock"
+    lines = all_lines(p)
+    if lf.exists():
+        sha = next((l[4:] for l in lf.read_text().splitlines() if l.startswith("sha ")), None)
+        if not lines or not any(l.startswith("locked ") and l.split()[3] == sha for l in lines if len(l.split()) > 3) \
+                and not any(l.startswith("epoch ") and len(l.split()) > 5 and l.split()[5] == sha for l in lines):
+            raise Stop("ATTEMPTS-MISSING (a lock exists but the attempts file, or its line for that lock, is gone: stop)")
+    for n, l in enumerate(lines):
+        want = sha_text(lines[n - 1]) if n else "none"
+        if not l.endswith(f" prev {want}"):
+            raise Stop(f"ATTEMPTS-TAMPERED line {n + 1} (the chain is broken: a line was changed, added or removed by hand)")
+    hf = head_file(p)
+    if lines or hf.exists():
+        m = re.fullmatch(r"lines (\d+) head ([0-9a-f]{8}|none)\n?", hf.read_text() if hf.exists() else "")
+        if not m or (int(m.group(1)), m.group(2)) != head_of(lines):
+            raise Stop("ATTEMPTS-TRUNCATED (the attempts file does not match its head record: lines were removed or added by hand)")
+    ph = posted_head(a) if need else None
+    if ph and ph[0]:
+        if len(lines) < ph[0] or sha_text(lines[ph[0] - 1])[:8] != ph[1]:
+            raise Stop(f"ATTEMPTS-TRUNCATED (the posted record says {ph[0]} lines, head {ph[1]}; the file does not hold that line)")
+
+
+def parse_row(l):
+    f = l.split()
+    if len(f) >= 19 and f[0].isdigit() and f[3] == "data-sha" and f[5] == "from" and f[7] == "lock" and f[9] == "run" \
+            and f[11] == "rec" and f[13] == "body" and f[15] == "sbx" and f[-2] == "prev":
+        raw = dict(x.split("=", 1) for x in f[17:-2])
+        return {"n": int(f[0]), "sha": f[4], "from": f[6], "lock": f[8], "run": f[10], "rec": f[12], "sbx": f[16], "line": l,
+                "raw": raw, "v": {k: float(v) for k, v in raw.items()}}
+    return None
+
+
+def epoch_lines(p):
+    out = []
+    for l in all_lines(p):
+        if l.startswith("epoch "):
+            out = []
+        out.append(l)
+    return out
+
+
+def epoch_rows(p):
+    """Attempt lines of the CURRENT epoch only (old epochs stay in the file for audit)."""
+    return [r for l in epoch_lines(p) if (r := parse_row(l))]
+
+
+def epoch_locks(p):
+    s = set()
+    for l in epoch_lines(p):
+        f = l.split()
+        if f and f[0] == "epoch" and len(f) > 5 and f[5] != "none":
+            s.add(f[5])
+        elif f and f[0] == "locked" and len(f) > 3:
+            s.add(f[3])
+        elif (r := parse_row(l)) and r["lock"] != "none":
+            s.add(r["lock"])
+    return s
+
+
+def epochs(p):
+    return sum(1 for l in all_lines(p) if l.startswith("epoch "))
+
+
+def combined(shas):
+    u = sorted(set(shas))
+    return u[0] if len(u) == 1 else sha_text("\n".join(u))
+
+
+def rec_dir(scripts, label):
+    """The tool's own records: in the criteria folder (no data values), so a later re-check still finds them."""
+    return pathlib.Path(scripts) / "records" / label
+
+
+def rec_hash(folder):
+    return sha_text("".join(p.name + "\n" + p.read_text() for p in sorted(pathlib.Path(folder).glob("*.out"))))
+
+
+def check_rows(scripts, rows, lk=None):
+    """Every attempt line's records exist, are the tool's own (run id, hash, line sha) and match the line."""
+    bad = []
+    for r in rows:
+        d = rec_dir(scripts, r["from"])
+        outs = {p.stem: read_out(p) for p in d.glob("*.out")}
+        if not d.is_dir() or rec_hash(d) != r["rec"] or set(outs) != set(r["v"]) \
+                or not (d / "LINE").is_file() or (d / "LINE").read_text().strip() != sha_text(r["line"]) \
+                or any(o.get("RUN") != r["run"] or o.get("MEASURE") != r["raw"].get(i) for i, o in outs.items()) \
+                or combined(o.get("DATA-SHA", "") for o in outs.values()) != r["sha"]:
+            bad.append(f"ATTEMPTS-TAMPERED attempt {r['n']} (its records are missing, changed or not written by the tool)")
+            continue
+        if lk and r["lock"] == lk["sha"]:
+            for i, o in outs.items():
+                if o.get("SCRIPT-SHA") != lk["scripts"].get(i):
+                    bad.append(f"ERROR-SCRIPT-NOT-LOCKED {i} (attempt {r['n']})")
+                if not data_allowed(o.get("DATA", ""), None, lk):
+                    bad.append(f"ERROR-DATA-NOT-LOCKED {i} (attempt {r['n']})")
+    return bad
+
+
+# ---------- lock ----------
+
+def norm_lines(text):
+    out = []
+    for c in criteria(text):
+        out += [BOX.sub(r"\1[ ]\2", l) for l in c["raw"]]
+    return out
+
+
+def lock_sha(text, scripts, data):
+    h = hashlib.sha256()
+    for l in norm_lines(text):
+        h.update((l + "\n").encode())
+    for p in sorted(pathlib.Path(scripts).glob("measure-*.py")):
+        h.update(f"script {p.name}\0{sha_file(p)}\n".encode())
+    for d in sorted(data):
+        h.update(f"data {d}\n".encode())
+    return h.hexdigest()
+
+
+def read_lock(scripts):
+    rec = {"sha": None, "scripts": {}, "data": [], "crit": None, "names": {}, "changes": 0}
+    for l in (pathlib.Path(scripts) / "lock").read_text().splitlines():
+        k, _, v = l.partition(" ")
+        if k == "sha":
+            rec["sha"] = v
+        elif k == "script":
+            i, _, s = v.partition(" ")
+            rec["scripts"][i] = s
+        elif k == "data":
+            rec["data"].append(v)
+        elif k == "crit":
+            rec["crit"] = v
+        elif k == "criterion":
+            i, _, n = v.partition(" ")
+            rec["names"][i] = n
+        elif k == "changes":
+            rec["changes"] = int(v)
+    return rec
+
+
+def lock_state(text, scripts):
+    """('unlocked', None) | ('ok', rec); raises Stop on a changed lock."""
+    locks = [(m.group(2), n, m.group(1)) for n, l in enumerate(text.splitlines()) if (m := LOCK.match(l.strip()))]
+    lf = pathlib.Path(scripts) / "lock"
+    if not locks:
+        if lf.exists():
+            raise Stop("CRITERIA-CHANGED (a lock file exists but the body has no lock line: stop)")
+        return "unlocked", None
+    want = max(locks)[2]
+    if not lf.is_file():
+        raise Stop("CRITERIA-CHANGED (the lock file is missing: stop)")
+    rec = read_lock(scripts)
+    if rec["sha"] != want:
+        raise Stop("CRITERIA-CHANGED (the lock file is not the newest lock line: stop)")
+    if lock_sha(text, scripts, rec["data"]) != want:
+        raise Stop("CRITERIA-CHANGED (a criterion line or a measure script changed since the lock: stop)")
+    return "ok", rec
+
+
+def data_allowed(path, run, rec):
+    """A locked original, or a copy in a run folder's work/ (this run's, or an earlier run's for a record)."""
+    if str(real(path)) in rec["data"]:
+        return True
+    if run is not None:
+        return inside(path, pathlib.Path(run) / "work")
+    runs = str(real(pathlib.Path.home() / ".superfix" / "runs")).lower()
+    return bool(re.match(re.escape(runs) + r"/[^/]+/work/", str(real(path)).lower()))
+
+
+def need_ids(cs, baseline):
+    """Every check criterion, and at a baseline every later criterion too."""
+    return [c["id"] for c in cs if c.get("name") and (c["kind"] == "check" or (baseline and c["kind"] == "later"))]
+
+
+def change_lines(text):
+    return sum(1 for l in section(text, "Decision") if re.match(r"^Criteria (change|removed) \d{4}-\d{2}-\d{2}: .*Approved by .+", l.strip()))
+
+
+def write_lock(text, sc, data, by):
+    sha = lock_sha(text, sc, data)
+    cs = [c for c in criteria(text) if c.get("name")]
+    lines = ([f"sha {sha}", f"crit {sha_file(__file__)}", f"changes {change_lines(text)}"]
+             + [f"script {p.stem[len('measure-'):]} {sha_file(p)}" for p in sorted(sc.glob("measure-*.py"))]
+             + [f"data {d}" for d in data] + [f"criterion {c['id']} {c['name']}" for c in cs])
+    (sc / "lock").write_text("\n".join(lines) + "\n")
+    return sha
+
+
+def print_lock(sha, by):
+    print(f"Internal: criteria-sha {sha} (sha256), locked {now()}, approved by {by}")
+    print(f"Internal: crit-sha {sha_file(__file__)} (sha256)")
+
+
+def lock_inputs(a, text, cs):
+    sc = pathlib.Path(a.scripts)
+    miss = [c["id"] for c in cs if c["kind"] in ("check", "later") and not (sc / f"measure-{c['id']}.py").is_file()]
+    if miss or not a.by.strip():
+        raise Stop(f"CRITERIA-BAD {' '.join(miss)} how (no script)" if miss else "CRITERIA-BAD approver (say who approved)")
+    data = sorted({str(real(d)) for d in a.data or []})
+    if any(c["kind"] in ("check", "later") for c in cs) and not data:
+        raise Stop("CRITERIA-BAD data (name each original file with --data)")
+    return sc, data
+
+
+def cmd_lock(a):
+    text = body_text(a)
+    cs = criteria(text)
+    if not cs:
+        print("CRITERIA-BAD none (no P<k>- line in ## Done when)")
+        return 1
+    if (pathlib.Path(a.scripts) / "lock").exists():
+        print("CRITERIA-BAD locked already (use amend for a change)")
+        return 1
+    sc, data = lock_inputs(a, text, cs)
+    check_file(a)
+    rows = epoch_rows(a.attempts)
+    bad = check_rows(a.scripts, rows)
+    ids = need_ids(cs, True)
+    bad += [f"CRITERIA-INCOMPLETE {i} (no baseline measure)" for i in ids if not rows or i not in rows[0]["v"]]
+    for r in rows[:1]:
+        for p in sorted(rec_dir(a.scripts, r["from"]).glob("*.out")):
+            o, s = read_out(p), sc / f"measure-{p.stem}.py"
+            if s.is_file() and o.get("SCRIPT-SHA") != sha_file(s):
+                bad.append(f"CRITERIA-BAD baseline (measured with another script version: {p.stem}; measure again)")
+            if o.get("DATA") not in data:
+                bad.append(f"CRITERIA-BAD baseline data ({p.stem} was measured on a file not named by --data)")
+    if bad:
+        print("\n".join(dict.fromkeys(bad)))
+        return 1
+    sha = write_lock(text, sc, data, a.by.strip())
+    if all_lines(a.attempts) or ids:
+        append_line(a.attempts, f"locked {now()} {sha}")
+    print_lock(sha, a.by.strip())
+    print("CRITERIA-LOCKED (write both Internal lines in ## Decision, directly before Internal: approval-sha)")
+    return 0
+
+
+def cmd_lockcheck(a):
+    st, rec = lock_state(body_text(a), a.scripts)
+    if st == "unlocked":
+        print("CRITERIA-UNLOCKED (no criteria-sha line: no fixing)")
+        return 1
+    check_file(a)
+    bad = check_rows(a.scripts, epoch_rows(a.attempts), rec)
+    if bad:
+        print("\n".join(bad))
+        return 1
+    print("CRITERIA-LOCK-OK")
+    return 0
+
+
 # ---------- running one script ----------
 
 def profile(tmp, reads):
+    """Deny by default (probed on macOS 27): exec only of Python, reads only of the named files, the
+    temporary folder, system paths and the Python install, metadata only on those paths' parents."""
     q = lambda s: '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
-    home = pathlib.Path.home()
     py = real(sys.executable)
-    sysreads = ["/System", "/usr/lib", "/usr/share", "/bin", "/usr/bin", "/dev", "/private/var/db", "/private/var/select",
-                "/private/etc", "/Library/Apple", "/opt/homebrew", "/usr/local",
-                real(sys.base_prefix), real(sys.prefix), py.parent.parent]
-    # later rules win: deny all reads, allow system paths, deny the sensitive home folders, THEN allow the named files
-    return ("(version 1)(allow default)(deny network*)"
-            "(deny file-read*)(allow file-read-metadata)(allow file-read* (literal \"/\"))"
-            "(allow file-read* " + " ".join(f"(subpath {q(r)})" for r in sysreads) + ")"
-            + "".join(f"(deny file-read* (subpath {q(home / d)}))" for d in (".ssh", ".superfix", "Library/Keychains", ".config", ".gnupg", ".aws", ".docker", ".kube"))
-            + "".join(f"(deny file-read* (literal {q(home / f)}))" for f in (".zshrc", ".zprofile", ".bashrc", ".bash_profile", ".netrc", ".bash_history", ".zsh_history", ".gitconfig", ".git-credentials"))
-            + "(allow file-read* " + " ".join(f"(literal {q(r)})" for r in reads) + f" (subpath {q(tmp)}))"
-            f"(deny file-write*)(allow file-write* (subpath {q(tmp)}) (literal \"/dev/null\"))")
+    fw = py.parents[3] if "Frameworks" in str(py) else py.parent.parent
+    sysr = ["/System", "/usr/lib", "/usr/share", "/private/var/db/dyld", "/private/var/db/timezone", "/Library/Apple",
+            "/opt/homebrew", "/dev", "/private/var/select", real(sys.base_prefix), real(sys.prefix), fw]
+    allowed = [str(x) for x in sysr] + [str(r) for r in reads] + [str(tmp)]
+    anc = sorted({str(x) for p in allowed for x in pathlib.Path(p).parents} | {"/"})
+    return ("(version 1)(deny default)"
+            f"(allow process-exec (literal {q(py)}) (subpath {q(fw)}))"
+            "(allow file-read-metadata " + " ".join(f"(literal {q(x)})" for x in anc) + ")"
+            "(allow file-read* (literal \"/\") " + " ".join(f"(subpath {q(r)})" for r in sysr)
+            + " " + " ".join(f"(literal {q(r)})" for r in reads) + f" (subpath {q(tmp)}))"
+            f"(allow file-write* (subpath {q(tmp)}) (literal \"/dev/null\"))")
+
+
+def unsandboxed_approved(text):
+    return any(UNSBX_RX.match(l.strip()) for l in section(text, "Decision"))
 
 
 def run_script(c, script, data, baseline, timeout, unsandboxed_ok, own_verdict=True):
@@ -858,7 +972,7 @@ def run_script(c, script, data, baseline, timeout, unsandboxed_ok, own_verdict=T
     i = c["id"]
     sbx = SBX if os.path.exists(SBX) and os.environ.get("SUPERFIX_TEST_NO_SANDBOX") != "1" else None
     if not sbx and not unsandboxed_ok:
-        return "SANDBOX-MISSING", "not run; ask the owner the sandbox question, no recommended answer"
+        return "SANDBOX-MISSING", "not run; ask the owner the sandbox question, no recommended answer, and record his yes"
     tmp = real(tempfile.mkdtemp(prefix="crit-", dir="/private/tmp" if os.path.isdir("/private/tmp") else None))
     try:
         cmd = [str(real(sys.executable)), "-I", "-B", str(script), str(data)]
@@ -921,7 +1035,7 @@ def run_script(c, script, data, baseline, timeout, unsandboxed_ok, own_verdict=T
     if own_verdict and word and word != res:
         return "ERROR-VERDICT-DISAGREES", f"(script said {word}, the pass line gives {res})"
     return res, {"DATA": str(data), "SCRIPT": str(script), "DATA-SHA": dsha, "SCRIPT-SHA": sha_file(script),
-                 "MEASURE": m.group(1), "ITEMS": " ".join(nums) or "none",
+                 "MEASURE": m.group(1), "ITEMS": " ".join(nums) or "none", "SANDBOX": "on" if sbx else "off",
                  "TARGET": f"{t[0]} {fmt(t[1])}" + (f" {fmt(t[2])}" if t[2] is not None else ""), "RESULT": res}
 
 
@@ -941,7 +1055,7 @@ def parse_measures(items):
 
 
 def script_checks(a, c, script, data, lk, run):
-    """The script and data rules shared by measure and attempt. Returns an error line or None."""
+    """The script and data rules shared by measure, baseline, attempt and amend. Returns an error line or None."""
     i = c["id"]
     if script.parent != real(a.scripts) or script.name != f"measure-{i}.py":
         return f"ERROR-SCRIPT-NOT-LOCKED {i} (the script must be {real(a.scripts)}/measure-{i}.py)"
@@ -954,6 +1068,66 @@ def script_checks(a, c, script, data, lk, run):
     if not data.is_file():
         return f"ERROR {i} cannot read the data file"
     return None
+
+
+def sbx_ok(a, text):
+    if getattr(a, "unsandboxed_ok", False) and not unsandboxed_approved(text):
+        raise Stop("SANDBOX-MISSING (--unsandboxed-ok needs the owner's yes recorded in ## Decision: Internal: unsandboxed approved by <who>, <YYYY-MM-DD HH:MM>)")
+    return getattr(a, "unsandboxed_ok", False)
+
+
+def measure_all(a, cs, ms, lk, run, text, baseline_vals):
+    recs = {}
+    for i, data in sorted(ms.items()):
+        script = real(a.scripts) / f"measure-{i}.py"
+        err = script_checks(a, cs[i], script, data, lk, run)
+        if err:
+            raise Stop(err)
+        res, info = run_script(cs[i], script, data, baseline_vals.get(i) if baseline_vals else None, a.timeout, sbx_ok(a, text))
+        if res not in ("PASS", "FAIL"):
+            raise Stop(f"ATTEMPT-REFUSED {i} {res} {info}")
+        recs[i] = info
+    return recs
+
+
+def write_row(a, recs, lock, n, label, text):
+    d = rec_dir(a.scripts, label)
+    rid = secrets.token_hex(8)
+    d.mkdir(parents=True)
+    for i, info in recs.items():
+        (d / f"{i}.out").write_text("".join(f"{k} {v}\n" for k, v in info.items()) + f"RUN {rid}\n")
+    sha = combined(r["DATA-SHA"] for r in recs.values())
+    sbx = "on" if all(r["SANDBOX"] == "on" for r in recs.values()) else "off"
+    append_line(a.attempts, f"{n} {now()} data-sha {sha} from {label} lock {lock} run {rid} rec {rec_hash(d)} body {sha_text(text)} sbx {sbx} "
+                + " ".join(f"{i}={recs[i]['MEASURE']}" for i in sorted(recs)))
+    (d / "LINE").write_text(sha_text(all_lines(a.attempts)[-1]) + "\n")   # so a hand edit of the newest line is caught too
+    for i in sorted(recs):
+        print(f"{recs[i]['RESULT']} {i} {recs[i]['MEASURE']} items {recs[i]['ITEMS']}" + (" UNSANDBOXED" if recs[i]["SANDBOX"] == "off" else ""))
+    write_verify(a, n, recs)
+    n_l, h = head_of(all_lines(a.attempts))
+    print(f"ATTEMPT-SAVED {n} (epoch {epochs(a.attempts)}); attempts: {n_l} lines, head {h}; your own re-check command: {real(a.scripts) / 'VERIFY.txt'}")
+
+
+def write_verify(a, n, recs):
+    sc = real(a.scripts)
+    if real(__file__) != real(sc / "crit.py"):
+        shutil.copy2(__file__, sc / "crit.py")
+    crit = read_lock(sc)["crit"] if (sc / "lock").exists() else sha_file(__file__)
+    verify = f"shasum -a 256 {shlex.quote(str(sc / 'crit.py'))}; python3 -I {shlex.quote(str(sc / 'crit.py'))} verify --scripts {shlex.quote(str(sc))} --attempts {shlex.quote(str(real(a.attempts)))} --line {n} --crit-sha {crit} " \
+             + " ".join(f"--measure {shlex.quote(i + '=' + recs[i]['DATA'])}" for i in sorted(recs))
+    (sc / "VERIFY.txt").write_text("# The first line printed is the sha256 of the tool; it must equal the crit-sha line in the issue.\n"
+                                   "# Replace a file path with your own copy of the data if mine is gone.\n" + verify + "\n")
+
+
+def setup(a):
+    run = real(a.run)
+    if not (run / "key").is_file():
+        raise Stop(f"NO-RUN-FOLDER {run}")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", a.label):
+        raise Stop("ERROR label (letters, digits, - and _ only)")
+    if rec_dir(a.scripts, a.label).exists():
+        raise Stop(f"ATTEMPT-REFUSED label {a.label} is used already")
+    return run
 
 
 # ---------- measure (run 1, the negative control, a look; never an attempt) ----------
@@ -974,7 +1148,7 @@ def cmd_measure(a):
         return 1
     _, lk = lock_state(text, a.scripts)
     if a.attempts:
-        chain_ok(a.attempts)
+        check_file(a, need=False)
     err = script_checks(a, c, script, data, lk, run)
     if err:
         print(err)
@@ -996,14 +1170,14 @@ def cmd_measure(a):
         if (sum(added.values()), sum(removed.values())) not in ((1, 0), (0, 1), (1, 1)):
             print(f"ERROR-NEG-NOT-ONE-DEFECT {i} (want one row put back, removed or changed; found +{sum(added.values())} -{sum(removed.values())})")
             return 1
-    res, info = run_script(c, script, data, baseline_raw(a.attempts, i), a.timeout, a.unsandboxed_ok)
+    res, info = run_script(c, script, data, baseline_raw(a.attempts, i), a.timeout, sbx_ok(a, text))
     if res not in ("PASS", "FAIL"):
         print(f"{res} {i} {info}".rstrip())
         return 1
     out = run / "criteria" / "measure" / a.out
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{i}.out").write_text("".join(f"{k} {v}\n" for k, v in info.items()))
-    print(f"{res} {i} {info['MEASURE']} items {info['ITEMS']}")
+    print(f"{res} {i} {info['MEASURE']} items {info['ITEMS']}" + (" UNSANDBOXED" if info["SANDBOX"] == "off" else ""))
     if a.expect:
         if a.expect != res:
             print(f"UNEXPECTED {i} wanted {a.expect} got {res}")
@@ -1015,115 +1189,184 @@ def cmd_measure(a):
     return 0
 
 
-# ---------- attempt: the tool measures, writes the records and the line ----------
+# ---------- baseline (epoch 1, before the stop), attempt (after go), amend (a new epoch) ----------
+
+def cmd_baseline(a):
+    run = setup(a)
+    text = body_text(a)
+    if (pathlib.Path(a.scripts) / "lock").exists():
+        print("ATTEMPT-REFUSED locked already: a new baseline only through amend")
+        return 1
+    if all_lines(a.attempts):
+        if posted_head(a):
+            print("ATTEMPT-REFUSED a baseline was posted already: a new baseline only through amend, after go")
+            return 1
+        if not a.redo:
+            print("ATTEMPT-REFUSED a baseline exists (nothing posted yet): add --redo to measure it again")
+            return 1
+        check_file(a, need=False)
+        append_line(a.attempts, f"epoch-close {epochs(a.attempts)} {now()} lock none redo")
+    cs = {c["id"]: c for c in criteria(text) if c.get("name")}
+    ms = parse_measures(a.measure)
+    miss = [i for i in need_ids(cs.values(), True) if i not in ms]
+    unknown = [i for i in ms if i not in cs or cs[i]["kind"] not in ("check", "later")]
+    if miss or unknown:
+        print("\n".join([f"CRITERIA-INCOMPLETE {i} (measure every check and later criterion at a baseline)" for i in miss]
+                        + [f"ERROR measure {i} (no check or later criterion with this id)" for i in unknown]))
+        return 1
+    recs = measure_all(a, cs, ms, None, run, text, None)
+    append_line(a.attempts, f"epoch {epochs(a.attempts) + 1} {now()} lock none")
+    write_row(a, recs, "none", 0, a.label, text)
+    return 0
+
 
 def cmd_attempt(a):
-    run = real(a.run)
-    if not (run / "key").is_file():
-        print(f"NO-RUN-FOLDER {run}")
-        return 1
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", a.label):
-        print("ERROR label (letters, digits, - and _ only)")
-        return 1
+    run = setup(a)
     text = body_text(a)
-    _, lk = lock_state(text, a.scripts)
-    chain_ok(a.attempts)
+    st, lk = lock_state(text, a.scripts)
+    if st == "unlocked":
+        print("CRITERIA-UNLOCKED (no criteria-sha line: no fixing, so no attempt)")
+        return 1
+    check_file(a)
     rows = epoch_rows(a.attempts)
+    if not rows:
+        print("ATTEMPTS-MISSING (no baseline in this epoch: baseline before the stop, amend after an amendment)")
+        return 1
     bad = check_rows(a.scripts, rows, lk)
     if bad:
         print("\n".join(bad))
         return 1
-    L = lk["sha"] if lk else "none"
-    locks = epoch_locks(a.attempts)
-    if a.new_epoch:
-        if L == "none" or not (locks - {L}):
-            print("ERROR-EPOCH-WITHOUT-AMENDMENT (a new epoch needs a new lock after an amendment)")
-            return 1
-    elif L != "none" and (locks - {L}):
-        print("ATTEMPT-REFUSED the criteria were amended: measure a new baseline with --new-epoch")
+    if epoch_locks(a.attempts) - {lk["sha"]}:
+        print("ATTEMPT-REFUSED the criteria were amended: run amend, which measures the new baseline")
+        return 1
+    n = rows[-1]["n"] + 1
+    if n > MAX_ATTEMPTS:
+        print(f"STOP-CAP {MAX_ATTEMPTS} of {MAX_ATTEMPTS} attempts (fixed per epoch: stop and ask)")
         return 1
     cs = {c["id"]: c for c in criteria(text) if c.get("name")}
     ms = parse_measures(a.measure)
-    baseline = a.new_epoch or not rows
-    miss = [i for i in need_ids(cs.values(), baseline) if i not in ms]
-    unknown = [i for i in ms if i not in cs or cs[i]["kind"] not in ("check", "later")]
+    if a.recheck:   # a later re-check: only later criteria, on the data as it is now (the check criteria were met earlier)
+        miss = [] if ms else ["(none given)"]
+        unknown = [i for i in ms if i not in cs or cs[i]["kind"] != "later"]
+    else:
+        miss = [i for i in need_ids(cs.values(), False) if i not in ms]
+        unknown = [i for i in ms if i not in cs or cs[i]["kind"] not in ("check", "later")]
     if miss or unknown:
-        print("\n".join([f"CRITERIA-INCOMPLETE {i} (measure every check criterion{', and every later one at a baseline' if baseline else ''})" for i in miss]
-                        + [f"ERROR measure {i} (no check or later criterion with this id)" for i in unknown]))
+        print("\n".join([f"CRITERIA-INCOMPLETE {i} (measure every check criterion; --recheck measures later criteria only)" for i in miss]
+                        + [f"ERROR measure {i} (not a {'later' if a.recheck else 'check or later'} criterion)" for i in unknown]))
         return 1
-    d = rec_dir(a.scripts, a.label)
-    if d.exists():
-        print(f"ATTEMPT-REFUSED label {a.label} is used already")
-        return 1
-    recs = {}
-    for i, data in sorted(ms.items()):
-        script = real(a.scripts) / f"measure-{i}.py"
-        err = script_checks(a, cs[i], script, data, lk, run)
-        if err:
-            print(err)
-            return 1
-        res, info = run_script(cs[i], script, data, None if baseline else (rows[0]["raw"].get(i) if rows else None), a.timeout, a.unsandboxed_ok)
-        if res not in ("PASS", "FAIL"):
-            print(f"ATTEMPT-REFUSED {i} {res} {info}")
-            return 1
-        recs[i] = info
+    recs = measure_all(a, cs, ms, lk, run, text, rows[0]["raw"])
     vals = {i: float(r["MEASURE"]) for i, r in recs.items()}
-    sha = combined(r["DATA-SHA"] for r in recs.values())
-    if rows and not a.new_epoch and rows[-1]["sha"] == sha and rows[-1]["v"] == vals:
+    if rows[-1]["sha"] == combined(r["DATA-SHA"] for r in recs.values()) and rows[-1]["v"] == vals:
         print(f"ATTEMPT-SAME {rows[-1]['n']} (the same file and values as the newest line; nothing written)")
         return 0
-    rid = secrets.token_hex(8)
-    d.mkdir(parents=True)
-    for i, info in recs.items():
-        (d / f"{i}.out").write_text("".join(f"{k} {v}\n" for k, v in info.items()) + f"RUN {rid}\n")
-    if a.new_epoch or not all_lines(a.attempts) or not any(l.startswith("epoch ") for l in all_lines(a.attempts)):
-        append_line(a.attempts, f"epoch {epochs(a.attempts) + 1} {now()} lock {L}")
-        rows = []
-    n = rows[-1]["n"] + 1 if rows else 0
-    append_line(a.attempts, f"{n} {now()} data-sha {sha} from {a.label} lock {L} run {rid} rec {rec_hash(d)} body {sha_text(text)} "
-                + " ".join(f"{i}={recs[i]['MEASURE']}" for i in sorted(recs)))
-    (d / "LINE").write_text(sha_text(all_lines(a.attempts)[-1]) + "\n")   # so a hand edit of the newest line is caught too
-    for i in sorted(recs):
-        print(f"{recs[i]['RESULT']} {i} {recs[i]['MEASURE']} items {recs[i]['ITEMS']}")
-    # the owner's own re-check: the tool and a one-line command next to the locked scripts
-    sc = real(a.scripts)
-    if real(__file__) != real(sc / "crit.py"):
-        shutil.copy2(__file__, sc / "crit.py")
-    verify = f"python3 -I {shlex.quote(str(sc / 'crit.py'))} verify --scripts {shlex.quote(str(sc))} --attempts {shlex.quote(str(real(a.attempts)))} --line {n} " \
-             + " ".join(f"--measure {shlex.quote(i + '=' + recs[i]['DATA'])}" for i in sorted(recs))
-    (sc / "VERIFY.txt").write_text(verify + "\n")
-    print(f"ATTEMPT-SAVED {n} (epoch {epochs(a.attempts)}); your own re-check command: {sc / 'VERIFY.txt'}")
+    write_row(a, recs, lk["sha"], n, a.label, text)
+    return 0
+
+
+def cmd_amend(a):
+    """An approved amendment: new or changed lines and scripts, a removed criterion. Closes the epoch,
+    re-measures the NEW scripts on the ORIGINAL files as line 0 of a new epoch, and writes the new lock."""
+    run = setup(a)
+    text = body_text(a)
+    sc = pathlib.Path(a.scripts)
+    if not (sc / "lock").exists():
+        print("CRITERIA-UNLOCKED (nothing to amend: lock first)")
+        return 1
+    old = read_lock(sc)
+    locks = [(m.group(2), n, m.group(1)) for n, l in enumerate(text.splitlines()) if (m := LOCK.match(l.strip()))]
+    if not locks or max(locks)[2] != old["sha"]:
+        print("CRITERIA-CHANGED (the newest lock line in the body is not the current lock: stop)")
+        return 1
+    check_file(a)
+    cs = {c["id"]: c for c in criteria(text) if c.get("name")}
+    sc, data = lock_inputs(a, text, list(cs.values()))
+    new = lock_sha(text, sc, data)
+    if new == old["sha"]:
+        print("ERROR-AMEND-NOTHING-CHANGED (the lines, scripts and files are the same as the lock)")
+        return 1
+    if change_lines(text) <= old["changes"]:
+        print("ERROR-AMEND-NOT-APPROVED (## Decision needs a new line: Criteria change <date>: \"<old>\" is now \"<new>\". Approved by <who> ...)")
+        return 1
+    removed = [i for i in old["names"] if i not in cs]
+    for i in removed:
+        if i not in (a.removed or []) or not any(re.match(rf"^Criteria removed \d{{4}}-\d{{2}}-\d{{2}}: .*{re.escape(old['names'][i])}.*Approved by .+", l.strip(), re.I) for l in section(text, "Decision")):
+            print(f"ERROR-AMEND-REMOVAL-NOT-APPROVED {i} (needs --removed {i} and a line: Criteria removed <date>: \"{old['names'][i]}\" ... Approved by <who>)")
+            return 1
+    ms = parse_measures(a.measure)
+    miss = [i for i in need_ids(cs.values(), True) if i not in ms]
+    notorig = [i for i, p in ms.items() if str(p) not in data]
+    if miss or notorig:
+        print("\n".join([f"CRITERIA-INCOMPLETE {i} (the new baseline measures every check and later criterion)" for i in miss]
+                        + [f"ERROR-AMEND-NOT-ORIGINAL {i} (a new baseline is measured on the original files named by --data)" for i in notorig]))
+        return 1
+    tmp_lock = {"sha": new, "scripts": {p.stem[len("measure-"):]: sha_file(p) for p in sc.glob("measure-*.py")}, "data": data}
+    recs = measure_all(a, cs, ms, tmp_lock, run, text, None)
+    badb = [f"AMEND-BASELINE-BAD {i} ({'a C criterion passes on the original, so it does not detect the problem' if cs[i]['ck'] == 'C' else 'a K criterion fails on the original'})"
+            for i, r in recs.items() if cs[i]["kind"] == "check" and ((cs[i]["ck"] == "C") == (r["RESULT"] == "PASS"))]
+    if badb:
+        print("\n".join(badb))
+        return 1
+    e = epochs(a.attempts)
+    append_line(a.attempts, f"epoch-close {e} {now()} lock {old['sha']}")
+    write_lock(text, sc, data, a.by.strip())
+    append_line(a.attempts, f"epoch {e + 1} {now()} lock {new}")
+    write_row(a, recs, new, 0, a.label, text)
+    print_lock(new, a.by.strip())
+    print("CRITERIA-LOCKED (amended: write both Internal lines in ## Decision, directly before Internal: approval-sha)")
     return 0
 
 
 def cmd_verify(a):
-    chain_ok(a.attempts)
-    row = next((r for r in epoch_rows(a.attempts) if r["n"] == a.line), None)
-    if not row:
-        print(f"VERIFY-NO-LINE {a.line}")
-        return 1
+    """The owner's own re-check. It never needs Superfix's work copies: give it your own file."""
+    me = sha_file(__file__)
+    print(f"CRIT-SHA {me}")
     bad = []
+    if me != a.crit_sha:
+        bad.append(f"CRIT-SHA-MISMATCH (this tool is {me[:12]}, the issue's crit-sha line says {a.crit_sha[:12]})")
+    lk = read_lock(a.scripts) if (pathlib.Path(a.scripts) / "lock").exists() else None
+    if lk:
+        if lk["crit"] and lk["crit"] != a.crit_sha:
+            bad.append("CRIT-SHA-MISMATCH (the lock file names another tool)")
+        for p in sorted(pathlib.Path(a.scripts).glob("measure-*.py")):
+            if lk["scripts"].get(p.stem[len("measure-"):]) != sha_file(p):
+                bad.append(f"ERROR-SCRIPT-NOT-LOCKED {p.stem[len('measure-'):]} (its sha is not the locked one)")
+    rows = [r for r in epoch_rows(a.attempts) if r["n"] == a.line]      # the current epoch
+    row = rows[-1] if rows else None
+    if not row:
+        print("\n".join(bad + [f"VERIFY-NO-LINE {a.line}"]))
+        return 1
+    recs = {p.stem: read_out(p) for p in rec_dir(a.scripts, row["from"]).glob("*.out")}
+    info_lines = []
     for i, data in parse_measures(a.measure).items():
-        c = {"id": i, "pass": "0", "ck": "C"}
+        if not data.is_file():
+            info_lines.append(f"VERIFY-NO-FILE {i} {data} (give your own copy of the data: --measure {i}=<your file>)")
+            continue
         script = real(a.scripts) / f"measure-{i}.py"
-        res, info = run_script(c, script, data, None, 120, False, own_verdict=False)   # verify compares numbers only
+        res, info = run_script({"id": i, "pass": "0", "ck": "C"}, script, data, None, 120, False, own_verdict=False)
         got = info["MEASURE"] if res in ("PASS", "FAIL") else res
-        if got != row["raw"].get(i):
+        if res in ("PASS", "FAIL") and info["DATA-SHA"] != recs.get(i, {}).get("DATA-SHA"):
+            info_lines.append(f"VERIFY-DIFFERENT-DATA {i} (not the file I measured; for information: mine gave {row['raw'].get(i, 'none')}, yours gives {got})")
+        elif got != row["raw"].get(i):
             bad.append(f"VERIFY-MISMATCH {i} attempts {row['raw'].get(i, 'none')} now {got}")
-    print("\n".join(bad) if bad else f"VERIFY-OK {a.line} (the scripts give the same numbers as the attempts file)")
+    out = bad + info_lines
+    print("\n".join(out) if out else "")
+    if not bad:
+        print(f"VERIFY-OK {a.line} (the scripts give the same numbers as the attempts file{'' if not info_lines else ' where the file is the same'})")
     return 1 if bad else 0
 
 
 def cmd_progress(a):
     text = body_text(a)
     _, lk = lock_state(text, a.scripts)
-    chain_ok(a.attempts)
+    check_file(a)
     rows = epoch_rows(a.attempts)
     bad = check_rows(a.scripts, rows, lk)
     if bad:
         print("\n".join(bad))
         return 1
     cs = {c["id"]: c for c in criteria(text) if c.get("name") and c["kind"] == "check"}
+    rows = [r for r in rows if all(i in r["v"] for i in cs)] or rows[:1]   # re-check lines (later only) are not tries
     if len(rows) < 2:
         print("PROGRESS-NONE (only the baseline so far)")
         return 0
@@ -1164,8 +1407,8 @@ def cmd_progress(a):
         print("STOP-NO-PROGRESS")
         print(f'"Two tries did not get closer: {part}. Work kept on <branch or copy>. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."')
         code = 1
-    if n >= a.cap:
-        print(f"STOP-CAP {n} of {a.cap} attempts")
+    if n >= MAX_ATTEMPTS:
+        print(f"STOP-CAP {n} of {MAX_ATTEMPTS} attempts")
         code = 1
     return code
 
@@ -1200,13 +1443,13 @@ PII = [
 ]
 PHONE = re.compile(r"\+?\(?\d[\d ()-]{6,}\d")
 EXAMPLES = re.compile(r"^rows? \d+(?:(?:, \d+)*(?:,? and \d+))?$")
-OK_LINK = re.compile(r"https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/(?:issues|pull)/\d+(?:#[A-Za-z0-9_-]+)?|https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/issues\?q=is%3Aopen\+sort%3Acomments-desc")
+LINK = re.compile(r"https://github\.com/([A-Za-z0-9-]+/[A-Za-z0-9._-]+)/(?:issues|pull)/\d+(?![\w/#?&=.%:-])")
 
 
-def pii(lines):
+def pii(lines, repos=()):
     hits = []
     for n, l in enumerate(lines, 1):
-        l = OK_LINK.sub("LINK", l)
+        l = LINK.sub(lambda m: "LINK" if m.group(1).lower() in repos else m.group(0), l)   # only the run's own issue and PR links
         for what, rx in PII:
             if rx.search(l):
                 hits.append(f"CRITERIA-PII {what} (comment line {n})")
@@ -1215,6 +1458,22 @@ def pii(lines):
             if sum(ch.isdigit() for ch in s) >= 8:
                 hits.append(f"CRITERIA-PII phone-number (comment line {n})")
     return hits
+
+
+def blank_slots(l, names):
+    """The numbers the tool validated itself (Today, the Criteria check values, the table's before and after) are not scanned."""
+    s = l.strip()
+    if HEAD_RX.match(s):
+        return "attempts: N"
+    for nm in names:
+        if s.lower().startswith(nm + ". today: "):
+            return re.sub(r"(?i)(\. today: )" + NUM, r"\1N", s, count=1)
+        if re.match(r"^\|\s*" + re.escape(nm) + r"\s*\|", s, re.I):
+            cells = s.strip("|").split("|")
+            return "|".join(c if k not in (1, 2) else re.sub(r"^\s*" + NUM + r"\s*$", " N ", c) for k, c in enumerate(cells))
+    if s.startswith("Criteria check: "):
+        return re.sub(r"\((" + NUM + r")(?: -> (" + NUM + r"))?\)", "(N)", s)
+    return s
 
 
 def cmd_scan(a):
@@ -1233,18 +1492,27 @@ def cmd_comment(a):
     text = body_text(a)
     cs = [c for c in criteria(text) if c.get("name")]
     _, lk = lock_state(text, a.scripts)
-    chain_ok(a.attempts)
+    if any(c["kind"] in ("check", "later") for c in cs) or all_lines(a.attempts):
+        check_file(a)
     rows = epoch_rows(a.attempts)
     bad += check_rows(a.scripts, rows, lk)
     if not rows and any(c["kind"] in ("check", "later") for c in cs):
-        print("CRITERIA-MISSING attempts (run the attempt command on the baseline first)")
+        print("CRITERIA-MISSING attempts (run the baseline command first)")
         return 1
-    rows = rows or [{"n": 0, "sha": "", "from": "none", "lock": "none", "raw": {}, "v": {}}]
+    hl = [l for l in lines if HEAD_RX.match(l)]
+    want_head = "attempts: %d lines, head %s" % head_of(all_lines(a.attempts))
+    if len(hl) != 1:
+        bad.append(f"CRITERIA-MISSING attempts line (want: {want_head})")
+    elif hl[0] != want_head:
+        bad.append(f"CRITERIA-VALUE-MISMATCH attempts comment {hl[0][10:]} file {want_head[10:]}")
+    rows = rows or [{"n": 0, "sha": "", "from": "none", "lock": "none", "raw": {}, "v": {}, "sbx": "on"}]
+    if any(r["sbx"] == "off" for r in rows) and not any(l.startswith("UNSANDBOXED: ") for l in lines):
+        bad.append("CRITERIA-MISSING UNSANDBOXED: line (a measure in this epoch ran without the sandbox)")
     base, new = rows[0], rows[-1]
     brecs = {p.stem: read_out(p) for p in rec_dir(a.scripts, base["from"]).glob("*.out")}
     for c in cs:
-        if c["kind"] == "check" and c["id"] not in new["v"]:
-            bad.append(f"CRITERIA-INCOMPLETE {c['id']} (no measure in the newest attempt)")
+        if c["kind"] == "check" and not any(c["id"] in r["v"] for r in rows):
+            bad.append(f"CRITERIA-INCOMPLETE {c['id']} (no measure in this epoch)")
         if c["kind"] == "later" and c["id"] not in base["v"]:
             bad.append(f"CRITERIA-INCOMPLETE {c['id']} (no baseline measure)")
 
@@ -1343,7 +1611,8 @@ def cmd_comment(a):
             want = verdict(c, r["v"][c["id"]], base["raw"].get(c["id"])) if c["id"] in r["v"] else None
             if not ((c["kind"] == "check" and result == want) or (c["kind"] == "later" and result == "LATER")):
                 bad.append(f"TABLE-CELL-UNCHECKED {c['name']} result (computed {want if c['kind'] == 'check' else 'LATER'})")
-    bad += pii([l.strip() for l in raw_lines])           # every line, fenced text included
+    names = [c["name"].lower() for c in cs]
+    bad += pii([blank_slots(l, names) for l in raw_lines], {r.lower() for r in [a.repo] + (a.gap_repo or [])})   # every line, fenced text included
     print("\n".join(dict.fromkeys(bad)) if bad else "CRITERIA-OK")
     return 1 if bad else 0
 
@@ -1353,7 +1622,7 @@ def cmd_signoff(a):
     if not cs:
         print("SIGNOFF-NONE (no owner criterion)")
         return 0
-    chain_ok(a.attempts)
+    check_file(a, need=False)
     for c in cs:
         k = sum(1 for l in c["list"] if re.match(r"^\s+- \[[xX]\]", l))
         append_line(a.attempts, f"signoff {now()} {c['id']} {k}/{len(c['list'])}")
@@ -1507,118 +1776,221 @@ def cmd_remind(a):
     return 0 if ok else 1
 
 
-# ---------- send check (tests: S13), an ALLOWLIST, best-effort ----------
+# ---------- send check (tests: S13): an ALLOWLIST plus a text scan; best-effort ----------
 
 TOOL_OK = {"Read", "Grep", "Glob", "LS", "Skill", "Agent", "Task", "TodoWrite", "ToolSearch", "AskUserQuestion", "SubagentHandback"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 MCP_PREFIX = ("get_", "list_", "read_", "search_", "describe_", "preview_", "count_", "summarise_")
+MCP_DENY = re.compile(r"search_custom|search_web|websearch|webfetch|artifact|upload|publish|create|send|update|delete|copy|share|move|checkout|find_or_upload", re.I)
 TEXT_TOOLS = {"cat", "ls", "grep", "egrep", "fgrep", "sed", "head", "tail", "wc", "diff", "mkdir", "cp", "echo", "printf", "test", "[",
               "true", "false", "cd", "umask", "chmod", "mktemp", "tr", "cut", "sort", "uniq", "awk", "perl", "shasum", "date", "base64",
               "rm", "mv", "touch", "find", "tee", "jq", "basename", "dirname", "realpath", "stat", "file", "sleep", "pwd", "export", "exit",
-              "node", "npm", "pytest", "git", "gh", "python3", "python", "rmdir", "env", "command", "type", "which", "read", "set", "unset", "local"}
-NET_HINT = re.compile(r"\b(socket|urllib|http\.client|requests|smtplib|ftplib|telnetlib|subprocess|os\.system|os\.popen|webbrowser|asyncio)\b")
-KEYWORDS = {"if", "then", "else", "elif", "fi", "for", "do", "done", "while", "until", "case", "esac", "in", "!", "time", "{", "}", "function"}
-CLOUD_RX = r"(CloudStorage|shared-drives|Dropbox|Mobile Documents|Google Drive|OneDrive|com~apple~CloudDocs)"
+              "node", "npm", "pytest", "git", "gh", "python3", "python", "rmdir", "type", "read", "set", "unset", "local", "return", "break", "continue"}
+PREFIXES = {"command", "builtin", "env", "exec", "time", "nohup", "xargs", "eval", "source", ".", "sudo", "nice", "timeout", "caffeinate"}
+NETWORDS = re.compile(r"(?<![\w.~/-])(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|ftp|telnet|dig|nslookup|host|ping|socat|osascript|sendmail|mailx)(?![\w-])"
+                      r"|(?<![\w-])mail(?![\w-])|openssl\s+s_client|pbcopy[^\n]*\bopen\b|\bopen\b[^\n]*pbcopy")
+NET_HINT = re.compile(r"\b(socket|urllib|http\.client|requests|smtplib|ftplib|telnetlib|subprocess|os\.system|os\.popen|webbrowser|asyncio|__import__)\b")
+KEYWORDS = {"if", "then", "else", "elif", "fi", "for", "do", "done", "while", "until", "case", "esac", "in", "!", "{", "}", "function"}
+CLOUD_PATH = re.compile(r"(?i)Library/CloudStorage|Library/Mobile Documents|com~apple~CloudDocs|(~|\$HOME|\$\{HOME\}|/Users/[^/\s'\"]+)/(shared-drives|Dropbox|Google Drive|OneDrive)(/|\b)")
+WRITE_CMDS = {"cp", "mv", "ln", "tee", "rsync", "ditto", "install", "touch", "mkdir", "rm", "rmdir"}
 
 
-def strip_heredocs(c):
-    out, end = [], None
+def heredocs(c):
+    """(command text without heredoc bodies, [bodies])."""
+    out, bodies, end, cur = [], [], None, []
     for l in c.split("\n"):
         if end is not None:
             if l.strip() == end:
-                end = None
+                bodies.append("\n".join(cur)); end, cur = None, []
+            else:
+                cur.append(l)
             continue
         m = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?", l)
         out.append(l)
-        if m:
+        if m and "<<<" not in l:
             end = m.group(1)
-    return "\n".join(out)
+    if end is not None:
+        bodies.append("\n".join(cur))
+    return "\n".join(out), bodies
 
 
 def segments(c):
-    c = strip_heredocs(c).replace("$(", " ; ").replace("`", " ; ")
-    for part in re.split(r"\|\||&&|[;|&\n(){}]", c):
-        try:
-            toks = shlex.split(part, comments=True)
-        except ValueError:
-            toks = part.split()
-        while toks and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[0]) or toks[0] in KEYWORDS):
-            toks = toks[1:]
-        if toks:
-            yield toks
+    """Simple commands, split on ; | & && || ( ) and newlines, quotes respected (shlex), with $( and ` as breaks."""
+    c = c.replace("$(", " ( ").replace("`", " ; ").replace("\n", " ; ")
+    try:
+        lx = shlex.shlex(c, posix=True, punctuation_chars=";&|()")
+        lx.whitespace_split = True
+        toks = list(lx)
+    except ValueError:
+        toks = c.split()
+    cur = []
+    for t in toks + [";"]:
+        if t and set(t) <= set(";&|()"):
+            while cur and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", cur[0]) or cur[0] in KEYWORDS):
+                cur = cur[1:]
+            if cur:
+                yield cur
+            cur = []
+        else:
+            cur.append(t)
 
 
 def path_ok(p, dirs):
+    if CLOUD_PATH.search(p):
+        return False
     if p.startswith(("$", "~/.superfix", "/dev/null")) or not p.startswith(("/", "~")):
-        return not re.search(CLOUD_RX, p)
+        return True
     return any(inside(p, d) for d in dirs) and not in_cloud(p)
 
 
-def gh_ok(t, repos):
+def var_repos(c, repos):
+    """Shell variables set in the same command to the work repo or the gap repo; $R is the skill's own name for the work repo."""
+    ok = {"R"}
+    for m in re.finditer(r"(?:^|[\s;])([A-Za-z_][A-Za-z0-9_]*)=['\"]?([A-Za-z0-9-]+/[A-Za-z0-9._-]+)['\"]?(?=[\s;]|$)", c):
+        if m.group(2).lower() in repos:
+            ok.add(m.group(1))
+    return ok
+
+
+def repo_ok(v, repos, okvars):
+    m = re.fullmatch(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?", v)
+    return v.lower() in repos or bool(m and m.group(1) in okvars)
+
+
+def gh_ok(t, repos, okvars):
+    for k, x in enumerate(t):
+        if x == "--hostname" or x.startswith("--hostname="):
+            return False, "gh --hostname"
+        v = x.split("=", 1)[1] if x.startswith(("--repo=", "-R=")) else (t[k + 1] if x in ("--repo", "-R") and k + 1 < len(t) else None)
+        if v is not None and not repo_ok(v, repos, okvars):
+            return False, "gh against another repo"
     sub = [x for x in t[1:] if not x.startswith("-")][:2]
-    rflag = next((t[k + 1] for k, x in enumerate(t[:-1]) if x in ("--repo", "-R")), None)
-    if rflag is not None and "$" not in rflag and rflag.lower() not in repos:
-        return False, "gh against another repo"
     if not sub:
         return False, "gh without a subcommand"
     allowed = {("issue", "view"), ("issue", "comment"), ("issue", "edit"), ("issue", "list"), ("issue", "create"),
                ("pr", "view"), ("pr", "create"), ("pr", "checks"), ("pr", "list"), ("pr", "diff"),
                ("label", "create"), ("label", "list"), ("repo", "view")}
     if sub[0] == "api":
-        path = sub[1] if len(sub) > 1 else ""
-        if any(x in ("-X", "--method") for x in t) and not any(t[k + 1].upper() == "GET" for k, x in enumerate(t[:-1]) if x in ("-X", "--method")):
-            return False, "gh api with a write method"
-        if any(x in ("-f", "-F", "--field", "--raw-field", "--input") or x.startswith(("-f", "-F")) and len(x) > 2 for x in t):
-            return False, "gh api with fields (a write)"
-        m = re.match(r"^/?repos/([^/]+/[^/?]+)", path)
-        if m and "$" not in m.group(1) and m.group(1).lower() not in repos:
+        valued = {"-X", "--method", "-F", "-f", "--field", "--raw-field", "-H", "--header", "-q", "--jq", "-t", "--template", "--input", "-p", "--preview", "--cache"}
+        rest, path, skip = t[t.index("api") + 1:], "", False
+        for x in rest:
+            if skip:
+                skip = False
+                continue
+            if x in valued:
+                skip = True
+                continue
+            if not x.startswith("-"):
+                path = x
+                break
+        m = re.match(r"^/?repos/([^/]+/[^/?]+)(/.*)?$", path)
+        if m and not (m.group(1).lower() in repos or re.fullmatch(r"\$\{?R\}?|\$\{?[A-Za-z_]\w*\}?", m.group(1)) and repo_ok(m.group(1), repos, okvars)):
             return False, "gh api against another repo"
+        meth = [t[k + 1].upper() for k, x in enumerate(t[:-1]) if x in ("-X", "--method")]
+        fields = [x for x in t if x in ("-f", "-F", "--field", "--raw-field", "--input") or (x.startswith(("-f", "-F")) and len(x) > 2)]
+        if meth == ["PATCH"]:
+            # the one write: the decision comment, edited by its id on the work repo (journal.md)
+            if m and re.fullmatch(r"/issues/comments/\d+", m.group(2) or "") and [x for x in t if x.startswith("body=@")] and fields in (["-F"], ["--field"]):
+                return True, ""
+            return False, "gh api PATCH other than the decision comment's body"
+        if meth and meth != ["GET"]:
+            return False, "gh api with a write method"
+        if fields:
+            return False, "gh api with fields (a write)"
         return True, ""
     if tuple(sub[:2]) not in allowed:
         return False, f"gh {' '.join(sub[:2])}"
+    if sub[:2] == ["issue", "comment"] and any(x == "--edit-last" for x in t):
+        return False, "gh issue comment --edit-last (edit by comment id)"
     return True, ""
 
 
-def bash_hits(c, repos, dirs):
+def python_ok(t, locked):
+    rest = t[1:]
+    if rest[:1] != ["-I"]:
+        return False
+    if len(rest) > 1 and rest[1] == "-":
+        return True                                  # its heredoc body gets the text scan
+    if len(rest) > 2 and rest[1] == "-m" and rest[2] in ("pytest", "unittest"):
+        return True
+    if len(rest) > 1 and not rest[1].startswith("-"):
+        p = rest[1].replace("${HOME}", str(pathlib.Path.home())).replace("$HOME", str(pathlib.Path.home()))
+        if re.search(r"/\.superfix/(runs/[^/]+|journal/[^/]+/criteria/[^/]+)/crit\.py$", p):
+            if locked.get("crit") and os.path.exists(p) and sha_file(p) != locked["crit"]:
+                return False
+            return not (len(rest) > 2 and rest[2] == "remind")
+        mm = re.search(r"/measure-(P\d+-[CK]\d+)\.py$", p)
+        if mm and locked.get("scripts") and os.path.exists(p) and sha_file(p) == locked["scripts"].get(mm.group(1)):
+            return True
+    return False
+
+
+def bash_hits(c, repos, dirs, locked):
     hits, review = [], []
-    for t in segments(c):
+    body, docs = heredocs(c)
+    if NETWORDS.search(c):                                   # the WHOLE text: heredoc bodies and quoted strings too
+        hits.append(f"network or send word {NETWORDS.search(c).group(0).split()[0]}")
+    if "<<<" in c:
+        hits.append("here-string <<<")
+    if re.search(r"\bcd\s+['\"]?[^;&|\n]*", body) and any(CLOUD_PATH.search(x) for x in re.findall(r"\bcd\s+([^;&|\n]+)", body)):
+        hits.append("cd into a cloud folder")
+    if CLOUD_PATH.search(c) and (re.search(r"(?<![<0-9&])>>?", body) or any(t and os.path.basename(t[0]) in WRITE_CMDS for t in segments(body))):
+        hits.append("write that names a cloud folder")
+    okvars = var_repos(c, repos)
+    py_dash = False
+    for t in segments(body):
         cmd = os.path.basename(t[0])
+        if t[0] in PREFIXES or cmd in PREFIXES:
+            hits.append(f"prefix {t[0]} hides the command")
+            continue
         if cmd not in TEXT_TOOLS:
             hits.append(f"unknown or network command {cmd}")
             continue
         if cmd == "gh":
-            ok, why = gh_ok(t, repos)
+            ok, why = gh_ok(t, repos, okvars)
             if not ok:
                 hits.append(why)
         elif cmd == "git":
-            if "push" in t:
-                review.append("git push (check that no data file was committed)")
+            sub = next((x for x in t[1:] if not x.startswith("-") and x not in ("-C",)), "")
+            args = t[t.index(sub) + 1:] if sub in t else []
+            if sub == "remote" and args[:1] != ["-v"] and args:
+                hits.append("git remote change")
+            elif sub in ("push", "fetch", "pull", "ls-remote", "clone"):
+                if any("://" in x or re.match(r"^[\w.-]+@[\w.-]+:", x) or x.startswith(("/", "~", "../")) for x in args) \
+                        or any(x for x in args if not x.startswith("-") and x != "origin" and sub != "push") \
+                        or (sub == "push" and [x for x in args if not x.startswith("-")][:1] not in (["origin"], [])):
+                    hits.append(f"git {sub} to another remote or a URL")
+                elif sub == "push":
+                    review.append("git push (check that no data file was committed)")
         elif cmd in ("python3", "python"):
-            rest = t[1:]
-            if rest[:1] != ["-I"]:
-                hits.append("python without -I")
-            elif len(rest) > 1 and rest[1].endswith("/crit.py"):
-                pass
-            elif len(rest) > 2 and rest[1] == "-c" and not NET_HINT.search(rest[2]) \
-                    and all(path_ok(x, dirs) for x in re.findall(r"(/[^'\"\s,)]+)", rest[2]) if "open" in rest[2]):
-                pass
-            elif len(rest) > 2 and rest[1] == "-m" and rest[2] in ("pytest", "unittest"):
-                pass
-            else:
-                hits.append("python running something other than crit.py")
-        elif cmd == "npm" and len(t) > 1 and t[1] not in ("test", "run", "ci", "install"):
-            hits.append(f"npm {t[1]}")
-        elif cmd == "find" and any(x in ("-exec", "-execdir", "-delete", "-ok") for x in t):
+            if not python_ok(t, locked):
+                hits.append("python running something other than the locked crit.py or a locked script")
+            elif len(t) > 2 and t[2] == "-":
+                py_dash = True
+        elif cmd in ("npm",) and any(x in ("install", "add", "i") for x in t[1:]):
+            hits.append("npm install")
+        elif cmd == "sed":
+            if any(x.startswith("-i") or x == "--in-place" for x in t):
+                hits.append("sed -i")
+            elif any(re.search(r"(^|[;{}\n]\s*)\d*[we](\s|$)|/[gpiIM0-9]*[we](\s|;|$)", x) for x in t[1:] if not x.startswith("-")):
+                hits.append("sed with a w or e command")
+        elif cmd in ("awk", "perl"):
+            prog = " ".join(t[1:])
+            if re.search(r"\b(system|exec|open|getline|qx|fork|socket)\b|\|", prog) or any(x.startswith("-i") for x in t):
+                hits.append(f"{cmd} running commands, opening files or editing in place")
+        elif cmd == "find" and any(x in ("-exec", "-execdir", "-delete", "-ok", "-fprint") for x in t):
             hits.append("find with -exec or -delete")
-        elif cmd == "env" and len(t) > 1 and not all("=" in x for x in t[1:]):
-            hits.append("env running a command")
-        elif cmd in ("cp", "mv", "rm", "mkdir", "touch", "tee", "rmdir") or (cmd == "sed" and any(x.startswith("-i") for x in t)):
+        elif cmd in WRITE_CMDS:
             for x in t[1:]:
                 if not x.startswith("-") and not path_ok(x, dirs):
                     hits.append(f"{cmd} outside the repo and the run folder")
                     break
-    for m in re.finditer(r"(?<![<0-9&])>>?\s*(['\"]?)([^\s'\";&|]+)\1", strip_heredocs(c)):
-        if not path_ok(m.group(2), dirs) and m.group(2) != "&1":
+    if py_dash:
+        for d in docs:
+            if NET_HINT.search(d) or NETWORDS.search(d) or CLOUD_PATH.search(d):
+                hits.append("python heredoc that names a network module or a cloud folder")
+    for m in re.finditer(r"(?<![<0-9&])>>?\s*(['\"]?)([^\s'\";&|]+)\1", body):
+        if not path_ok(m.group(2), dirs) and not m.group(2).startswith("&"):
             hits.append("redirect outside the repo and the run folder")
     return hits, review
 
@@ -1637,6 +2009,7 @@ def tool_uses(o):
 def cmd_sendcheck(a):
     repos = {r.lower() for r in [a.repo] + (a.gap_repo or [])}
     dirs = [real(d) for d in (a.allow_dir or [])] + [real(pathlib.Path.home() / ".superfix")]
+    locked = read_lock(a.scripts) if a.scripts and (pathlib.Path(a.scripts) / "lock").exists() else {}
     hits, review, seen = [], [], 0
     lines = [l for l in pathlib.Path(a.log).read_text(errors="replace").splitlines() if l.strip()] if pathlib.Path(a.log).exists() else []
     for n, l in enumerate(lines, 1):
@@ -1655,11 +2028,10 @@ def cmd_sendcheck(a):
                 if not path_ok(p, dirs):
                     hits.append(f"SEND-HIT line {n} {name} outside the repo and the run folder")
             elif name == "Bash":
-                h, r = bash_hits(str(inp.get("command", "")), repos, dirs)
+                h, r = bash_hits(str(inp.get("command", "")), repos, dirs, locked)
                 hits += [f"SEND-HIT line {n} Bash {x}" for x in h]
                 review += [f"SEND-REVIEW line {n} {x}" for x in r]
-            elif name.startswith("mcp__") and name.rsplit("__", 1)[-1].startswith(MCP_PREFIX) \
-                    and not re.search(r"checkout|find_or_upload|share|send|upload|publish", name, re.I):
+            elif name.startswith("mcp__") and name.rsplit("__", 1)[-1].startswith(MCP_PREFIX) and not MCP_DENY.search(name.rsplit("__", 1)[-1]):
                 continue
             else:
                 hits.append(f"SEND-HIT line {n} {name}")
@@ -1668,7 +2040,7 @@ def cmd_sendcheck(a):
         return 1
     out = list(dict.fromkeys(hits + review))
     print("\n".join(out) if out else f"SEND-CLEAN ({seen} tool calls)")
-    return 1 if hits else 0
+    return 1 if out else 0
 
 
 def main():
@@ -1680,26 +2052,30 @@ def main():
         for x in args:
             s.add_argument(f"--{x}", required=True)
         if body:
-            s.add_argument("--body"); s.add_argument("--issue")
+            s.add_argument("--body"); s.add_argument("--issue"); s.add_argument("--prev-comment")
         s.set_defaults(f=f)
         return s
+
+    def run_args(s):
+        s.add_argument("--measure", action="append"); s.add_argument("--asked", action="store_true")
+        s.add_argument("--unsandboxed-ok", action="store_true"); s.add_argument("--timeout", type=int, default=120)
     p("shape", cmd_shape, body=True)
     s = p("measure", cmd_measure, "run", "id", "script", "data", "out", "scripts", body=True)
     s.add_argument("--attempts"); s.add_argument("--expect", choices=["PASS", "FAIL"]); s.add_argument("--asked", action="store_true")
     s.add_argument("--neg-of"); s.add_argument("--defect"); s.add_argument("--unsandboxed-ok", action="store_true")
     s.add_argument("--timeout", type=int, default=120)
     s = p("lock", cmd_lock, "scripts", "by", "run", "attempts", body=True); s.add_argument("--data", action="append")
-    s = p("lockcheck", cmd_lockcheck, "scripts", body=True); s.add_argument("--run"); s.add_argument("--attempts")
-    s = p("attempt", cmd_attempt, "run", "attempts", "scripts", "label", body=True)
-    s.add_argument("--measure", action="append"); s.add_argument("--new-epoch", action="store_true")
-    s.add_argument("--asked", action="store_true"); s.add_argument("--unsandboxed-ok", action="store_true")
-    s.add_argument("--timeout", type=int, default=120)
-    s = p("verify", cmd_verify, "scripts", "attempts"); s.add_argument("--line", type=int, required=True)
+    s = p("lockcheck", cmd_lockcheck, "scripts", "attempts", body=True); s.add_argument("--run")
+    s = p("baseline", cmd_baseline, "run", "attempts", "scripts", "label", body=True); run_args(s); s.add_argument("--redo", action="store_true")
+    s = p("attempt", cmd_attempt, "run", "attempts", "scripts", "label", body=True); run_args(s); s.add_argument("--recheck", action="store_true")
+    s = p("amend", cmd_amend, "run", "attempts", "scripts", "label", "by", body=True); run_args(s)
+    s.add_argument("--data", action="append"); s.add_argument("--removed", action="append")
+    s = p("verify", cmd_verify, "scripts", "attempts", "crit-sha"); s.add_argument("--line", type=int, required=True)
     s.add_argument("--measure", action="append")
-    s = p("progress", cmd_progress, "attempts", "scripts", "run", body=True); s.add_argument("--cap", type=int, default=5)
-    s = p("comment", cmd_comment, "comment", "attempts", "run", "scripts", body=True)
-    s.add_argument("--kind", choices=["decision", "stop", "final"], required=True)
-    p("signoff", cmd_signoff, "attempts", body=True)
+    p("progress", cmd_progress, "attempts", "scripts", "run", body=True)
+    s = p("comment", cmd_comment, "comment", "attempts", "run", "scripts", "repo", body=True)
+    s.add_argument("--kind", choices=["decision", "stop", "final"], required=True); s.add_argument("--gap-repo", action="append")
+    p("signoff", cmd_signoff, "attempts", "scripts", body=True)
     p("scan", cmd_scan, "file")
     s = sp.add_parser("where"); s.add_argument("path"); s.set_defaults(f=cmd_where)
     s = p("copy", cmd_copy, "run", "src"); s.add_argument("--asked", action="store_true"); s.add_argument("--name")
@@ -1709,6 +2085,7 @@ def main():
     s.add_argument("--waits", default=""); s.set_defaults(f=cmd_index)
     s = p("remind", cmd_remind, "name", "where", "date"); s.add_argument("--dry-run", action="store_true")
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
+    s.add_argument("--scripts")
     a = ap.parse_args()
     os.umask(0o077)
     try:
