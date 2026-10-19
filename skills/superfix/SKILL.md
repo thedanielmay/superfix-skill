@@ -312,7 +312,7 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 - Final PR link when complete
 - A message starting BUDGET STOP (the main thread posts it, see Budget)
 
-Before posting anything the agent returns, the main thread re-runs the budget commands and the redaction check itself.
+The agent may commit, push and open the PR only after the redaction checks pass (briefs.md states the rule). Issue comments and the Status line are posted by the main thread, which re-runs the budget commands and the redaction checks itself first.
 
 The agent ticks the plan file's task checkboxes as each task completes.
 
