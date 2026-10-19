@@ -229,6 +229,8 @@ Pictures: no upload except through evidence.md's upload command; a pattern hit i
 
 Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
 
+At go (Moderate, Complex): Read references/execute.md in full BEFORE Phase 2. Its Design step, Plan and
+Context file sections hold the design table, the plan file rules and the context file rule.
 
 ### Expert panel (all Moderate + Complex - blocking)
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
