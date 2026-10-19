@@ -160,7 +160,9 @@ Every tier, every run, unless the fast lane was asked for in this run.
 
 Go: "yes", "go", "1 yes, 2 option two", "keep going", "keep executing", "do
 it", or any reply that answers every question. "Keep going" style replies
-accept every recommendation. A reply that answers only some questions: ask
+say yes to every question that has a recommended answer. The create-issue
+question has none: unless the owner says yes to it explicitly, it is no (keep
+the journal file, create nothing), on public and private repos alike. A reply that answers only some questions: ask
 only the rest. Anything else (a question, a new fact): answer it, update the
 record, stay stopped.
 

@@ -130,7 +130,7 @@ ONE comment, or one journal entry, per run. It holds every question for this run
 ```
 > **In plain English:** I found 2 problems and what causes them. I need 2 answers before I fix anything.
 
-Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes to all my recommendations.
+Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes to every question where I recommend an answer.
 
 1. P1 (problem 1: the total is off by one): fix the loop bound (recommended) or rewrite total()? About 20 minutes of my time; your part: reply once.
 2. Budget: Up to 1 hour, touching these 2 files: sum.js, test/sum.test.js. I stop and ask if I go over. OK?
@@ -157,6 +157,8 @@ The LAST numbered question of the decision message, always, so the owner's numbe
 <N>. No issue exists yet. Create one in <owner/repo> (<private|PUBLIC>) with this
    record? (yes / no, keep it in a local file)
 ```
+
+- This question has no recommended answer. "Keep executing" and other "yes to all" replies do not create an issue: unless the owner says yes to this question itself, the answer is no (keep the journal file, create nothing), on public and private repos alike.
 
 - Get the visibility first: `gh repo view --json visibility -q .visibility`.
 - If the repo is PUBLIC, the question adds: "It is public, so anyone can read it. The text it would post is below." and shows the redacted Original report.
