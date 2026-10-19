@@ -211,7 +211,7 @@ what leaked where.
 
 ## Phase 2 - Design & Plan
 
-Applies to **Moderate and Complex** only. Simple goes directly to Phase 3.
+Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
 
 ### Design step (type-specific, before writing-plans)
 
@@ -259,9 +259,12 @@ Path: docs/superpowers/plans/<plan-filename>.md
 
 ## Relevant Files
 - <path>: <why relevant>
+
+## Evidence
+<copied from ## Problems in the issue body or journal file>
 ```
 
-**Pass this file path to every subagent.** Every subagent reads the same source of truth.
+**Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
 
 ### Expert panel (all Moderate + Complex - blocking)
 
@@ -272,20 +275,56 @@ Invoke `expert-panel` [opus/high] after plan is written, at the plan→implement
 - Update the plan with any must-fix resolutions
 - Post comment if issue exists:
 
-```bash
-gh issue comment <N> --body "📋 Plan approved after expert panel review. Starting implementation.
+```
+> **In plain English:** The plan passed expert review and I am starting the fix. Nothing needed from you now.
 
 Plan: docs/superpowers/plans/<filename>.md
-Key decisions: [brief summary]"
+Key decisions: [brief summary]
 ```
+Post it with `--body-file` (journal.md, Comment format).
 
 **Max 2 expert panel passes.** If must-fix items remain after pass 2, escalate to the user with specific questions.
+
+If the panel overturns the approved option or breaks the approved budget, go back to the owner at once with one batched decision message (Stop gate form) and wait. That is not a pass. Must-fix items left after pass 2 go to the owner in the same message form.
 
 ---
 
 ## Phase 3 - Execute
 
-Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the Phase 3 progress comment, or in your next message to the user if there is no issue.
+Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the final comment, or in your next message to the user if there is no issue.
+
+### Budget
+
+Proposed in the decision message, fixed at approval. Defaults:
+  Simple:   6 commits, 2 hours, the files named in ## Options plus their tests
+  Moderate: 15 commits, 4 hours, the files in the plan plus their tests
+  Complex:  as stated in the plan
+Plain wording: "Up to 2 hours, touching these 3 files. I stop and ask if I go over."
+
+Measure before every commit (main thread or fix agent):
+  commits: git rev-list --count <approval-sha>..HEAD -- . ':(exclude)docs/superpowers/plans'
+  files:   git diff --name-only <approval-sha>...HEAD   (any file not named = over)
+  time:    date, minus the approval time in ## Decision
+  Qik:     draft writes made as part of the fix (writes made only to verify do not count)
+The journal is outside the repo, and plan commits are excluded, so neither counts.
+Over any limit: stop. A fix agent returns a message whose first line is exactly
+BUDGET STOP; the main thread posts it (callout first), sets the status line to
+"Stopped: over budget (<which>)" and ends the turn. Offer: 1 extend, 2 cut
+scope, 3 stop. Never continue past a limit on your own.
+Max 2 review passes and max 2 expert panel passes are unchanged.
+
+### Qik configuration (provisional)
+
+Qik configuration (provisional). Load the qik skill first. No branch.
+1. Back up before the first edit: the exact before text and the undo step, in a
+   folder outside any repo. No backup, no edit.
+2. Edit the draft only. Never publish. Say "in the draft", never "live".
+3. Close the issue only after the owner replies "published" and the change is
+   checked on the live site. The ready message ends: 'Reply "published" when
+   you have published. To undo, tell me "undo P1". The backup is in <folder>.'
+4. If the qik skill has no backup recipe for what you are changing, stop and
+   ask. Do not invent one.
+Qik records solved-check runs 1 and 2 only; run 3 (restore, then re-apply) goes under Not tested.
 
 ### Simple path (main thread, no agent)
 
@@ -315,14 +354,43 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Problem Profile (type, tier, skill manifest)
 - Model/effort policy: most appropriate model per task, high effort
 - Absolute path of `references/execute.md`. The agent reads it first. Agents do not load this file, so they only know what the brief tells them.
+- Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
+- The budget and approval-sha from `## Decision`.
+- The session redaction file path and the absolute path of `references/redaction.md`.
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
 - Final PR link when complete
+- A message starting BUDGET STOP (the main thread posts it, see Budget)
+
+Before posting anything the agent returns, the main thread re-runs the budget commands and the redaction check itself.
 
 The agent ticks the plan file's task checkboxes as each task completes.
 
-On restart (limit, crash, new session): read the latest progress comment on the issue (if any), the plan file's task checkboxes, and `git log` on the branch. Continue from the first unfinished stage. Do not redo finished stages.
+On restart (limit, crash, new session): read the Status line, `## Problems` and `## Decision` (issue body or journal file), the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. Continue from the first unfinished stage. Do not redo finished stages.
+
+### Solved check
+
+Runs inside `verification-before-completion`, on both paths. Code only (Qik: see above).
+"Solved" means three runs, each recorded with output in the final comment:
+  Run 1, base fails:   the failing check from ## Problems, on approval-sha.
+  Run 2, fix passes:   the same check on the branch.
+  Run 3, revert fails: in a scratch worktree of HEAD, reverse-apply the
+     non-test part of `git diff <approval-sha>...HEAD`, run the check, expect
+     failure, remove the worktree. The branch is never touched.
+Run 2 must also show the owner's description quoted in ## Done when no longer
+holds.
+If run 3 passes, the check does not detect the problem: fix the check, not the
+code, and re-run all three.
+When run 3 does not apply, say why in one line and put it under Not tested:
+  - refactor meant to keep behaviour: no failing check exists; full suite
+    passes before and after instead
+  - new feature whose check cannot run without it: run 3 fails by import or
+    missing command; record that, it still counts
+Two failed run-2 attempts, whatever the cause given: stop. Post:
+  "My fix failed twice, so my diagnosis was wrong. Work kept on the branch.
+   Used 1h10 of 2h. 1 re-diagnose (about 20 min), 2 stop."
+Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
 ### Execute sequences by type, code review rules, test scope
 
