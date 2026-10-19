@@ -102,3 +102,4 @@ superpowers:test-driven-development [sonnet/high]
 - Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`
 - Full test suite once at end, before verification
 - Verification re-runs the failing check in ## Problems (solved check in SKILL.md) or the baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
+- After pictures: SKILL.md Solved check and references/evidence.md

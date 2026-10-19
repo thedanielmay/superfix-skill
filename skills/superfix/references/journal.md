@@ -27,19 +27,26 @@ umask 077; F="$HOME/.superfix/runs/<run-key>/body-<N>.md"
 cat > "$F" <<'EOF'
 **Status:** <value> (updated <YYYY-MM-DD HH:MM>)
 
+Contents: Summary, Problems (P1, P2), Options, Proposed solution, Decision, Done when, Original report
+
 ## Summary
 <one paragraph: what this is and why>
 
 ## Problems
 ### P1: <short name>
+**In plain words:** <what is wrong and who sees it; length by tier, below>
 - Symptom: <what the owner sees>
+- Picture: ![P1 before: <full caption>](<url>)  (only when a screen shows it; evidence.md)
+  P1 before: <the same caption as plain text>.
 - Failing check: `<command>`
   <its output>
 - Baseline: <numbers, performance only>
+**Why it happens:** 1. <step, with the file:line or output that shows it> 2. <...>
 - Cause: <confirmed, with its row | suspected>
   | Test | H1 predicts | H2 predicts | H3 predicts | Observed |
 - Ruled out: <hypothesis>: <how>
 - Siblings: <same cause found elsewhere, or none>
+- After: <filled at close: the after picture, or the passing check>
 
 Seen, not diagnosed:
 - <one line each>
@@ -48,10 +55,17 @@ Tools used: <what ran, with fallbacks>. Missing: <what was not available>.
 
 ## Options
 ### P1
-1. <option> (Recommended): <trade-offs>. Effort: <about N minutes of my time; your part: reply once>
+1. <option> (Recommended): <what changes>. Good: <...>. Cost or risk: <...>. Effort: <about N minutes of my time; your part: reply once>
 2. <option>: <trade-offs>. Effort: <...>
 
 Proposed budget: Up to <N> hours, touching these <N> files: <files>. I stop and ask if I go over.
+
+## Proposed solution
+### P1
+1. <step: which file, what changes>
+What will look different afterwards: <what the owner will see>
+What could go wrong: <risk> (how I would notice: <check>)
+Will stay untested: <items, or "nothing known">
 
 ## Decision
 <empty until the owner answers; then the paraphrase in plain words, and last a line "Internal: approval-sha <40 hex>, approved <YYYY-MM-DD HH:MM>">
@@ -123,6 +137,22 @@ EOF
 gh issue comment <N> --body-file ~/.superfix/runs/<run-key>/comment-<N>.md
 ```
 
+### Depth by tier (1.4.0)
+
+Template fields the body must fill, with their length by the confirmed tier. A Simple fix stays short.
+
+| Field | Simple | Moderate | Complex |
+|---|---|---|---|
+| In plain words | 1 to 2 sentences | up to 4 | up to 4, plus who is affected |
+| Why it happens | up to 3 steps | up to 6 | up to 8 |
+| Options | 1, plus "leave it" allowed | 2 or 3 | 2 or 3 |
+| Proposed solution | up to 4 steps | up to 8 | up to 12, then point at the plan |
+
+- `Contents:` sits under the Status line and names the sections in order, with the problem numbers.
+- Per problem, in this order: In plain words, Symptom, Picture (only when a screen shows it), Failing check, Why it happens (numbered steps, each with the file:line or output that shows it), the 1.3.1 Cause row, Ruled out, Siblings, After (filled at close).
+- Per option: what changes, good, cost or risk, effort.
+- `## Proposed solution`, one block per problem: numbered steps; what will look different afterwards; what could go wrong and how I would notice; what will stay untested.
+
 ### Decision message (posted at the Stop gate)
 
 ONE comment, or one journal entry, per run. It holds every question for this run, numbered, each with the recommended answer, the effort and the budget.
@@ -137,6 +167,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 
 ---
 <AI detail: Coverage block, Problem Profile, Tools used, failing check output, hypotheses table>
+Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo) | NOT-POSTED (why)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -148,6 +179,15 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
   - Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
 - Simple with one problem: the short form, three lines (problem, fix, effort) and "Go?". The effort line carries the budget in its plain wording.
 - Write `Loaded: journal.md` (and the other references read so far) in the AI detail part.
+- Question count: write the numbered questions first, then the callout, and state the number in digits ("I need 3 answers"). Before posting, check that the callout's number matches the numbered lines above the `---` (the Simple short form, with "Go?" and no numbered lines, is exempt):
+
+```bash
+F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {print}' "$F" | grep -cE '^[0-9]+\. ')"; C="$(head -1 "$F" | grep -oE '[0-9]+ answers?' | grep -oE '[0-9]+')"; if [ -n "$C" ] && [ "$Q" = "$C" ]; then echo COUNT-OK; else echo "COUNT-MISMATCH: $Q numbered questions, callout says ${C:-no number}"; fi
+```
+
+- Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
+- The Viewed line of each picture goes in the AI detail part, never above the `---`.
+- Required in every decision comment and decision journal entry, and in the final comment, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)`. A stop is not complete without it. `NOT-POSTED` is for `NO-OCR`, no ImageMagick and an `assets` release waiting for a yes. `TAKEN <n>` must equal the `PICTURES-SAVED` count from evidence.md. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -176,6 +216,7 @@ umask 077; S="$HOME/.superfix/runs/<journal run-key>"; T="$HOME/.superfix/runs/<
 - Same body template as above. The Status line is the file's first line, updated in place.
 - `## Original report` holds the owner's description copied exactly, including URLs, record ids and commit ids. Only a credential is replaced by `[redacted]` (redaction check first). Never summarise or reword it.
 - Comments become dated `### <YYYY-MM-DD HH:MM> <stage>` entries appended at the end, each starting with the plain-English callout.
+- The decision entry carries the same required `Pictures:` line as the decision comment (Decision message, above).
 - Say the file path in chat every time you stop.
 
 ### Plan comment (Moderate, Complex, after the expert panel)
@@ -194,12 +235,22 @@ Post it with `--body-file` (Comment format above).
 > **In plain English:** PR <link> is open and its checks are green. Please review and merge it.
 
 Solved check: run 1 <output>, run 2 <output>, run 3 <output>
+![P1 before and after: left, <what was wrong> (red box 1); right, <what is fixed> (green box 1)](https://github.com/<owner>/<repo>/releases/download/assets/sf-<N>-p1-before-after.png)
+P1 before and after: left, <what was wrong> (red box 1); right, <what is fixed> (green box 1).
+Pictures show on the website, not in the GitHub app: <issue link>
+Cost: about <n> USD (estimate for a <tier> run; the run cannot read its own bill)
+To undo: close PR <link> without merging. After a merge, tell me "undo this" and I will revert it.
 Budget used: <commits, files, time> of <budget>
 Loaded: execute.md
+Pictures: <the same required line, now for the after pictures too>
 ## Not tested
 - <item, and why>
 ```
 Without an issue, write the same as a journal entry and say it in chat.
+
+- The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with a before picture has an after picture or a stated reason (for example "P1 after picture not taken: <why>"); a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
+- Cost line: always present and always marked as an estimate, because the run cannot read its own bill. Rough figures by tier until the 1.4.0 test record gives measured ones: Simple about 2 USD, Moderate about 6 USD, Complex about 15 USD.
+- Undo line: always present, in plain words. The revert command (`git revert -m 1 <merge sha>`) goes in the AI detail, not in the undo line. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
 
 ### Context file (Moderate, Complex)
 
