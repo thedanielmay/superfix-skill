@@ -36,4 +36,13 @@ git diff --name-only <approval-sha>...HEAD                                      
 date                                                                                # time, minus the approval time
 ```
 
-Solved check (copy into the brief): run 1, the failing check from `## Problems` on approval-sha, fails. Run 2, the same check on the branch, passes. Run 3, in a scratch worktree of HEAD, reverse-apply the non-test part of `git diff <approval-sha>...HEAD`, run the check, expect failure, remove the worktree; the branch is never touched. Return all three outputs. Two failed run-2 attempts, whatever the cause: stop and return "My fix failed twice, so my diagnosis was wrong." with used versus budget.
+Solved check (copy into the brief; `<s1>`, `<s3>` are new folders from `mktemp -d`, written out in full):
+
+```bash
+git worktree add --detach <s1> <approval-sha> && git -C <s1> checkout <branch> -- <new or changed test paths>   # run 1 in <s1>: must fail
+# run 2: the same check on the branch: must pass
+git worktree add --detach <s3> HEAD && git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R   # run 3 in <s3>: must fail
+git worktree remove --force <path>; git worktree prune   # after each run, and whenever a step fails
+```
+
+Run 3 is not applicable for a behaviour-keeping refactor or a brand-new module or feature where taking the code out cannot fail meaningfully: say why and list it under Not tested; it does not count as a pass. Return all three outputs. Two failed run-2 attempts, whatever the cause: stop and return "My fix failed twice, so my diagnosis was wrong." with used versus budget.
