@@ -41,7 +41,7 @@ Skill names are Claude Code names. If a name does not resolve, use the opencode 
 | `/issue "description"` | Use the text directly - do not search for a matching issue |
 | `/issue` (no args) | Ask: "GitHub issue number or describe what needs doing?" |
 
-GitHub-specific steps (posting comments, closing) run only when an issue was referenced.
+GitHub-specific steps (posting comments, closing) run only when an issue was referenced. When one is referenced, Read `references/journal.md` first (see the work journal section).
 
 If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
 
@@ -75,61 +75,7 @@ State it in conversation if no issue.
 
 ## GitHub Issue as Work Journal
 
-When working from a GitHub issue, the issue is the single source of truth for the work. Apply this pattern throughout the pipeline:
-
-**Issue body = living spec/plan**
-Keep the issue body current, but never overwrite what the reporter wrote.
-- First edit: copy the existing body word for word under a `## Original report` heading at the bottom. Never edit that section afterwards.
-- Later edits: if the body already has `## Original report`, keep everything from that heading to the end untouched and rewrite only the sections above it.
-- After Phase 0 and after any plan is written or significantly revised, update those sections. They should always answer: "what are we building, why, and what's out of scope?"
-- Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
-
-```bash
-BODY="$(gh issue view <N> --json body -q .body)"
-# Reporter's text: after the heading if it already exists, else the whole body
-if printf '%s\n' "$BODY" | grep -q '^## Original report$'; then
-  ORIG="$(printf '%s\n' "$BODY" | awk '/^## Original report$/{f=1;next} f')"
-else
-  ORIG="$BODY"
-fi
-F="$(mktemp)"
-cat > "$F" <<'EOF'
-## Summary
-<one paragraph: what this is and why>
-
-## Scope
-<what is in scope>
-
-## Out of scope
-<what is explicitly excluded>
-
-## Key decisions
-- <decision 1>
-- <decision 2>
-
-## Plan
-docs/superpowers/plans/<filename>.md   <!-- only when a plan exists -->
-EOF
-printf '\n## Original report\n%s\n' "$ORIG" >> "$F"
-gh issue edit <N> --body-file "$F"
-```
-
-**Progress comments = timestamped changelog**
-Each significant phase transition gets a progress comment - not an edit to the body. Comments accumulate as a readable audit trail of what happened and when.
-
-Required progress comment triggers:
-- Phase 0 complete: problem profile posted (already required above)
-- Phase 1 complete: complexity tier confirmed, key findings summarised
-- Phase 2 complete: plan approved after expert panel (already required above)
-- Phase 3 complete: implementation done, tests green, PR created (already required in Phase 4)
-- Any significant scope change or blocker encountered
-
-Comment format:
-```bash
-gh issue comment <N> --body "✅ Phase N complete - [one sentence summary of outcome]. Next: [next step]."
-```
-
-**This applies only when an issue was referenced.** Freeform-description invocations skip all GitHub journal steps.
+When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced, before the first comment or body edit, and write `Loaded: journal.md` in the Problem Profile comment.
 
 ---
 
@@ -168,36 +114,7 @@ Run before writing a single line of code. Exploration is type-aware.
 
 ### Exploration by type
 
-**`bug`**
-- `superpowers:systematic-debugging` - frames the failure, classifies root cause category [sonnet/high]
-- `feature-dev:code-explorer` - traces the affected execution paths [sonnet/high]
-- `diagnose` - escalation if `systematic-debugging` cannot identify the root cause category after one pass, or the identified cause is speculative rather than confirmed by code evidence [sonnet/high]
-
-**`performance`**
-- `feature-dev:code-explorer` - maps the hot path end-to-end [sonnet/high]
-- `grepai-trace-graph` - builds recursive call graph of the slow path [sonnet/high]
-- Measure before planning: run actual timing/profiling. Record baseline numbers in context file.
-
-**`ux`**
-- `feature-dev:code-explorer` - reads component tree, design tokens, layout patterns [sonnet/high]
-- Note existing impeccable/ui-ux-pro-max conventions already in use
-
-**`architecture`**
-- `feature-dev:code-explorer` - full system mapping, data flows, module boundaries [sonnet/high]
-- `architecture-deep-dive` - structural analysis, strengths/weaknesses [opus/high]
-- `grepai-trace-graph` - dependency graph across subsystems [sonnet/high]
-- `improve-codebase-architecture` - identifies shallow modules, structural candidates [sonnet/high]
-
-**`security`**
-- `feature-dev:code-explorer` - traces auth flows, data flows, trust boundaries [sonnet/high]
-- `code-security-audit` - run on relevant files pre-plan to understand current exposure [sonnet/high]
-
-**`feature` Simple**
-- Built-in `Explore` agent - quick symbol/file lookup, "where does this slot in?" - max 5 minutes [haiku/high]
-
-**`feature` Moderate/Complex**
-- `feature-dev:code-explorer` - traces where feature integrates [sonnet/high]
-- `feature-dev:code-architect` - maps existing patterns, identifies what can be reused [sonnet/high]
+Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` in the Phase 1 progress comment, or in your next message to the user if there is no issue.
 
 ### After exploration: confirm complexity tier
 
@@ -281,6 +198,8 @@ Key decisions: [brief summary]"
 
 ## Phase 3 - Execute
 
+Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the Phase 3 progress comment, or in your next message to the user if there is no issue.
+
 ### Simple path (main thread, no agent)
 
 Create branch before touching any file (shared block, both paths):
@@ -308,6 +227,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Plan file path
 - Problem Profile (type, tier, skill manifest)
 - Model/effort policy: most appropriate model per task, high effort
+- Absolute path of `references/execute.md`. The agent reads it first. Agents do not load this file, so they only know what the brief tells them.
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
@@ -317,105 +237,9 @@ The agent ticks the plan file's task checkboxes as each task completes.
 
 On restart (limit, crash, new session): read the latest progress comment on the issue (if any), the plan file's task checkboxes, and `git log` on the branch. Continue from the first unfinished stage. Do not redo finished stages.
 
-### Execute sequences by type
+### Execute sequences by type, code review rules, test scope
 
-**`bug`**
-```
-superpowers:test-driven-development (write failing test first) [sonnet/high]
-→ implement fix (superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run tests (impacted files: pytest <file> -n auto / npm run test -- --run <file>)
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`performance`**
-
-TDD not required - the test suite guards correctness. If the performance change modifies logic (not just queries/caching/indexes), run `superpowers:test-driven-development` first.
-
-```
-implement improvement [sonnet/high]
-→ run tests
-→ measure again (confirm improvement vs baseline - must show measurable gain)
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`ux`**
-```
-superpowers:test-driven-development [sonnet/high]
-→ implement [sonnet/high]
-→ react-vite-best-practices (if React components changed) [sonnet/high]
-→ Playwright visual verification (example-skills:webapp-testing) [sonnet/high]
-→ accessibility (WCAG 2.2 check on changed components) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`architecture`**
-```
-implement (worktree via superpowers:using-git-worktrees; superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run full test suite
-→ improve-codebase-architecture (validate structural changes meet deep-module criteria) [sonnet/high]
-→ pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`security`**
-```
-implement fix [sonnet/high]
-→ run tests
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer (cross-check) [sonnet/high]
-→ code-security-audit (primary - 80%+ confidence threshold) [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`feature` Moderate/Complex**
-```
-superpowers:test-driven-development [sonnet/high]
-→ implement (superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run tests
-→ pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-### Code review rules (all types)
-
-- Fix every **high-confidence** finding - one issue, one fix, re-verify
-- Skip false positives - note and move on
-- Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
-- Impacted tests re-run after `simplify`, before review starts
-- `code-security-audit` always runs after `code-reviewer`, not instead of it
-
-### Test scope
-
-- Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`
-- Full test suite once at end, before verification
-- Verification re-runs the Phase 1 repro or baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
+These are in `references/execute.md`. Read it in full before implementing (see the start of Phase 3).
 
 ---
 
@@ -470,32 +294,4 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 
 ## Skill Inventory Reference
 
-| Skill (Claude Code) | Phase | Types | opencode or fallback |
-|-------|-------|-------|----------------------|
-| `feature-dev:code-explorer` | 1 | all except feature/Simple | `code-explorer` subagent |
-| `feature-dev:code-architect` | 1 | feature Mod/Complex | `code-architect` subagent |
-| `grepai-trace-graph` | 1 | performance, architecture | same name, else inline recursive search |
-| `superpowers:systematic-debugging` | 1 | bug | `systematic-debugging` skill |
-| `diagnose` | 1 | bug (escalation) | same name, else inline |
-| `architecture-deep-dive` | 1 | architecture | inline structural review |
-| `improve-codebase-architecture` | 1 + 3 | architecture | same name, else inline |
-| `superpowers:brainstorming` | 2 | ux, architecture, feature Mod/Complex | `brainstorming` skill |
-| `ui-ux-pro-max` | 2 | ux | inline from UX intent |
-| `impeccable` (sub-skills) | 2 + 3 | ux | inline from UX intent |
-| `accessibility` | 2 + 3 | ux | same name both |
-| threat model (inline) | 2 | security | `security-audit` for guidance, else inline |
-| `code-security-audit` | 1 (security - pre-plan scan) + 3 (all) | all | same name, else inline review |
-| `superpowers:writing-plans` | 2 | Moderate + Complex | `writing-plans` skill |
-| `expert-panel` | 2 | all Moderate + Complex | same where installed, else structured self-review |
-| `superpowers:test-driven-development` | 3 | bug, ux, feature | `test-driven-development` skill |
-| `react-vite-best-practices` | 3 | ux | same name, else inline |
-| `example-skills:webapp-testing` | 3 | ux (Playwright visual) | `webapp-testing`, else Playwright steps inline |
-| `pr-review-toolkit:code-reviewer` | 3 | all | `code-reviewer` subagent |
-| `pr-review-toolkit:silent-failure-hunter` | 3 | all | `silent-failure-hunter` subagent |
-| `pr-review-toolkit:type-design-analyzer` | 3 | architecture, feature (new types only) | `type-design-analyzer` subagent |
-| `pr-review-toolkit:review-pr` | 3 | existing PR (shortcut) | inline review with the same brief |
-| `simplify` | 3 | all | `code-simplifier` subagent, else `refactor` skill, else inline |
-| `superpowers:verification-before-completion` | 3 | all | `verification-before-completion` skill |
-| `superpowers:subagent-driven-development` | 3 | Complex only | `subagent-driven-development` skill |
-| `superpowers:using-git-worktrees` | 3 | architecture | `using-git-worktrees` skill |
-| `superpowers:finishing-a-development-branch` | 4 | all | `finishing-a-development-branch` skill |
+The table of every skill this orchestrator can employ, with the opencode name or fallback for each, is in `references/inventory.md`. Read it only when a named skill does not resolve (see Model & Effort Policy).
