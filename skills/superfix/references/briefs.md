@@ -21,6 +21,7 @@ the PR, each only after the redaction checks in references/redaction.md
 decided, on the diff, the commit messages and the PR body file. Open the PR
 with `--body-file`. Never post issue comments, edit the issue body or change
 the Status line: return those results to the caller, which posts them.
+Never add or remove labels and never write gap notes or diagrams; the main thread does those.
 NO-RUN-FOLDER (the folder or its key file is missing) is a stop: commit,
 push and post nothing, and return it to the caller.
 

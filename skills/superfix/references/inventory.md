@@ -36,3 +36,4 @@ Diagnosis tools and their fallbacks (Explore, a report-only `general-purpose` ag
 | `magick` (ImageMagick 7, a command, not a skill) | 1 + 3 | pictures (references/evidence.md) | none: no pictures, Not tested line |
 | `tesseract` (OCR, a command) | 1 + 3 | pictures: secret check before upload | none: NO-OCR, nothing uploaded, Not tested line |
 | Python `playwright` module with a Chromium browser (a library) | 1 + 3 | pictures: BROWSER-SCRIPT | Playwright MCP after NO-LIST, else NO-BROWSER |
+| `diagram-design` (a skill whose files Superfix follows; never invoked) | 2 + 3 | diagrams (references/diagrams.md), Moderate and Complex, after the owner's yes | none: no diagrams, `Diagram: NOT-POSTED (diagram skill not found)` |

@@ -64,8 +64,10 @@ Interface (every command prints one word line; it never prints a secret, a match
 - `"<python>" "$D/shot.py" ocr --run "$D" --name <name>` reads the posted picture, the 2x copy and a larger grey copy with tesseract into `evidence/ocr-<name>.txt` and prints `OCR-READY`. The upload command runs it.
 - `"<python>" "$D/shot.py" verify --run "$D" --name <name>` prints `OCR-CLEAN` or `OCR-BLOCKED`, then `VIEW-MATCH`, `VIEW-MISMATCH` or `NOT-VIEWED`. The OCR part looks for every secret exactly (spaces removed), and as every 6-character piece after folding the letters OCR confuses (o and 0, l, i and 1, g and 9, b and 8, z and 2, s and 5, rn and m). For a secret of 13 or more characters one misread character cannot hide it; a shorter secret with a misread near its middle can pass, and OCR can miss small or pale text altogether. Any Python 3 runs it; it needs no browser. The upload command runs it; you do not need to.
 - `"<python>" "$D/shot.py" retake --run "$D" --source <before name> --name <after name> [--url <url>] [--serve <dir>]` takes the after picture exactly as the before one was taken (it reads `evidence/<before name>.json`: address, served folder, target, hidden elements, saved login, number), with a green box unless `--colour` says otherwise. Pass `--url` or `--serve` only when the page now lives elsewhere (for example the clone in place of the scratch worktree). A before picture taken on the MCP path prints `ERROR`: take the after one on the MCP path too, which is allowed only when the list prints `NO-LIST`.
+  - `retake` scrolls to where the before picture was taken and keeps its area (Aligned crops, below). It prints `CROP-ALIGNED`, `CROP-WIDENED` or `CROP-DIFFERENT` on the line before `SAVED`.
 - `"<python>" "$D/shot.py" pair --run "$D" --before <name> --after <name> --name <pair name>` makes the side-by-side picture (below) and prints `SAVED <file>`.
 - `"<python>" "$D/shot.py" mcp-code ...` and `mcp-save ...`: the MCP path only (below).
+- `"<python>" "$D/shot.py" diagram ...` and `diagram-verify ...` (1.4.1): diagrams only, in the run folder's `diagrams/` folder, never `evidence/` (references/diagrams.md).
 
 The script, exactly as the command above writes it:
 
@@ -822,6 +824,15 @@ if __name__ == "__main__":
 # --- shot.py end ---
 ```
 
+### Aligned crops
+
+New in 1.4.1. In 1.4.0 `retake` centred the moved target again, so the after picture showed a different page area. Now `shoot` stores the area it cut (`page_clip`, in page terms) and the scroll position in `evidence/<name>.json`, and `retake` scrolls back to that position, measures the after target and its mark, then:
+- `CROP-ALIGNED`: the mark is inside the stored area. The after picture uses exactly the before area.
+- `CROP-WIDENED`: the mark is partly outside the stored area but inside the window. The after picture shows both areas together (their union); `pair` puts the before picture on a canvas of that size at its place, grey `#e5e5e5` where nothing was captured, so the two halves line up. The caption adds: "the after side shows a wider area because <target> moved; grey means not in the before picture".
+- `CROP-DIFFERENT`: the mark is outside the window at that scroll position, or the page can no longer scroll there. The 1.4.0 behaviour: the target is centred again. `pair` centres the smaller half on a grey canvas so the halves are the same size, and the caption says the two sides show different areas of the page.
+- No full-page shot for the large case: the marks are `position:fixed`, and a full-page shot would move them.
+- A before picture taken by 1.4.0 (no stored area) is retaken as in 1.4.0, with no CROP word. The MCP path keeps the 1.4.0 behaviour (Not tested).
+
 ### Looking at each picture (the Viewed line)
 
 After `SAVED`, Read the PNG yourself (the Read tool shows the image), then write what you SEE, never what you expect, in one line:
@@ -911,6 +922,7 @@ umask 077; D="$HOME/.superfix/runs/<run-key>"; R='<owner>/<repo>'; ME="$(gh api 
 - `ASSETS-EXISTS` or `ASSETS-CREATED`: go on to the upload commands.
 - `ASK-FIRST`: the signed-in user does not own the repo (whether or not the release exists). `ASK-FIRST-TAG`: a tag named `assets` exists but no release. `ASK-FIRST-WORKFLOWS`: some file under `.github/workflows/` (any depth, any case) contains one of the words `push`, `release`, `create`, `tags`, `workflow_run`, `workflow_call` or `repository_dispatch`, or writes `on:` in flow syntax (`on: [...]` or `on: {...}`), or could not be read (`FLAG` and `UNREAD` lines name the files). False alarms are fine: the check is a text search, on purpose. No workflow files at all (or an empty repo) means none. In every ASK case upload nothing yet. The decision message carries this numbered question, just before the create-issue question, which stays last: "May I create a release named assets in <owner>/<repo> to hold the pictures? It adds a tag named assets, which can start workflows that run on new tags or releases and notifies people who watch the repo's releases; webhooks, GitHub Apps and repository rules cannot be checked from here and may also react. (yes / no)". It has NO recommended answer, like the create-issue question: "keep executing" does not cover it, and anything but an explicit yes to it is no. On a yes, run `gh release create assets --repo <owner>/<repo> --title "Asset host" --notes "Hosts images referenced from issues" --latest=false && echo ASSETS-CREATED`, then the upload commands, then add the pictures to the body. Without a yes, use `A='keep'`, and the `Pictures:` line says `NOT-POSTED (the assets release needs your yes)`.
 - Creating the `assets` release and its tag, only after these ownership and workflow checks, and uploading to it are the only writes before approval that leave the machine, and only for a PRIVATE repo you own (SKILL.md Phase 1).
+- Labels and gap notes (SKILL.md Phase 1) are also allowed before approval.
 
 ### Markdown forms
 
