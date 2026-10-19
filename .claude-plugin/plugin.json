@@ -1,7 +1,7 @@
 {
   "name": "superfix",
   "version": "1.4.0",
-  "description": "Superfix orchestrator: intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, diagnoses it and stops for approval before fixing, assembles the right skill set, and drives it to an opened PR with CI green.",
+  "description": "Superfix orchestrator: intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, diagnoses it and stops for approval before fixing, assembles the right skill set, and drives it to an opened PR with CI green. It shows the problem and the fix with annotated screenshots (private repos).",
   "author": {
     "name": "Daniel May",
     "url": "https://github.com/thedanielmay"
