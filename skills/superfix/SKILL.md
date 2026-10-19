@@ -164,8 +164,10 @@ accept every recommendation. A reply that answers only some questions: ask
 only the rest. Anything else (a question, a new fact): answer it, update the
 record, stay stopped.
 
-On go: write ## Decision (below) as a body update, no comment. Record
-approval-sha = `git rev-parse origin/<default-branch>` and the approval time.
+On go: write ## Decision (below) as a body update, no comment. Run `git fetch
+origin`, then record approval-sha = `git rev-parse origin/<default-branch>` and
+the approval time. The work branch starts from that sha, so the budget and the
+solved check never count other people's commits.
 Status "Fixing problem 1 of <N>".
 
 Fast lane: only when THIS run's request says so ("just fix it", "don't
@@ -274,7 +276,7 @@ Create branch before touching any file (shared block, both paths):
 ```bash
 git status --porcelain            # must print nothing, else stop and ask
 git fetch origin
-git switch -c <fix|feature>/<N-or-date>-<slug> origin/<default-branch>
+git switch -c <fix|feature>/<N-or-date>-<slug> <approval-sha>   # the approved commit, not a newer origin
 ```
 `<N-or-date>` is the issue number, or today's date for freeform work. That prevents slug collisions.
 
@@ -287,7 +289,7 @@ create branch → (bug: failing test or repro command first) → implement → i
 
 ### Moderate + Complex path (autonomous agent)
 
-Create branch with the shared block above before dispatching the agent. Architecture: create the worktree from `origin/<default-branch>` instead of creating a branch first.
+Create branch with the shared block above before dispatching the agent. Architecture: create the worktree from `<approval-sha>` instead of creating a branch first.
 
 Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. Pass:
 - Branch name
