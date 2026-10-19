@@ -80,6 +80,12 @@ Every command below runs it as `python3 -I "$HOME/.superfix/runs/<run-key>/crit.
 
 Words: `CRIT-READY`, then the words of each command below.
 
+After `RUN-MOVED` (journal.md, the create-issue question), move the criteria folder to the issue key too, before the lock:
+
+```bash
+S="$HOME/.superfix/journal/<name>/criteria/<journal run-key>"; T="$HOME/.superfix/journal/<name>/criteria/<owner>+<repo>+<N>"; if [ ! -d "$S" ]; then echo "CRITERIA-FOLDER-NONE $S"; elif [ -e "$T" ]; then echo "REFUSED-EXISTS $T"; else mv "$S" "$T" && echo CRITERIA-FOLDER-MOVED; fi
+```
+
 ### 6. Shape check (free, before the stop and after every amendment)
 
 ```bash
@@ -182,7 +188,7 @@ In criteria mode:
 python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" lock --body "<body file>" --scripts "<criteria folder>" --by "<gh login, or the owner at the keyboard>"
 ```
 
-- It hashes (sha256) every `P<k>-` line of `## Done when` with its checklist lines, and every `measure-*.py` in the criteria folder, and prints `Internal: criteria-sha <64 hex>, locked <YYYY-MM-DD HH:MM>, approved by <who>` and `CRITERIA-LOCKED`; or `CRITERIA-BAD ...` (no criteria, a missing script, no approver).
+- It hashes (sha256) every `P<k>-` line of `## Done when` with its checklist lines, and every `measure-*.py` in the criteria folder, and prints `Internal: criteria-sha <64 hex> (sha256), locked <YYYY-MM-DD HH:MM>, approved by <who>` and `CRITERIA-LOCKED` (the word `sha256` on the line lets redaction.md's pattern check pass the hash; never redact it); or `CRITERIA-BAD ...` (no criteria, a missing script, no approver).
 - Write that line in ## Decision directly BEFORE the `Internal: approval-sha` line, which stays last. `<who>` is the GitHub login that wrote the approving reply, or "the owner at the keyboard" in chat. After an amendment, the newest line counts.
 - Before every attempt, and on every restart:
 
@@ -204,21 +210,21 @@ The attempts file is `<criteria folder>/attempts`, one line per measured version
 python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" attempt --run "$HOME/.superfix/runs/<run-key>" --attempts "<criteria folder>/attempts" --from <out>
 ```
 
-- It prints `ATTEMPT-SAVED <n>` and appends `<n> <YYYY-MM-DD HH:MM> data-sha <sha> from <out> P1-C1=<value> P1-K1=<value> ...`; or `ATTEMPT-REFUSED <ids> ERROR` (an output is ERROR) or `ATTEMPT-REFUSED no output files`. Line 0 is the baseline (`--from base`). `data-sha` is the measured file's sha256, or, when several files were measured, the sha256 of their shas.
+- It prints `ATTEMPT-SAVED <n>` and appends `<n> <YYYY-MM-DD HH:MM> data-sha <sha> from <out> P1-C1=<value> P1-K1=<value> ...`; or `ATTEMPT-SAME <n>` (the same file and values as the newest line: nothing written, so a version is never counted twice), `ATTEMPT-REFUSED <ids> ERROR` (an output is ERROR) or `ATTEMPT-REFUSED no output files`. Line 0 is the baseline (`--from base`). A problem whose criteria are all `owner` has no scripts and no attempts file. `data-sha` is the measured file's sha256, or, when several files were measured, the sha256 of their shas.
 - After every attempt after the baseline:
 
 ```bash
 python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" progress --attempts "<criteria folder>/attempts" --body "<body file>" --cap <attempts cap, default 5>
 ```
 
-- Moved: at least one failing `C` got closer to its pass line AND no `C` or `K` got further from its pass line; any worsening is no progress. It prints `MOVED <n>` or `NO-PROGRESS <n> (worse: <names>)` or `NO-PROGRESS <n> (no failing check improved)`.
+- Moved: at least one failing `C` got closer to its pass line AND no `C` or `K` got further from its pass line; any worsening is no progress. It prints `CHECKS-PASS <n>` (every `check` criterion meets its pass line: never a stop), `MOVED <n>`, `NO-PROGRESS <n> (worse: <names>)` or `NO-PROGRESS <n> (no failing check improved)`; `PROGRESS-NONE` with only the baseline.
 - Two attempts in a row with no progress: `STOP-NO-PROGRESS` and the stop text, filled in: `"Two tries did not get closer: <plain name> went from <before> to <after> and <plain name> got worse. Work kept on <branch or copy>. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."` Write the branch or copy in place of `<branch or copy>`. Status `Waiting for you: 1 question`.
 - The attempts cap reached: `STOP-CAP <n> of <cap> attempts`; a budget stop (SKILL.md Budget).
 
 ### 15. Three runs (the solved check in criteria mode)
 
 - Run 1, the original: measure the original again (`--out run1`): every `C` `FAIL`, every `K` `PASS`, and the original's data sha equal to line 0's (the original is unchanged).
-- Run 2, the change (`--out run2`, then the attempt command `--from run2`): every `C` `PASS`, every `K` `PASS` and no further from its pass line than in run 1.
+- Run 2, the change (`--out run2`, then the attempt command `--from run2`, which prints `ATTEMPT-SAME` when run 2 measured the same file as the last try): every `C` `PASS`, every `K` `PASS` and no further from its pass line than in run 1.
 - Run 3, negative control: put one known defect back into a scratch copy of the change (one of the example rows, in `work/neg/`) and measure it with `--out neg-<id> --expect FAIL`: that `C` must `FAIL`. For each `K`, break the guarded thing in another scratch copy (delete one member) and expect `FAIL`. Run 3 outputs are never attempts.
 - Any `ERROR` or `UNEXPECTED`, or a run 3 that passes: stop and ask, because locked criteria are never rewritten quietly.
 - `later` and `owner` criteria are listed as waiting, never counted as passes.
@@ -266,6 +272,8 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 - Lines inside code fences never count. `decision`: `Criteria: PROPOSED <n>` (or `APPROVED <n>`) once in the AI detail below the LAST `---`, with `<n>` equal to the `P<k>-` lines; one plain line per criterion above the FIRST `---`.
 - Every kind: `Criteria check: ` once, naming every criterion by its plain name, each `<plain name> <PASS|FAIL|ERROR|LATER YYYY-MM-DD|OWNER> (<value>)` or `(<before> -> <after>)`, separated by `, `.
 - Values are compared at fixed places only, never "every number" (the pass line's own number is not a measure): the plain line's Today number and its examples against line 0 and its output files; the `Criteria check:` value against the newest attempt line (`<before>` against line 0); the result word of a `check` criterion against the newest output; the final table's before and after cells against line 0 and the newest line; and the newest line's values and data sha against its output files.
+- A sha written in a comment or body is written next to the word `sha256` (`sha256 <64 hex>`), so redaction.md's pattern check passes it.
+- A problem whose criteria are all `owner` needs no attempts file; its lines are still checked.
 - It prints `CRITERIA-OK`, or one line each: `CRITERIA-MISSING <what>`, `CRITERIA-COUNT <n>/<m>`, `CRITERIA-IDS-MISSING <names>`, `CRITERIA-VALUE-MISMATCH <name> comment <a> measured <b>`. Post only after `LINES-OK` and `CRITERIA-OK`.
 
 ### 19. Final comment additions
@@ -300,7 +308,7 @@ import argparse, datetime, hashlib, os, pathlib, re, shutil, subprocess, sys
 LINE = re.compile(r"^- (P(\d+)-([CK])(\d+)) \[([a-z]+)\] (.*)$")
 FIELDS = re.compile(r"^(?P<name>[^:]*): (?P<defn>.*); pass: (?P<pass>.*?); how: (?P<how>.*?); who: (?P<who>.*)$")
 NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 -]*[A-Za-z0-9]$")
-LOCK = re.compile(r"^Internal: criteria-sha ([0-9a-f]{64}), locked (\d{4}-\d{2}-\d{2} \d{2}:\d{2}), approved by (.+)$")
+LOCK = re.compile(r"^Internal: criteria-sha ([0-9a-f]{64}) \(sha256\), locked (\d{4}-\d{2}-\d{2} \d{2}:\d{2}), approved by (.+)$")
 CLOUD = ["Library/CloudStorage", "shared-drives", "Dropbox", "Library/Mobile Documents", "Google Drive", "OneDrive"]
 NUM = r"-?\d+(?:\.\d+)?"
 
@@ -513,7 +521,7 @@ def cmd_lock(a):
     if miss or not a.by.strip():
         print(f"CRITERIA-BAD {' '.join(miss)} how (no script)" if miss else "CRITERIA-BAD approver (say who approved)")
         return 1
-    print(f"Internal: criteria-sha {lock_sha(text, a.scripts)}, locked {now()}, approved by {a.by.strip()}")
+    print(f"Internal: criteria-sha {lock_sha(text, a.scripts)} (sha256), locked {now()}, approved by {a.by.strip()}")
     print("CRITERIA-LOCKED")
     return 0
 
@@ -564,6 +572,9 @@ def cmd_attempt(a):
     n = old[-1]["n"] + 1 if old else 0
     vals = " ".join(f"{i}={recs[i]['MEASURE']}" for i in sorted(recs))
     sha = combined(r["DATA-SHA"] for r in recs.values())
+    if old and old[-1]["sha"] == sha and old[-1]["v"] == {i: float(recs[i]["MEASURE"]) for i in recs}:
+        print(f"ATTEMPT-SAME {old[-1]['n']} (the same file and values as the newest line; nothing written)")
+        return 0
     p = pathlib.Path(a.attempts)
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a") as f:
@@ -600,6 +611,9 @@ def cmd_progress(a):
         worse, better = step(prev, new)
         flags.append((new["n"], not worse and bool(better), worse))
     n, moved, worse = flags[-1]
+    if cs and all(i in rows[-1]["v"] and distance(target(c["pass"]), rows[-1]["v"][i]) == 0 for i, c in cs.items()):
+        print(f"CHECKS-PASS {n}")
+        return 0
     print(f"MOVED {n}" if moved else f"NO-PROGRESS {n}" + (f" (worse: {', '.join(cs[i]['name'] for i in worse)})" if worse else " (no failing check improved)"))
     code = 0
     if len(flags) >= 2 and not flags[-1][1] and not flags[-2][1]:
@@ -637,9 +651,10 @@ def cmd_comment(a):
     cs = [c for c in criteria(pathlib.Path(a.body).read_text()) if c.get("name")]
     rows = attempts(a.attempts)
     bad = []
-    if not rows:
+    if not rows and any(c["kind"] in ("check", "later") for c in cs):
         print("CRITERIA-MISSING attempts (run the attempt command on the baseline first)")
         return 1
+    rows = rows or [{"n": 0, "sha": "", "from": "none", "v": {}}]
     base, new = rows[0], rows[-1]
     run = pathlib.Path(a.run)
     outs = {p.stem: read_out(p) for p in (run / "criteria" / new["from"]).glob("*.out")}
@@ -691,7 +706,7 @@ def cmd_comment(a):
                 continue
             if c["kind"] == "owner":
                 continue
-            m = re.match(r"^.*?\. today: (" + NUM + r")(?: \(([^)]*)\))?", pl[0], re.I)
+            m = re.match(r"^.*?\. today: (" + NUM + r")[^.(]*?(?:\s*\(([^)]*)\))?(?:\.|$)", pl[0], re.I)
             if not m or num(m.group(1)) != base["v"].get(c["id"]):
                 bad.append(f"CRITERIA-VALUE-MISMATCH {c['name']} comment {m.group(1) if m else 'none'} measured {fmt(base['v'][c['id']]) if c['id'] in base['v'] else 'none'}")
             shown = [int(x) for x in re.findall(r"\d+", m.group(2) or "")] if m else []

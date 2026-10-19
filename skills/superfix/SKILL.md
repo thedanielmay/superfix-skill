@@ -95,7 +95,7 @@ Several problems are "P1, P2"; "compound" still means one issue spanning two typ
 Data and document clean-ups are fixed only against criteria the owner approves; never against criteria Superfix invented alone.
 A process is never called solved: Superfix drafts the change and says "change drafted (or adopted), effect measured on <date>: <result>".
 - Take the owner's criteria, else draft them. Each is one line in ## Done when, in criteria.md's shape, with every definition stated (what counts as a duplicate, which row wins, how 03/04 is read). An unclear definition gets its own numbered question.
-- Above the `---`, each criterion in plain words with today's number, the pass line and up to 3 items the script counted: "Today: 8 duplicate rows (rows 14, 15, 88). Must be 0." Scripts go in the AI detail.
+- Above the `---`, each criterion in plain words with today's number, the pass line and up to 3 items the script counted: "Duplicate members. Today: 8 (rows 14, 15, 62). Must be 0." Scripts go in the AI detail.
 - A vague pass line ("clearer", "better"): propose a rewrite with a number, a yes/no fact or a checklist.
 - Measure scripts run on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. A crash or a missing MEASURE line is ERROR, never FAIL.
 - Two numbered questions per problem, no recommended answer, never the Simple short form: "If every check above passes, would you consider this solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".

@@ -42,6 +42,13 @@ Behaviour
 - **The cloud list** adds `~/Library/Mobile Documents`, `~/Google Drive` and `~/OneDrive` to the plan's mounts, and follows symlinks (a `~/shared-drives` link into CloudStorage is caught).
 - **MCP file tools:** besides the named tool words, criteria.md section 11 bans any MCP tool that creates, changes, moves or deletes a file or a record anywhere.
 
+Found in a self-review of the whole flow (fixed in the "review fixes" commit; 84 command tests)
+- **c1's example now has criteria.md's shape**: `"Duplicate members. Today: 8 (rows 14, 15, 62). Must be 0."` (the plan's `"Today: 8 duplicate rows (rows 14, 15, 88)..."` had no plain name, so a model copying it would fail the comment check). c1 is new in 1.5.0, so no preservation line. The check also accepts words between the number and the examples ("Today: 8 duplicate rows (rows 14, 15, 62).").
+- **A problem with only `owner` criteria** has no scripts and no attempts; `comment` no longer demands an attempts file for it and still checks its lines; `lock` works with no scripts.
+- **A version is never counted twice:** `attempt` prints `ATTEMPT-SAME <n>` and writes nothing when the file and values equal the newest line (run 2 measures the same file as the last try). **A version where every `check` criterion passes is `CHECKS-PASS <n>`**, never `NO-PROGRESS`, `STOP-NO-PROGRESS` or `STOP-CAP`.
+- **The lock line reads `Internal: criteria-sha <64 hex> (sha256), locked ...`**: redaction.md's pattern check passes a 64-hex string only on a line holding `sha256`; without it every body update after go printed `PATTERN-HITS` and a model following "unsure: redact" would break the lock (`CRITERIA-UNLOCKED`). Shas in comments are written `sha256 <hex>` for the same reason. redaction.md is unchanged. Tested with redaction.md's own pattern command.
+- **After `RUN-MOVED`** (create-issue yes) the criteria folder moves to the issue key before the lock (`CRITERIA-FOLDER-MOVED`, `REFUSED-EXISTS`, `CRITERIA-FOLDER-NONE`).
+
 Not done here (other tasks): probes P1 and P2, the S13 synthetic `run.jsonl` test and `check150.py` (T2 testbed work), every model test (T8). Fixtures are local only: `seed15/overlay/` (one local commit, never pushed) and `seed15/nogit-fixture/stock.csv` (the plan named `scratchpad/nogit-fixture/`).
 
 ## Not reported by the check
