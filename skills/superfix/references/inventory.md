@@ -2,6 +2,8 @@
 
 Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when to read this file.
 
+Diagnosis tools and their fallbacks (Explore, a report-only `general-purpose` agent, episodic memory, git history, Playwright, Qik read tools) are in `references/diagnose.md`.
+
 | Skill (Claude Code) | Phase | Types | opencode or fallback |
 |-------|-------|-------|----------------------|
 | `feature-dev:code-explorer` | 1 | all except feature/Simple | `code-explorer` subagent |

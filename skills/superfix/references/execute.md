@@ -1,6 +1,6 @@
 # Execute sequences, code review rules and test scope
 
-Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when to read this file.
+Moved from SKILL.md 1.1.1 (superfix-skill#42); edited in 1.3.0. SKILL.md says when to read this file.
 
 ### Execute sequences by type
 
@@ -90,6 +90,7 @@ superpowers:test-driven-development [sonnet/high]
 
 ### Code review rules (all types)
 
+- Every review agent brief starts with this review header (the same text as in `references/diagnose.md`): "Report only. Do not edit, write or create files, and do not run commands that change anything. Return findings with confidence; the caller applies fixes." After the agent returns, `git status --porcelain` must show no change it made
 - Fix every **high-confidence** finding - one issue, one fix, re-verify
 - Skip false positives - note and move on
 - Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
@@ -100,4 +101,4 @@ superpowers:test-driven-development [sonnet/high]
 
 - Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`
 - Full test suite once at end, before verification
-- Verification re-runs the Phase 1 repro or baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
+- Verification re-runs the failing check in ## Problems (solved check in SKILL.md) or the baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
