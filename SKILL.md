@@ -114,7 +114,7 @@ Run before writing a single line of code. Exploration is type-aware.
 
 ### Exploration by type
 
-Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` in the Phase 1 progress comment.
+Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` in the Phase 1 progress comment, or in your next message to the user if there is no issue.
 
 ### After exploration: confirm complexity tier
 
@@ -198,7 +198,7 @@ Key decisions: [brief summary]"
 
 ## Phase 3 - Execute
 
-Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the Phase 3 progress comment.
+Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the Phase 3 progress comment, or in your next message to the user if there is no issue.
 
 ### Simple path (main thread, no agent)
 
