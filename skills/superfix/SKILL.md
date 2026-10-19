@@ -87,8 +87,8 @@ When working from a GitHub issue, the issue is the single source of truth for th
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
 | Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence |
 
-Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile.
-The plain coverage line for the decision message is in `references/journal.md`.
+Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile
+(the plain coverage line for the decision message is in `references/journal.md`).
 Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
 "Everything else" stop at diagnosis even after approval.
@@ -125,19 +125,19 @@ Run before writing a single line of code. Exploration is type-aware.
 Read `references/explore.md` and `references/diagnose.md` in full now. Run the
 exploration for the primary (and secondary) type inside the diagnosis method:
 the exploration skills collect the evidence, the method decides what it proves.
-Diagnosis does not fix anything. Before approval the only writes allowed are
-the journal, a scratch folder outside the repo, and a detached worktree in that
-folder (removed before the stop). No branch. No edits to tracked files. No Qik
-writes. Write `Loaded: explore.md, diagnose.md` in the decision comment, or in
-your next message to the user if there is no issue.
+Diagnosis fixes nothing. Before approval the only writes allowed are the
+journal, a scratch folder outside the repo, and a detached worktree in it
+(removed before the stop): no branch, no edits to tracked files, no Qik writes.
+Write `Loaded: explore.md, diagnose.md` in the decision comment, or in your next
+message if there is no issue.
 
 ### After exploration: confirm complexity tier
 
 Re-assess the provisional tier. If scope is larger than described, upgrade and state why. Put the confirmed tier in the decision comment.
 
-End of Phase 1, every tier: write `## Problems` (the evidence note: failing
-check and its output, baseline numbers, cause confirmed or suspected, ruled
-out and how, Tools used). Later steps read evidence from here.
+End of Phase 1, every tier: write `## Problems`, the evidence note (failing check
+and output, baseline, cause confirmed or suspected, ruled out and how, Tools
+used). Later steps read evidence from here.
 
 ## Stop gate
 
@@ -246,10 +246,9 @@ Before implementing, Read `references/execute.md` in full (this skill's base dir
 
 ### Budget
 
-Proposed in the decision message, fixed at approval. Defaults:
-  Simple:   6 commits, 2 hours, the files named in ## Options plus their tests
-  Moderate: 15 commits, 4 hours, the files in the plan plus their tests
-  Complex:  as stated in the plan
+Proposed in the decision message, fixed at approval. Defaults: Simple 6 commits,
+2 hours, the files named in ## Options plus their tests; Moderate 15 commits, 4
+hours, the files in the plan plus their tests; Complex as stated in the plan.
 Plain wording: "Up to 2 hours, touching these 3 files. I stop and ask if I go over."
 
 Measure before every commit (main thread or fix agent):
@@ -262,14 +261,12 @@ Over any limit: stop. A fix agent returns a message whose first line is exactly
 BUDGET STOP; the main thread posts it (callout first), sets the status line to
 "Stopped: over budget (<which>)" and ends the turn. Offer: 1 extend, 2 cut
 scope, 3 stop. Never continue past a limit on your own.
-Max 2 review passes and max 2 expert panel passes are unchanged.
 
 ### Qik configuration (provisional)
 
 Qik configuration (provisional). Load the qik skill first. No branch.
-Moderate or Complex Qik work: no git branch either; the plan and context files
-go in the journal folder (`~/.superfix/journal/<name>/`), never in a repo, and
-the fix agent brief carries the four rules below.
+Moderate or Complex Qik work: plan and context files go in `~/.superfix/journal/<name>/`,
+never in a repo, and the fix agent brief carries the four rules below.
 1. Back up before the first edit: the exact before text and the undo step, in a
    folder outside any repo. No backup, no edit.
 2. Edit the draft only. Never publish. Say "in the draft", never "live".
@@ -326,21 +323,26 @@ On restart (limit, crash, new session): read the Status line, `## Problems` and 
 ### Solved check
 
 Runs inside `verification-before-completion`, on both paths. Code only (Qik: see above).
-"Solved" means three runs, each recorded with output in the final comment:
-  Run 1, base fails:   the failing check from ## Problems, on approval-sha.
-  Run 2, fix passes:   the same check on the branch.
-  Run 3, revert fails: in a scratch worktree of HEAD, reverse-apply the
-     non-test part of `git diff <approval-sha>...HEAD`, run the check, expect
-     failure, remove the worktree. The branch is never touched.
+"Solved" means three runs, each recorded with output in the final comment.
+<s1>, <s3> are new folders outside the repo (`mktemp -d`), written out in full.
+  Run 1, base fails: `git worktree add --detach <s1> <approval-sha>`, then
+     `git -C <s1> checkout <branch> -- <new or changed test paths>`; run the
+     failing check from ## Problems in <s1>.
+  Run 2, fix passes: the same check on the branch.
+  Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
+     `git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R`;
+     run the check in <s3>, expect failure. The branch is never touched.
+  After each run, and whenever a step fails: `git worktree remove --force <path>; git worktree prune`.
 Run 2 must also show the owner's description quoted in ## Done when no longer
 holds.
 If run 3 passes, the check does not detect the problem: fix the check, not the
 code, and re-run all three.
-When run 3 does not apply, say why in one line and put it under Not tested:
+When run 3 does not apply, say why in one line and put it under Not tested;
+it is not counted as a pass:
   - refactor meant to keep behaviour: no failing check exists; full suite
     passes before and after instead
-  - new feature whose check cannot run without it: run 3 fails by import or
-    missing command; record that, it still counts
+  - a brand-new module or feature, where taking the code out cannot fail
+    meaningfully (only by import or missing command)
 Two failed run-2 attempts, whatever the cause given: stop. Post:
   "My fix failed twice, so my diagnosis was wrong. Work kept on the branch.
    Used 1h10 of 2h. 1 re-diagnose (about 20 min), 2 stop."
@@ -357,10 +359,8 @@ Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choi
 If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
 
-The PR body and the final comment both end with:
-## Not tested
-- <each thing not checked, and why>
-An empty list says "Nothing known untested". Never leave it out.
+The PR body and the final comment both end with `## Not tested`: one bullet per
+thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
 
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 
