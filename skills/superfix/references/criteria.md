@@ -957,22 +957,68 @@ def cmd_lockcheck(a):
 
 # ---------- running one script ----------
 
-def profile(tmp, reads):
+def profile(tmp, reads, execs=(), read_dirs=()):
     """Deny by default (probed on macOS 27): exec only of Python, reads only of the named files, the
-    temporary folder, system paths and the Python install, metadata only on those paths' parents."""
+    temporary folder, system paths and the Python install, metadata only on those paths' parents.
+    1.6.0 (work orders): execs are the other programs allowed to start (bash, the tools check.sh calls,
+    node) and read_dirs whole folders to read (the worktree, node's install); with execs, also fork,
+    the execs' own files and sysctl-read (node aborts without it; probed). With neither, the 1.5.0 profile."""
     q = lambda s: '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
     py = real(sys.executable)
     fw = py.parents[3] if "Frameworks" in str(py) else py.parent.parent
     sysr = ["/System", "/usr/lib", "/usr/share", "/private/var/db/dyld", "/private/var/db/timezone", "/Library/Apple",
-            "/opt/homebrew", "/dev", "/private/var/select", real(sys.base_prefix), real(sys.prefix), fw]
+            "/opt/homebrew", "/dev", "/private/var/select", real(sys.base_prefix), real(sys.prefix), fw] + [real(d) for d in read_dirs]
+    reads = list(reads) + [real(e) for e in execs]
     allowed = [str(x) for x in sysr] + [str(r) for r in reads] + [str(tmp)]
     anc = sorted({str(x) for p in allowed for x in pathlib.Path(p).parents} | {"/"})
     return ("(version 1)(deny default)"
-            f"(allow process-exec (literal {q(py)}) (subpath {q(fw)}))"
-            "(allow file-read-metadata " + " ".join(f"(literal {q(x)})" for x in anc) + ")"
+            f"(allow process-exec (literal {q(py)}) (subpath {q(fw)})" + "".join(f" (literal {q(real(e))})" for e in execs) + ")"
+            + ("(allow process-fork)(allow sysctl-read)" if execs else "")
+            + "(allow file-read-metadata " + " ".join(f"(literal {q(x)})" for x in anc) + ")"
             "(allow file-read* (literal \"/\") " + " ".join(f"(subpath {q(r)})" for r in sysr)
             + " " + " ".join(f"(literal {q(r)})" for r in reads) + f" (subpath {q(tmp)}))"
             f"(allow file-write* (subpath {q(tmp)}) (literal \"/dev/null\"))")
+
+
+SANDBOX_TOOLS = ["/bin/bash", "/bin/sh", "/usr/bin/tr", "/usr/bin/cut", "/usr/bin/sed", "/usr/bin/grep", "/usr/bin/head",
+                 "/usr/bin/tail", "/usr/bin/sort", "/usr/bin/wc", "/usr/bin/awk", "/usr/bin/env", "/usr/bin/printf"]
+
+
+def cmd_sandbox(a):
+    """1.6.0 work orders: run someone else's code (check.sh, the suite) in the widened profile:
+    no network, writes only in a temporary folder, reads of the worktree, system paths and node."""
+    cwd = real(a.cwd)
+    node = shutil.which("node", path=os.environ.get("PATH"))
+    if not os.path.exists(SBX) or os.environ.get("SUPERFIX_TEST_NO_SANDBOX") == "1":
+        print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
+        return 1
+    if not node:
+        print("SANDBOX-NO-NODE (node is not on PATH)")
+        return 1
+    nreal = real(node)
+    tmp = real(tempfile.mkdtemp(prefix="wo-", dir="/private/tmp" if os.path.isdir("/private/tmp") else None))
+    argv = a.argv[1:] if a.argv[:1] == ["--"] else a.argv
+    prof = profile(tmp, [real(x) for x in argv if os.path.isfile(x)], SANDBOX_TOOLS + [nreal], [cwd, nreal.parent.parent])
+    env = {"PATH": f"{nreal.parent}:/usr/bin:/bin", "HOME": str(tmp), "TMPDIR": str(tmp), "LANG": "en_US.UTF-8"}
+    try:
+        with open(tmp / ".o", "w") as o:
+            p = subprocess.Popen([SBX, "-p", prof] + argv, cwd=cwd, env=env, stdout=o, stderr=subprocess.STDOUT,
+                                 stdin=subprocess.DEVNULL, start_new_session=True)
+            try:
+                p.wait(timeout=a.timeout)
+            except subprocess.TimeoutExpired:
+                pass
+            finally:
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                p.wait()
+        sys.stdout.write((tmp / ".o").read_text(errors="replace"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    print(f"SANDBOX-EXIT {p.returncode}")
+    return 0
 
 
 def unsandboxed_approved(text):
@@ -1818,6 +1864,285 @@ def cmd_remind(a):
     return 0 if ok else 1
 
 
+# ---------- work orders (1.6.0, references/workorder.md): someone else makes a code change ----------
+
+WO_REQUIRED = ["WORK-ORDER", "CHECKS-KIND", "REPO", "BASE", "BRANCH", "FILES", "LIMITS", "CHECKS-SHA", "BASELINE", "DELIVER"]
+WO_KINDS = {"code"}                      # 1.6.1 adds "criteria"
+WO_LIMIT = 5
+R_CALL = re.compile(r'\br ([CKH]\d+) \$\? (' + r'"(?:[^"\\]|\\.)*"' + "|'[^']*'" + ') ')   # r <id> $? <expected> <got>
+
+
+def wo_head(text):
+    return {k: v for l in text.splitlines() for k, _, v in [l.partition(": ")] if k in WO_REQUIRED}
+
+
+def wo_block(text):
+    """The CHECKS block, exactly as Step 0 extracts it (the lines between # BEGIN CHECKS and # END CHECKS)."""
+    m = re.search(r"(?ms)^# BEGIN CHECKS\n(.*?)^# END CHECKS$", text)
+    return m.group(1) if m else None
+
+
+def wo_files(text):
+    """FILES as [(path, is_new)]: a path marked ' (new)' does not exist at BASE."""
+    return [(f[:-6].strip(), True) if f.endswith(" (new)") else (f, False)
+            for f in (x.strip() for x in wo_head(text).get("FILES", "").split(",")) if f]
+
+
+def git(clone, *args):
+    r = subprocess.run(["git", "-C", str(clone), *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
+
+
+def cmd_wo_check(a):
+    """WORKORDER: is this work order complete, fresh, and its CHECKS the locked ones?"""
+    t = pathlib.Path(a.wo).read_text()
+    lines, bad = t.splitlines(), []
+    for k in WO_REQUIRED:
+        n = sum(1 for l in lines if l.startswith(k + ": "))
+        if n != 1:
+            bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
+    h = wo_head(t)
+    if h.get("CHECKS-KIND") and h["CHECKS-KIND"] not in WO_KINDS:
+        print(f"WORKORDER-KIND {h['CHECKS-KIND']}")
+        return 1
+    rep = t.find("\n## Report")
+    for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
+        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "r(){", "o=", "t=")):
+            bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
+        if re.search(r"^\s*- \[[xX]\]", l):
+            bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
+    if not re.search(r"(?m)^- \[ \] ", t):
+        bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    blk = wo_block(t)
+    locked = pathlib.Path(a.check).read_text() if a.check else None
+    if blk is None or sha_text(blk) != h.get("CHECKS-SHA") or (locked is not None and sha_text(locked) != h.get("CHECKS-SHA")):
+        bad.append("WORKORDER-CHECKS-SHA (the CHECKS block, CHECKS-SHA and the locked check.sh differ)")
+    steps = re.search(r"(?ms)^## Checklist.*?(?=^## )", t)
+    steps = steps.group(0) if steps else ""
+    ids = []
+    for m in R_CALL.finditer(blk or ""):
+        i, exp = m.group(1), m.group(2)[1:-1]
+        ids.append(i)
+        if exp not in steps:
+            bad.append(f"WORKORDER-EXPECTED-NOT-IN-STEPS {i}")
+    base_ids = re.findall(r"([CK]\d+) (?:PASS|FAIL)", h.get("BASELINE", ""))
+    for i in ids:
+        if i not in base_ids:
+            bad.append(f"WORKORDER-NOT-IN-BASELINE {i}")
+    for m in re.finditer(r"(?m)^B=([0-9a-f]{40});", t):
+        if m.group(1) != h.get("BASE"):
+            bad.append("WORKORDER-STEP0 (Step 0's base is not BASE)")
+    if h.get("CHECKS-SHA") and h["CHECKS-SHA"] not in t.split("## Step 0", 1)[-1].split("## Checklist", 1)[0]:
+        bad.append("WORKORDER-STEP0 (Step 0 does not check CHECKS-SHA)")
+    if a.clone and h.get("BASE"):
+        for f, new in wo_files(t):
+            there = git(a.clone, "cat-file", "-e", f"{h['BASE']}:{f}")[0] == 0
+            if new and there:
+                bad.append(f"WORKORDER-NEW-EXISTS {f} (marked (new) but it is at BASE)")
+            if not new and not there:
+                bad.append(f"WORKORDER-FILE-NOT-AT-BASE {f} (mark it (new), or fix the name)")
+    print("\n".join(dict.fromkeys(bad)) if bad else "WORKORDER-OK")
+    return 1 if bad else 0
+
+
+def sandboxed(cwd, argv, timeout=300):
+    """Run argv in the widened profile through this tool's own sandbox command; returns its output."""
+    r = subprocess.run([sys.executable, "-I", __file__, "sandbox", "--cwd", str(cwd), "--timeout", str(timeout), "--", *argv],
+                       capture_output=True, text=True)
+    return r.stdout
+
+
+def wo_run_checks(D, wt, which=("check.sh", "held.sh")):
+    out = ""
+    for f in which:
+        p = pathlib.Path(D) / "workorder" / f
+        if p.exists():
+            out += sandboxed(wt, ["/bin/bash", str(p)])
+    return out
+
+
+def worktree(clone, sha):
+    wt = real(tempfile.mkdtemp(prefix="wo-wt-", dir="/private/tmp" if os.path.isdir("/private/tmp") else None)) / "wt"
+    rc, _ = git(clone, "worktree", "add", "-q", "--detach", str(wt), sha)
+    if rc:
+        raise Stop(f"WORKTREE-FAILED {sha[:12]}")
+    return wt
+
+
+def drop_worktree(clone, wt):
+    git(clone, "worktree", "remove", "--force", str(wt)); git(clone, "worktree", "prune")
+    shutil.rmtree(wt.parent, ignore_errors=True)
+
+
+def cmd_wo_baseline(a):
+    """BASELINE: solved-check run 1 at the base: the locked check.sh in the sandbox gives exactly BASELINE, every held-back check FAILs."""
+    D = pathlib.Path(a.run)
+    h = wo_head((D / "workorder/workorder.md").read_text())
+    wt = worktree(a.clone, h["BASE"])
+    try:
+        out = wo_run_checks(D, wt)
+    finally:
+        drop_worktree(a.clone, wt)
+    if "SANDBOX-MISSING" in out:
+        print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
+        return 1
+    got = dict(re.findall(r"(?m)^CHECK ([CKH]\d+) (PASS|FAIL)", out))
+    want = dict(re.findall(r"([CK]\d+) (PASS|FAIL)", h["BASELINE"]))
+    bad = [i for i in sorted(set(want) | {k for k in got if k[0] in "CK"}) if got.get(i) != want.get(i)]
+    bad += [f"{i} (a held-back check passes at the base)" for i, v in got.items() if i[0] == "H" and v == "PASS"]
+    if not any(k[0] == "H" for k in got):
+        bad.append("held.sh (no held-back check ran)")
+    print("BASELINE-OK" if not bad else "BASELINE-MISMATCH " + ", ".join(bad))
+    return 1 if bad else 0
+
+
+def decision_shas(text):
+    w = re.findall(r"(?m)^Internal: workorder-sha ([0-9a-f]{64}) \(sha256\)", text)
+    c = re.findall(r"(?m)^Internal: checks-sha ([0-9a-f]{64}) \(sha256\)", text)
+    return (w[-1] if w else None, c[-1] if c else None)
+
+
+def cmd_wo_lock(a):
+    """Lock the run folder's copies (shasum format, one line per file), copy workorder.md to the destination, print the sha lines."""
+    W = pathlib.Path(a.run) / "workorder"
+    files = [f for f in ("workorder.md", "check.sh", "held.sh") if (W / f).exists()]
+    if files[:2] != ["workorder.md", "check.sh"] or "held.sh" not in files:
+        print("WORKORDER-LOCK-REFUSED (the run folder's workorder/ needs workorder.md, check.sh and held.sh)")
+        return 1
+    if in_cloud(a.dest) and not a.asked:
+        print(f"PATH-CLOUD {a.dest} (a synced folder needs the owner's explicit yes, then add --asked)")
+        return 1
+    (W / "lock").write_text("".join(f"{sha_file(W / f)}  {f}\n" for f in files))
+    dest = real(a.dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    if (dest / "workorder.md").exists() or any(dest.iterdir()):
+        print(f"WORKORDER-DEST-NOT-EMPTY {dest} (a work order folder holds only workorder.md; use a new folder)")
+        return 1
+    shutil.copy2(W / "workorder.md", dest / "workorder.md")
+    ws, cs = sha_file(W / "workorder.md"), sha_file(W / "check.sh")
+    if sha_file(dest / "workorder.md") != ws:
+        print("WORKORDER-COPY-FAILED")
+        return 1
+    print(f"Internal: workorder-sha {ws} (sha256)")
+    print(f"Internal: checks-sha {cs} (sha256)")
+    print(f"Give this line to the executor separately: WORKORDER-SHA {ws} (sha256)")
+    print(f"WORKORDER-LOCKED {dest / 'workorder.md'}")
+    return 0
+
+
+def cmd_wo_return(a):
+    """RETURN: the shared steps (our own copies against the newest ## Decision shas), then the code step: one resolved H."""
+    D, F = pathlib.Path(a.run), real(a.folder)
+    ws, cs = decision_shas(body_text(a))
+    W = D / "workorder"
+    if not (W / "lock").exists():
+        print("RETURN-NO-LOCK (the run folder is gone: say so, use the ## Decision shas, ask for any password again)")
+        return 1
+    lock = {n: s for s, n in (l.split("  ", 1) for l in (W / "lock").read_text().splitlines() if "  " in l)}
+    if not ws or not cs or lock.get("workorder.md") != ws or lock.get("check.sh") != cs \
+            or any(not (W / n).exists() or sha_file(W / n) != s for n, s in lock.items()):
+        print("RETURN-OURS-CHANGED (our locked copies, their lock and the newest ## Decision shas do not agree: stop)")
+        return 1
+    t = (W / "workorder.md").read_text()
+    h = wo_head(t)
+    if h.get("CHECKS-KIND") not in WO_KINDS:
+        print(f"RETURN-KIND-UNKNOWN {h.get('CHECKS-KIND')}")
+        return 1
+    B, BR = h["BASE"], h["BRANCH"]
+    if a.patch:
+        wt = worktree(a.clone, B)
+        rc, _ = git(wt, "apply", "--index", str(real(a.patch)))
+        rc2, _ = git(wt, "-c", "user.name=superfix", "-c", "user.email=superfix@localhost", "commit", "-q", "-m", "returned as a patch")
+        rc3, H = git(wt, "rev-parse", "HEAD")
+        drop_worktree(a.clone, wt)
+        if rc or rc2:
+            print("RETURN-PATCH-FAILED")
+            return 1
+    else:
+        src = str(F / "return.bundle") if (F / "return.bundle").exists() else None
+        if not src and not a.remote_branch:
+            print("RETURN-NO-WORK (no return.bundle: if changed files came back, use wo-files)")
+            return 1
+        if src:
+            rc, _ = git(a.clone, "bundle", "verify", src)
+            if rc:
+                print("RETURN-BUNDLE-BAD")
+                return 1
+        rc, _ = git(a.clone, "fetch", "-q", src or "origin", f"+refs/heads/{BR}:refs/wo/{BR}")
+        if rc:
+            print(f"RETURN-NO-BRANCH {BR}")
+            return 1
+        rc, H = git(a.clone, "rev-parse", f"refs/wo/{BR}")
+    rc, mb = git(a.clone, "merge-base", B, H)
+    if mb != B:
+        print("RETURN-WRONG-BASE (the work does not start at BASE)")
+        return 1
+    allowed = {f for f, _ in wo_files(t)}
+    rc, ch = git(a.clone, "diff", "--name-only", f"{B}...{H}")
+    over = sorted(set(ch.split()) - allowed)
+    rc, n = git(a.clone, "rev-list", "--count", f"{B}..{H}")
+    words = []
+    if over:
+        words.append("RETURN-FILES-OVER " + " ".join(over))
+    if int(n or 0) >= WO_LIMIT:
+        words.append(f"RETURN-CAP {n} of {WO_LIMIT} attempts used (counted from git; no send-back left)")
+    print("\n".join(words + [f"RETURN-{'OK' if not over else 'CHECKED'} H {H} attempts {n}"]))
+    return 1 if over else 0
+
+
+def tap_names(wt):
+    out = sandboxed(wt, ["/bin/bash", "-c", "node --test --test-reporter=tap"])
+    return {m.group(2): bool(m.group(3)) for m in re.finditer(r"(?m)^(not )?ok \d+ - (.+?)( # (?:SKIP|TODO)\b.*)?$", out)}
+
+
+def cmd_wo_verify(a):
+    """Superfix's own runs at H: the locked check.sh, the held-back checks and the test-name check, in the sandbox."""
+    D = pathlib.Path(a.run)
+    h = wo_head((D / "workorder/workorder.md").read_text())
+    base = worktree(a.clone, h["BASE"])
+    try:
+        names_base = tap_names(base)
+    finally:
+        drop_worktree(a.clone, base)
+    wt = worktree(a.clone, a.head)
+    try:
+        out = wo_run_checks(D, wt)
+        names_h = tap_names(wt)
+    finally:
+        drop_worktree(a.clone, wt)
+    print("\n".join(l for l in out.splitlines() if l.startswith("CHECK ") or l.startswith("SANDBOX-MISSING")))
+    gone = sorted(n for n in names_base if n not in names_h or names_h[n])
+    print("TESTNAMES-OK" if not gone else "RETURN-TESTS-DROPPED " + ", ".join(gone))
+    ok = "CHECK " in out and "FAIL" not in out and "SANDBOX-MISSING" not in out and not gone
+    print("VERIFY-PASS (then the suite and SKILL.md's solved check runs 1 and 3)" if ok else "VERIFY-FAIL")
+    return 0 if ok else 1
+
+
+def cmd_wo_files(a):
+    """The files row: changed FILES that came back as plain files are committed at BASE as one attempt; anything else is named and ignored."""
+    D, F = pathlib.Path(a.run), real(a.folder)
+    t = (D / "workorder/workorder.md").read_text()
+    h = wo_head(t)
+    files = [f for f, _ in wo_files(t)]
+    got = [f for f in files if (F / f).is_file()]
+    other = sorted(str(p.relative_to(F)) for p in F.rglob("*") if p.is_file() and str(p.relative_to(F)) not in files
+                   and p.name not in ("workorder.md", "check.sh", "return.bundle"))
+    if not got:
+        print("RETURN-NO-WORK (no FILES came back)")
+        return 1
+    wt = worktree(a.clone, h["BASE"])
+    for f in got:
+        (wt / f).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(F / f, wt / f)
+    git(wt, "add", "--", *got)
+    rc, _ = git(wt, "-c", "user.name=superfix", "-c", "user.email=superfix@localhost", "commit", "-q", "-m", "attempt 1: returned as files")
+    rc2, H = git(wt, "rev-parse", "HEAD")
+    git(a.clone, "update-ref", f"refs/wo/{h['BRANCH']}", H)
+    drop_worktree(a.clone, wt)
+    print((f"RETURN-IGNORED {' '.join(other)}\n" if other else "") + f"RETURN-FILES {len(got)} H {H} attempts 1")
+    return 0
+
+
 # ---------- send check (tests: S13): an ALLOWLIST plus a text scan; best-effort ----------
 
 TOOL_OK = {"Read", "Grep", "Glob", "LS", "Skill", "Agent", "Task", "TodoWrite", "ToolSearch", "AskUserQuestion", "SubagentHandback"}
@@ -2126,6 +2451,13 @@ def main():
     s = sp.add_parser("index"); s.add_argument("op", choices=["add", "remove"]); s.add_argument("--job", required=True)
     s.add_argument("--waits", default=""); s.set_defaults(f=cmd_index)
     s = p("remind", cmd_remind, "name", "where", "date"); s.add_argument("--dry-run", action="store_true")
+    s = p("wo-check", cmd_wo_check, "wo"); s.add_argument("--check"); s.add_argument("--clone")
+    p("wo-baseline", cmd_wo_baseline, "run", "clone")
+    s = p("wo-lock", cmd_wo_lock, "run", "dest"); s.add_argument("--asked", action="store_true")
+    s = p("wo-return", cmd_wo_return, "run", "folder", "clone", body=True); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true")
+    p("wo-verify", cmd_wo_verify, "run", "clone", "head")
+    p("wo-files", cmd_wo_files, "run", "folder", "clone")
+    s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
     s.add_argument("--scripts")
     a = ap.parse_args()

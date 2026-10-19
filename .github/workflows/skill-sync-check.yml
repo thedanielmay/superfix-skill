@@ -18,3 +18,4 @@ jobs:
       - run: diff SKILL.md skills/superfix/SKILL.md && echo in-sync
       - run: diff -r references skills/superfix/references && test -f references/execute.md && echo references-resolve
       - run: python3 tests/preservation-check.py .
+      - run: n=$(wc -l < skills/superfix/references/workorder.md); if [ "$n" -gt 250 ]; then echo "WORKORDER-TOO-LONG $n"; exit 1; fi; echo "workorder.md $n lines"

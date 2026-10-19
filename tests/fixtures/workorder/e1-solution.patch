@@ -1,0 +1,125 @@
+diff --git a/cli.js b/cli.js
+index baaf3e2..83053ba 100644
+--- a/cli.js
++++ b/cli.js
+@@ -1,8 +1,10 @@
+-const { reportText } = require("./report");
+-
+-const [, , cmd] = process.argv;
+-if (cmd === "report") {
+-  console.log(reportText());
+-} else {
+-  console.log("usage: node cli.js report");
+-}
++const { exportRows } = require("./export");
++const args = process.argv.slice(2);
++if (args[0] === "report") {
++  let fmt = "text";
++  for (let k = 1; k < args.length; k++) {
++    if (args[k] === "--format") fmt = args[k + 1] === undefined ? "" : args[++k];
++    else if (args[k].startsWith("--format=")) fmt = args[k].slice(9);
++  }
++  try { console.log(exportRows(fmt)); } catch (e) { process.stderr.write("unknown format: " + fmt + "\n"); process.exit(2); }
++} else console.log("usage: node cli.js report");
+diff --git a/export.js b/export.js
+index bfe74f5..e3ce623 100644
+--- a/export.js
++++ b/export.js
+@@ -1,8 +1,18 @@
+-// Exports the report rows as text.
+-const { ITEMS } = require("./report");
+-
+-function exportRows() {
+-  return ITEMS.map((i) => formatRow(i)).join("\n");
++const { ITEMS, COLUMNS, reportText } = require("./report");
++function cell(v) {
++  let s = String(v);
++  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
++  if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
++  return s;
+ }
+-
+-module.exports = { exportRows };
++const FORMATS = {
++  text: { type: "text/plain", render: () => reportText() },
++  csv: { type: "text/csv", render: () => [COLUMNS.map((c) => cell(c.header)).join(","), ...ITEMS.map((i) => COLUMNS.map((c) => cell(i[c.key])).join(","))].join("\n") },
++  json: { type: "application/json", render: () => JSON.stringify(ITEMS.map((i) => Object.fromEntries(COLUMNS.map((c) => [c.key, i[c.key]])))) },
++};
++function exportRows(format = "text") {
++  const f = FORMATS[format];
++  if (!f) throw new Error("unknown format: " + format);
++  return f.render();
++}
++module.exports = { FORMATS, exportRows };
+diff --git a/report.js b/report.js
+index 0031467..3d64c4d 100644
+--- a/report.js
++++ b/report.js
+@@ -4,9 +4,10 @@ const ITEMS = [
+   { sku: "B-2", name: "Nut", qty: 8 },
+   { sku: "C-3", name: "Washer", qty: 45 },
+ ];
++const COLUMNS = [{ key: "sku", header: "sku" }, { key: "name", header: "name" }, { key: "qty", header: "qty" }];
+ 
+ function reportText() {
+   return ITEMS.map((i) => i.sku + " " + i.name + " " + i.qty).join("\n");
+ }
+ 
+-module.exports = { ITEMS, reportText };
++module.exports = { ITEMS, COLUMNS, reportText };
+diff --git a/server.js b/server.js
+index bd17e6a..4696c68 100644
+--- a/server.js
++++ b/server.js
+@@ -1,18 +1,16 @@
+ const http = require("http");
+-const { reportText } = require("./report");
+-
++const { FORMATS, exportRows } = require("./export");
+ function handler(req, res) {
+-  if (req.url.startsWith("/report")) {
+-    res.setHeader("Content-Type", "text/plain");
+-    res.end(reportText());
++  const u = new URL(req.url, "http://x");
++  if (u.pathname === "/report") {
++    const f = (u.searchParams.has("format") ? u.searchParams.get("format") : "text").toLowerCase();
++    if (!FORMATS[f]) { res.statusCode = 400; res.end("unknown format"); return; }
++    res.setHeader("Content-Type", FORMATS[f].type + "; charset=utf-8");
++    res.end(exportRows(f));
+     return;
+   }
+   res.statusCode = 404;
+   res.end("not found");
+ }
+-
+-if (require.main === module) {
+-  http.createServer(handler).listen(3000);
+-}
+-
++if (require.main === module) http.createServer(handler).listen(3000);
+ module.exports = { handler };
+diff --git a/test/cli.test.js b/test/cli.test.js
+new file mode 100644
+index 0000000..756f05b
+--- /dev/null
++++ b/test/cli.test.js
+@@ -0,0 +1,2 @@
++const test = require("node:test"); const assert = require("node:assert"); const { execFileSync } = require("node:child_process");
++test("cli csv", () => assert.ok(execFileSync(process.execPath, ["cli.js", "report", "--format", "csv"]).toString().startsWith("sku,name,qty")));
+diff --git a/test/export.test.js b/test/export.test.js
+index 3af0b11..bbc73da 100644
+--- a/test/export.test.js
++++ b/test/export.test.js
+@@ -5,3 +5,4 @@ const { exportRows } = require("../export");
+ test("export returns one line per item", () => {
+   assert.strictEqual(exportRows().split("\n").length, 3);
+ });
++test("export csv header", () => { assert.ok(exportRows("csv").startsWith("sku,name,qty")); });
+diff --git a/test/server.test.js b/test/server.test.js
+new file mode 100644
+index 0000000..b29187c
+--- /dev/null
++++ b/test/server.test.js
+@@ -0,0 +1,2 @@
++const test = require("node:test"); const assert = require("node:assert"); const { handler } = require("../server");
++test("server 400 on bogus", () => { const r = { statusCode: 200, setHeader() {}, end() {} }; handler({ url: "/report?format=bogus" }, r); assert.strictEqual(r.statusCode, 400); });
