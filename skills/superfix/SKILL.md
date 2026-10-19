@@ -38,10 +38,14 @@ Skill names are Claude Code names. If a name does not resolve, use the opencode 
 | Input form | How to get context |
 |------------|-------------------|
 | `/issue #N` | `gh issue view N` - read title, body, labels, all comments |
-| `/issue "description"` | Use the text directly - do not search for a matching issue |
+| `/issue "description"`, in a git repo with a GitHub remote | Use the text. Search once: `gh issue list --state open --search "<3 key words>" --limit 5`. Diagnose read-only, keeping the record in the file-mode journal. Question 1 of the decision message offers to create the issue (see journal.md) |
+| `/issue "description"`, anywhere else | Use the text. Keep the record in the file-mode journal. No issue question |
 | `/issue` (no args) | Ask: "GitHub issue number or describe what needs doing?" |
 
-GitHub-specific steps (posting comments, closing) run only when an issue was referenced. When one is referenced, Read `references/journal.md` first (see the work journal section).
+GitHub steps (comments, closing) run only when an issue exists. Without one,
+the same record goes in the file-mode journal outside the repo (see journal.md),
+never in the working tree. Read `references/journal.md` before the first
+comment, body edit or journal entry.
 
 If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
 
@@ -51,9 +55,14 @@ If `gh issue view` fails (auth error, repo not set, issue not found), surface th
 
 Read the full input - body, labels, all comments - before classifying. Never classify from title alone.
 
+Run the Coverage check (Classification Rules) first, then type and tier.
+
 Produce a **Problem Profile**:
 
 ```
+Coverage:        [Code | Qik configuration | Everything else]  (one per problem)
+Trigger:         ["<the exact words from the report that matched>"]
+Evidence:        [one observation that confirms it, e.g. the file exists]
 Primary type:    [bug | performance | ux | architecture | security | feature]
 Secondary type:  [optional - set when issue spans two types]
 Complexity tier: [Simple | Moderate | Complex]  ← provisional; confirmed after exploration
@@ -64,10 +73,7 @@ Agent execution: [yes - all Moderate and Complex]
 
 **Compound issues:** When an issue spans two types (e.g. bug + security, UX + performance), set both `primary_type` and `secondary_type`. Merge skill manifests - run Phase 1 exploration tools from both types; append Phase 3 execute additions from the secondary type to the primary path.
 
-Post as first GitHub comment if issue exists:
-```bash
-gh issue comment <N> --body "🔍 Problem Profile: [type] / [tier] - [one sentence summary]. Skill manifest: [list]. Starting exploration."
-```
+Do not post it as a comment. The Problem Profile goes in the AI detail part of the one decision comment at the Stop gate.
 
 State it in conversation if no issue.
 
@@ -75,11 +81,33 @@ State it in conversation if no issue.
 
 ## GitHub Issue as Work Journal
 
-When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced, before the first comment or body edit, and write `Loaded: journal.md` in the Problem Profile comment.
+When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced or the file-mode journal is needed, before the first comment, body edit or journal entry, and write `Loaded: journal.md` in the decision comment.
 
 ---
 
 ## Classification Rules
+
+### Coverage check (before type and tier)
+
+| Row | Matches when the report mentions | I can |
+|-----|----------------------------------|-------|
+| Code | files in this repo, a test, a stack trace, CLI or page output from this repo | diagnose and fix |
+| Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
+| Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence |
+
+Write the result at the top of the Problem Profile:
+  Coverage: <Code | Qik configuration | Everything else>
+  Trigger:  "<the exact words from the report that matched>"
+  Evidence: <one observation that confirms it, e.g. the file exists>
+Never name a row without the quoted trigger and the evidence.
+A report with several problems: check each problem separately. Problems in
+"Everything else" stop at diagnosis even after approval.
+Several problems are "P1, P2"; "compound" still means one issue spanning two types.
+
+Coverage line in the decision message, one per problem:
+- Code: This is a code problem, because you wrote "<quote>". I can find the cause and fix it.
+- Qik: This is a Qik settings problem, because you wrote "<quote>". I can fix it in the draft, but my Qik fixing is not yet proven by a test, so you check it and publish.
+- Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
 
 ### Type detection (apply in priority order; security signals win over every other type)
 
