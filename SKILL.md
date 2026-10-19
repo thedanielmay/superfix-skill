@@ -212,6 +212,7 @@ checked first. A credential in the reporter's original issue body: stop, post
 nothing, ask the owner to edit it. If something already leaked: delete the comment (never edit it,
 GitHub keeps edit history), tell the owner to rotate the credential, and say
 what leaked where.
+Pictures: no upload except through evidence.md's upload command; a pattern hit in a picture blocks it.
 
 ## Phase 2 - Design & Plan
 
@@ -326,6 +327,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
 - The budget and approval-sha from `## Decision`.
 - The session list path `~/.superfix/runs/<run-key>/secrets`, written out in full, and the absolute path of `references/redaction.md`.
+- When a problem has a before picture: the absolute path of `references/evidence.md` and the BROWSER-SCRIPT interpreter.
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
@@ -347,6 +349,8 @@ Runs inside `verification-before-completion`, on both paths. Code only (Qik: see
      `git -C <s1> checkout <branch> -- <new or changed test paths>`; run the
      failing check from ## Problems in <s1>.
   Run 2, fix passes: the same check on the branch.
+     Run 2 also takes the after picture of each problem that had a before
+     picture: same page and size, green box, same number (evidence.md).
   Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
      `git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R`;
      run the check in <s3>, expect failure. The branch is never touched.
@@ -381,6 +385,7 @@ The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
 
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
+The final comment carries one before-and-after picture per problem with pictures, the website line, the cost estimate and the undo line (journal.md).
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
@@ -410,6 +415,7 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Posting, pushing or creating anything before the redaction check
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
+- Uploading a picture without the upload command, or to a public repo
 
 ## Out of Scope
 
