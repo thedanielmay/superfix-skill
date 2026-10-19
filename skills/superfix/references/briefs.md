@@ -6,7 +6,7 @@ New in 1.3.0. Read only after the owner approves at the Stop gate. Agents never 
 
 FIX AGENT BRIEF (Moderate, Complex): branch, context file, plan file, Problem
 Profile, execute.md path, this file's path, the budget and approval-sha from
-the ## Decision section, the session list path `~/.superfix/runs/<run-key>/secrets` (written out in full).
+the ## Decision section, the run folder written out in full (`$HOME/.superfix/runs/<run-key>`, list `secrets`).
 Before every commit, run the budget commands; over any limit, stop and return
 a message whose first line is exactly BUDGET STOP, then done, left, used
 versus budget. Run the solved check before declaring done. Tick plan
@@ -14,10 +14,12 @@ checkboxes as you go.
 
 GitHub rule (the only one): you may commit locally, push the branch and open
 the PR, each only after the redaction checks in references/redaction.md
-(absolute path given) print CLEAN or NO-LIST, and PATTERN-CLEAN or hits you
+(absolute path given, run on that literal folder) print CLEAN or NO-LIST, and PATTERN-CLEAN or hits you
 decided, on the diff, the commit messages and the PR body file. Open the PR
 with `--body-file`. Never post issue comments, edit the issue body or change
 the Status line: return those results to the caller, which posts them.
+NO-RUN-FOLDER (the folder or its key file is missing) is a stop: commit,
+push and post nothing, and return it to the caller.
 
 Qik work (copy into the brief when the coverage row is Qik configuration): no
 git branch; plan and context files live in `~/.superfix/journal/<name>/`.

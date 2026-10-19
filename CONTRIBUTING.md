@@ -8,7 +8,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 - `~/.agents/skills/superfix` is a symlink to this clone. opencode and anything else reading that path sees your checkout directly. Do not edit through it, edit here.
 - `~/.claude/plugins/cache/thedanielmay/superfix/` is Claude Code's installed copy. Never edit it. A plugin update overwrites it.
 - Work is tracked in GitHub issues. Start from the epic labelled `epic`.
-- At run time each Superfix run keeps its credential list and scratch files in `~/.superfix/runs/<owner>-<repo>-<issue number or journal file name>/` (see `skills/superfix/references/redaction.md`); the journal files stay in `~/.superfix/journal/`.
+- At run time each Superfix run keeps its credential list and scratch files in `~/.superfix/runs/<owner>+<repo>+<issue number or journal file name>/` (all lowercase; see `skills/superfix/references/redaction.md`); the journal files stay in `~/.superfix/journal/`.
 
 ## The two SKILL.md files must match
 

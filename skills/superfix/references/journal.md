@@ -13,7 +13,7 @@ Keep the issue body current, but never overwrite what the reporter wrote.
 - After Phase 0 and after any plan is written or significantly revised, update those sections. They should always answer: "what are we building, why, and what's out of scope?"
 - Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
 - After Phase 0 the update sets the Status line to `Diagnosing` and writes the Summary. `## Problems`, `## Options` and `## Done when` are filled at the Stop gate. `## Decision` stays empty until the owner answers.
-- The body file is a fixed path in this run's folder `~/.superfix/runs/<run-key>/` (redaction.md says how to build `<run-key>`; write it out literally in each command), because the shell keeps no variables between calls. Build it (first block), run both checks in `references/redaction.md` on it and wait for `CLEAN` or `NO-LIST` plus `PATTERN-CLEAN` or decided hits, then post it (second block). If a hit is inside `## Original report`, stop: see "The reporter's own issue body" in redaction.md.
+- The body file is a fixed path in this run's folder `~/.superfix/runs/<run-key>/` (redaction.md says how to build `<run-key>`; write it out literally in each command), because the shell keeps no variables between calls. Build it (first block), run both checks in `references/redaction.md` on it and wait for `CLEAN` or `NO-LIST` (a `NO-RUN-FOLDER` stops) plus `PATTERN-CLEAN` or decided hits, then post it (second block). If a hit is inside `## Original report`, stop: see "The reporter's own issue body" in redaction.md.
 
 ```bash
 BODY="$(gh issue view <N> --json body -q .body)"
@@ -23,7 +23,7 @@ if printf '%s\n' "$BODY" | grep -q '^## Original report$'; then
 else
   ORIG="$BODY"
 fi
-F="$HOME/.superfix/runs/<run-key>/body-<N>.md"; (umask 077; mkdir -p "$HOME/.superfix/runs/<run-key>")
+umask 077; F="$HOME/.superfix/runs/<run-key>/body-<N>.md"
 cat > "$F" <<'EOF'
 **Status:** <value> (updated <YYYY-MM-DD HH:MM>)
 
@@ -114,7 +114,7 @@ explanation, no dashes as punctuation. Dense detail for AI readers follows.
 Post with `gh issue comment <N> --body-file <file>`, never inline --body.
 
 ```bash
-(umask 077; mkdir -p ~/.superfix/runs/<run-key>) && cat > ~/.superfix/runs/<run-key>/comment-<N>.md <<'EOF'
+umask 077; cat > ~/.superfix/runs/<run-key>/comment-<N>.md <<'EOF'
 > **In plain English:** <what was done, one sentence>. <what is needed from you, or "Nothing needed from you now.">
 
 <detail for AI readers>
@@ -163,11 +163,15 @@ The LAST numbered question of the decision message, always, so the owner's numbe
 - Get the visibility first: `gh repo view --json visibility -q .visibility`.
 - If the repo is PUBLIC, the question adds: "It is public, so anyone can read it. The text it would post is below." and shows the redacted Original report.
 - If the duplicate search (`gh issue list --state open --search "<3 key words>" --limit 5`) found a likely match, name it in the question and offer to use it instead.
-- Yes: write the title to `~/.superfix/runs/<run-key>/title.txt` and the body to a file, run both checks on both, then `gh issue create --title "$(cat ~/.superfix/runs/<run-key>/title.txt)" --body-file <body file>`, add a line under the journal file's Status line pointing to the issue, then move the run folder to the issue key with `mv ~/.superfix/runs/<journal run-key> ~/.superfix/runs/<owner>-<repo>-<N> && echo RUN-MOVED` (both written out), and continue on the issue. No: keep going in the journal file.
+- Yes: write the title to `~/.superfix/runs/<run-key>/title.txt` (under `umask 077`) and the body to a file, run both checks on both, then `gh issue create --title "$(cat ~/.superfix/runs/<run-key>/title.txt)" --body-file <body file>`. Next, BEFORE writing the issue line into the journal, move the run folder to the issue key (both keys written out, lowercase); it refuses if the target exists and then rewrites the `key` file. On `RUN-MOVED`, add a line under the journal file's Status line pointing to the issue, and continue on the issue. On `REFUSED-EXISTS`: keep the journal key, never overwrite the other folder, write the issue line as `Issue: <link> (run key: <journal run-key>)`, and tell the owner another run already holds that issue's folder. No: keep going in the journal file.
+
+```bash
+umask 077; S="$HOME/.superfix/runs/<journal run-key>"; T="$HOME/.superfix/runs/<owner>+<repo>+<N>"; if [ -e "$T" ]; then echo "REFUSED-EXISTS $T"; else mv "$S" "$T" && printf '%s\n' '<owner>+<repo>+<N>' > "$T/key" && echo RUN-MOVED; fi
+```
 
 ### File-mode journal (no issue)
 
-- Path: `~/.superfix/journal/<owner>-<repo>/<YYYY-MM-DD>-<slug>.md`, or `~/.superfix/journal/<folder-name>/<YYYY-MM-DD>-<slug>.md` when there is no remote. `mkdir -p` the folder first.
+- Path: `~/.superfix/journal/<owner>-<repo>/<YYYY-MM-DD>-<slug>.md`, or `~/.superfix/journal/<folder-name>/<YYYY-MM-DD>-<slug>.md` when there is no remote. `mkdir -p` the folder first, then create the run folder with the journal key (redaction.md, Run folder).
 - It is never inside the repo, so it is never committed and never breaks the `git status --porcelain` check.
 - Same body template as above. The Status line is the file's first line, updated in place.
 - `## Original report` holds the owner's description copied exactly, including URLs, record ids and commit ids. Only a credential is replaced by `[redacted]` (redaction check first). Never summarise or reword it.

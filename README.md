@@ -73,7 +73,7 @@ Coverage check: it says which kind of problem this is, and quotes the words that
 | Everything else | documents, process, sheets, business | diagnosis only, low confidence |
 
 Passwords and tokens: it keeps a list of every credential given in the session and checks every comment, body edit, commit and PR against it before anything is posted (`references/redaction.md`). Name a 1Password item instead of typing a password.
-Since 1.3.1 each run keeps that list and its scratch files in its own folder, `~/.superfix/runs/<owner>-<repo>-<issue number or journal file name>/`, and deletes only that folder at the end, so two runs on different issues never touch each other's list.
+Since 1.3.1 each run keeps that list and its scratch files in its own folder, `~/.superfix/runs/<owner>+<repo>+<issue number or journal file name>/` (all lowercase), and deletes only that folder at the end, so two runs on different issues never touch each other's list.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
