@@ -10,7 +10,9 @@ Intelligent development orchestrator for Claude Code - takes a GitHub issue or f
 
 It supersedes the older `change-pipeline` skill.
 
-The skill file is kept short. The long parts (the issue journal, exploration by type, the execute sequences and review rules, the skill inventory) live in `skills/superfix/references/` and are read only when a step needs them.
+Since 1.3.0 it diagnoses first and stops for your approval before it fixes anything (see "Diagnose and stop" below).
+
+The skill file is kept short. The long parts (the issue journal, the diagnosis method, agent briefs, redaction, exploration by type, the execute sequences and review rules, the skill inventory) live in `skills/superfix/references/` and are read only when a step needs them.
 
 ---
 
@@ -23,6 +25,8 @@ Invoke `superfix` (via `/superfix` in Claude Code) whenever you have:
 - No arguments - it will ask for an issue number or description
 
 The skill triggers automatically on the keywords `superfix`, `issue #N`, `fix #N`, or `implement #N`.
+
+Qik configuration and other non-code problems are reached only by typing `/superfix`. There is no automatic trigger for them.
 
 ---
 
@@ -37,11 +41,11 @@ Reads the full issue - body, labels, all comments - and classifies it:
 | Problem type | `bug`, `performance`, `ux`, `architecture`, `security`, `feature` |
 | Complexity tier | `Simple`, `Moderate`, `Complex` (provisional; confirmed after exploration) |
 
-Posts a Problem Profile as a GitHub comment if an issue was referenced. Keeps the issue body as a living spec and adds timestamped progress comments at each phase transition.
+Before the type, it runs a coverage check (below). The Problem Profile is not posted on its own: it goes into the one decision message at the stop. The issue body stays a living spec, with a Status line on top and the reporter's text kept under `## Original report`. Without an issue, the same record goes in a local file at `~/.superfix/journal/`, outside the repo.
 
-### Explore (Phase 1)
+### Explore and diagnose (Phase 1)
 
-Runs type-aware exploration before writing any code:
+Runs type-aware exploration before writing any code, inside a diagnosis method (`references/diagnose.md`): a check that fails on the reported symptom first, then 3 to 5 ranked guesses at the cause, each tested. "Confirmed" needs a test that tells the guesses apart. Before approval nothing is written except the journal and a scratch folder outside the repo. The exploration skills by type:
 
 - **bug** - systematic debugging + execution path tracing
 - **performance** - hot-path mapping + call graph + baseline measurement
@@ -50,6 +54,26 @@ Runs type-aware exploration before writing any code:
 - **security** - auth/data flow tracing + pre-plan security scan
 - **feature** - quick lookup (Simple) or full explorer + architect (Moderate/Complex)
 
+### Diagnose and stop
+
+Every run stops after diagnosis, whatever its size, unless that run's request says "just fix it" (one Simple code problem, not security).
+
+- The issue body gets `## Problems` (evidence), `## Options` (with a recommendation) and `## Done when` (your own description of the problem, which must stop being true).
+- One decision message holds every question, numbered. Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes to every recommendation.
+- Without an issue, inside a repo on GitHub, the same message asks whether to create one. It names the repo's visibility first.
+- The message proposes a budget in plain words, for example "Up to 2 hours, touching these 3 files. I stop and ask if I go over."
+- Your answer is written into `## Decision` in Superfix's own words, never pasted, so a password in a reply never reaches GitHub.
+
+Coverage check: it says which kind of problem this is, and quotes the words that made it decide.
+
+| Kind | Matches when the report mentions | What Superfix does |
+|------|----------------------------------|--------------------|
+| Code | files in the repo, a test, a stack trace, CLI or page output | diagnose and fix |
+| Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only, marked provisional (not yet proven by a test); you always publish |
+| Everything else | documents, process, sheets, business | diagnosis only, low confidence |
+
+Passwords and tokens: it keeps a list of every credential given in the session and checks every comment, body edit, commit and PR against it before anything is posted (`references/redaction.md`). Name a 1Password item instead of typing a password.
+
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
 Type-specific design step (brainstorming, threat modelling, UX iteration), then a written plan saved to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md` plus a context file passed to every subagent. All Moderate and Complex work goes through a blocking expert panel review before implementation.
@@ -57,13 +81,17 @@ Type-specific design step (brainstorming, threat modelling, UX iteration), then 
 ### Execute (Phase 3)
 
 - **Simple** - runs inline on the main thread: branch, implement, impacted tests, simplify, re-run tests, review (the issue text is the brief), security audit only when the diff touches risky areas, verification, PR.
-- **Moderate/Complex** - dispatches an autonomous agent with the context file and plan. If the run dies, restart from the latest progress comment, plan checkboxes, and branch log. Finished stages are not redone.
+- **Moderate/Complex** - dispatches an autonomous agent with the context file, the plan and the brief file (`references/briefs.md`). If the run dies, restart from the Status line, `## Problems`, `## Decision`, the latest progress comment, plan checkboxes (when a plan exists), and branch log. Finished stages are not redone.
+- **Budget** - set at approval. Over any limit (commits, files, time) it stops with `BUDGET STOP` and asks: extend, cut scope, or stop.
+- **Solved check (code)** - the failing check fails on the approved base commit, passes with the fix, and fails again when the fix is taken out in a scratch copy. All three results are posted. If the fix fails twice, it stops and says its diagnosis was wrong.
 
 Every path simplifies before review (never after), re-runs tests after simplifying, then reviews, security-audits, and verifies against the original repro or baseline before declaring done. Skill names are Claude Code names; where a name does not resolve (notably under opencode), the step runs inline from its purpose and the PR body says so. Tests and verification are never skipped.
 
 ### Close (Phase 4)
 
-Pushes the branch, creates a PR with `Closes #N` in the body, and watches CI checks when the repo has them. The issue closes when the PR merges, never on PR creation.
+Pushes the branch, creates a PR with `Closes #N` in the body, and watches CI checks when the repo has them. The final comment is posted only after the checks are green. The issue closes when the PR merges, never on PR creation.
+
+Not tested: the PR body and the final comment always end with a `## Not tested` list. An empty list says "Nothing known untested".
 
 ### Model policy
 
@@ -147,18 +175,31 @@ Keep the clone on `main` when you are not mid-edit, so opencode runs released te
 
 ```
 SKILL.md                        Root manifest (skills CLI discovery, kept in sync)
+references                      Symlink to skills/superfix/references (for the root copy)
 skills/
   superfix/
     SKILL.md                    Full skill implementation and phase definitions
+    references/
+      journal.md                Issue body template, Status line, comments, decision message, file-mode journal
+      diagnose.md               Diagnosis method, stop rules, tools and fallbacks, review header, fan-out brief
+      briefs.md                 Execution brief for the fix agent (read only after approval)
+      redaction.md              Credential check before any post, commit or PR
+      explore.md                Exploration by type
+      execute.md                Execute sequences by type, review rules, test scope
+      inventory.md              Every skill used, with its opencode name or fallback
+tests/
+  prompts.md                    Fixed test prompts and pass criteria for a release
+  preservation-check.py         Lists every line of the last release that is gone; fails on unexplained ones
+  preservation-1.3.0.md         One justification per removed or changed line
 .claude-plugin/plugin.json      Plugin manifest and version
 .github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
 ```
 
-The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md`, mirrored at the repo root.
+The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md` (mirrored at the repo root) and the files in `skills/superfix/references/` it tells the model to read. `tests/` is never loaded at run time.
 
 ---
 
 ## Status
 
-1.1.0. In production, supersedes `change-pipeline`. The classification rules, phase sequences, and skill inventory live in the SKILL.md files.
+1.3.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.3.0.

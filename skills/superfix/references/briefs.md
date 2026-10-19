@@ -1,0 +1,48 @@
+# Execution brief
+
+New in 1.3.0. Read only after the owner approves at the Stop gate. Agents never load SKILL.md, so a rule kept only there is invisible to them. The fix agent dispatch passes this file by absolute path and copies the brief below into the agent prompt. The review header and the fan-out brief used during diagnosis are in `references/diagnose.md`; review agents during execution get the review header written out in `references/execute.md`.
+
+### Fix agent brief (Moderate, Complex; Phase 3)
+
+FIX AGENT BRIEF (Moderate, Complex): branch, context file, plan file, Problem
+Profile, execute.md path, this file's path, the budget and approval-sha from
+the ## Decision section, the session list path `~/.superfix/session-secrets`.
+Before every commit, run the budget commands; over any limit, stop and return
+a message whose first line is exactly BUDGET STOP, then done, left, used
+versus budget. Run the solved check before declaring done. Tick plan
+checkboxes as you go.
+
+GitHub rule (the only one): you may commit locally, push the branch and open
+the PR, each only after the redaction checks in references/redaction.md
+(absolute path given) print CLEAN or NO-LIST, and PATTERN-CLEAN or hits you
+decided, on the diff, the commit messages and the PR body file. Open the PR
+with `--body-file`. Never post issue comments, edit the issue body or change
+the Status line: return those results to the caller, which posts them.
+
+Qik work (copy into the brief when the coverage row is Qik configuration): no
+git branch; plan and context files live in `~/.superfix/journal/<name>/`.
+1. Back up before the first edit: the exact before text and the undo step, in a
+   folder outside any repo. No backup, no edit.
+2. Edit the draft only.
+3. Never publish. Say "in the draft", never "live".
+4. If the qik skill has no backup recipe for what you are changing, stop and
+   return the question. Do not invent one.
+
+Budget commands (copy into the brief with the real values):
+
+```bash
+git rev-list --count <approval-sha>..HEAD -- . ':(exclude)docs/superpowers/plans'   # commits
+git diff --name-only <approval-sha>...HEAD                                          # files; any file not named = over
+date                                                                                # time, minus the approval time
+```
+
+Solved check (copy into the brief; `<s1>`, `<s3>` are new folders from `mktemp -d`, written out in full):
+
+```bash
+git worktree add --detach <s1> <approval-sha> && git -C <s1> checkout <branch> -- <new or changed test paths>   # run 1 in <s1>: must fail
+# run 2: the same check on the branch: must pass
+git worktree add --detach <s3> HEAD && git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R   # run 3 in <s3>: must fail
+git worktree remove --force <path>; git worktree prune   # after each run, and whenever a step fails
+```
+
+Run 3 is not applicable for a behaviour-keeping refactor or a brand-new module or feature where taking the code out cannot fail meaningfully: say why and list it under Not tested; it does not count as a pass. Return all three outputs. Two failed run-2 attempts, whatever the cause: stop and return "My fix failed twice, so my diagnosis was wrong." with used versus budget.
