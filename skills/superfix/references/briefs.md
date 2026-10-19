@@ -25,7 +25,13 @@ After pictures: during solved-check run 2, take them with the script in
 references/evidence.md (absolute path given) and save them in the run folder.
 Never upload pictures: return their names; the caller runs the upload command.
 Use the interpreter the caller names (its BROWSER-SCRIPT line), the same page,
-size and target as the before picture, a green box and the same number.
+size and target as the before picture, a green box and the same number:
+`"<python>" "<run folder>/shot.py" retake --run "<run folder>" --source <before name> --name <after name>`
+reads `evidence/<before name>.json` and takes it the same way (add --url or
+--serve only if the page now lives in another folder). A before picture taken
+on the MCP path: return that to the caller, which retakes it on that path.
+If the run's secrets list has any entry, say so with the names: the caller
+keeps those pictures on the Mac until the owner says "post the pictures".
 
 Qik work (copy into the brief when the coverage row is Qik configuration): no
 git branch; plan and context files live in `~/.superfix/journal/<name>/`.

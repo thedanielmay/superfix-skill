@@ -147,7 +147,7 @@ Read `references/evidence.md` in full before the first picture; write `Loaded: e
 - Command, test, log and backend output stays text, never an image.
 - Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
 - Red box numbered like the problem, one caption that says it all in words. Width or height 0: no mark.
-- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing.
+- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing. Any entry in the secrets list: upload nothing until the owner has looked and replied "post the pictures".
 - Never paste a session secret into a browser tool call; Claude in Chrome is never a picture source. Never read a mark-*.side file.
 
 ## Stop gate
@@ -327,7 +327,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
 - The budget and approval-sha from `## Decision`.
 - The session list path `~/.superfix/runs/<run-key>/secrets`, written out in full, and the absolute path of `references/redaction.md`.
-- When a problem has a before picture: the absolute path of `references/evidence.md` and the BROWSER-SCRIPT interpreter.
+- When a problem has a before picture: the absolute path of `references/evidence.md`, the BROWSER-SCRIPT interpreter and the run folder (each picture's `evidence/<name>.json` says how to retake it).
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
