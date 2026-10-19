@@ -73,6 +73,7 @@ Coverage check: it says which kind of problem this is, and quotes the words that
 | Everything else | documents, process, sheets, business | diagnosis only, low confidence |
 
 Passwords and tokens: it keeps a list of every credential given in the session and checks every comment, body edit, commit and PR against it before anything is posted (`references/redaction.md`). Name a 1Password item instead of typing a password.
+Since 1.3.1 each run keeps that list and its scratch files in its own folder, `~/.superfix/runs/<owner>-<repo>-<issue number or journal file name>/`, and deletes only that folder at the end, so two runs on different issues never touch each other's list.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -189,8 +190,9 @@ skills/
       inventory.md              Every skill used, with its opencode name or fallback
 tests/
   prompts.md                    Fixed test prompts and pass criteria for a release
-  preservation-check.py         Lists every line of the last release that is gone; fails on unexplained ones
+  preservation-check.py         Lists every line of a release tag (--tag, default the newest) that is gone or MOVED; fails on unexplained ones
   preservation-1.3.0.md         One justification per removed or changed line
+  preservation-1.3.1.md         The same for 1.3.1, keyed by file and heading
 .claude-plugin/plugin.json      Plugin manifest and version
 .github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
