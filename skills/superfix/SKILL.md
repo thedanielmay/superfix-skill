@@ -3,15 +3,18 @@ name: superfix
 description: >-
   Intelligent development orchestrator - accepts a GitHub issue number or
   freeform description of a bug, feature, UX change, or architecture change
-  and drives it to an opened PR with CI green. Classifies the problem,
-  assembles the right skill set, and manages the full workflow. Triggers on:
-  superfix, issue #N, fix #N, implement #N, or a request to fix, build or
-  change something in code.
+  and drives it to an opened PR with CI green. It diagnoses first and stops
+  for approval before fixing. Classifies the problem, assembles the right
+  skill set, and manages the full workflow. Triggers on: superfix, issue #N,
+  fix #N, implement #N, or a request to fix, build or change something in
+  code.
 ---
 
 # Superfix Orchestrator
 
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
+
+It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
 
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
@@ -402,14 +405,27 @@ These are in `references/execute.md`. Read it in full before implementing (see t
 
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 
-If GitHub issue exists:
-```bash
-gh issue comment <N> --body "🚀 PR #<PR> created - ready for review."
+If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
+Post the final comment only after checks are green, or after two fix passes with the red checks listed.
+
+The PR body and the final comment both end with:
+## Not tested
+- <each thing not checked, and why>
+An empty list says "Nothing known untested". Never leave it out.
+
+If GitHub issue exists, post the final comment (journal.md, Comment format) and set the Status line to "Ready for review: PR <link>":
 ```
+> **In plain English:** PR <link> is open and its checks are green. Please review and merge it.
+
+Solved check: run 1 <output>, run 2 <output>, run 3 <output>
+Budget used: <commits, files, time> of <budget>
+Loaded: execute.md
+## Not tested
+- <item, and why>
+```
+Without an issue, write the same as a journal entry and say it in chat.
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
-
-If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
 
 ---
 
@@ -417,7 +433,7 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 
 | Situation | Shortcut |
 |-----------|----------|
-| Plan already exists in `docs/superpowers/plans/` | Run exploration as normal; skip design step and `writing-plans`; create context file from existing plan; verify plan reflects current codebase state before expert panel |
+| Plan already exists in `docs/superpowers/plans/` | Run exploration as normal; skip design step and `writing-plans`; create context file from existing plan; verify plan reflects current codebase state before expert panel. The Stop gate still applies; offer the existing plan as the recommended option. |
 | PR already exists | Use `pr-review-toolkit:review-pr` instead of `code-reviewer` in execute phase |
 
 ---
@@ -429,14 +445,18 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 - Skipping exploration for any tier
 - Starting implementation on Moderate/Complex without an approved plan
 - Skipping expert panel on Moderate or Complex
-- Subagents without the context file - undefined hand-offs produce blind reviews
+- Execution subagents without the context file and briefs.md - undefined hand-offs produce blind reviews
 - Claiming tests pass without a fresh run
 - Declaring done without checking the original goal was actually achieved
-- Upgrading Simple→Moderate/Complex after implementation has started - stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then continue
+- Upgrading Simple→Moderate/Complex after implementation has started - stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then send a decision request with the new budget and wait
 - Closing a GitHub issue without confirming the PR is merged
 - Invoking `change-pipeline` - it is superseded; do not use
 - Updating only GitHub comments but never the issue body - the body is the living spec; let it drift and the issue becomes unreadable out of context
-- Editing the issue body for progress updates instead of adding a comment - body = current state, comments = history
+- Editing the issue body for progress updates instead of adding a comment - body = current state, comments = history (except the Status line and ## Decision, which are body updates by design)
+- Starting any fix, branch or tracked-file edit on any tier before the Stop gate gets a go
+- Posting, pushing or creating anything before the redaction check
+- Naming a coverage row without a quoted trigger and evidence
+- Calling it fixed without the solved check (three runs, with output)
 
 ---
 
