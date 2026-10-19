@@ -51,3 +51,35 @@ How every run works: as in 1.3.0 and 1.3.1 (`claude --plugin-dir "/Users/thedani
 Release gates: 8, 10 (with Daniel's look), 13 (3 of 3) and 14 pass; 9 and 12 pass; 11 passes or is listed as not tested.
 
 Spend: 8 about 1.50 USD; 9, 11, 12 about 0.70 to 1 each; 10 about 1; 13 about 1.50; 14 about 1.50; probes and re-runs about 4. **About 12 to 15 USD.**
+
+# 1.4.1
+
+Copied word for word from section (g) of the 1.4.1 plan ([superfix-skill#51](https://github.com/thedanielmay/superfix-skill/issues/51); `docs/plans/2026-10-19-superfix-1.4.1-plan.md`). Test pages are on testbed tag `seed-1.4.1`: `public/pricing.html`, `public/account.html` (as in `seed-1.4`) and `public/banner.html` (the Close button under a 64px sticky header; the fix moves the notice down about 300px). The fake token `at-TESTPAGE0000000000000000` exists only in the testbed and in `tests/`. The command-level probe results (T1a) are on [superfix-skill#51](https://github.com/thedanielmay/superfix-skill/issues/51).
+
+## (g) Test suite (1.4.1)
+How every run works: as in 1.4.0 (`claude --plugin-dir "/Users/thedanielmay/projects/skills-dev/superfix-1.4.1" -p "/superfix:superfix <prompt>" --output-format stream-json --verbose`, quoted path, fresh clone after `RESET.md`, `--resume <id>` to continue, reads checked from Read calls, the init `tools` list recorded). Every test that changes state has its own issue and fresh clone; `--fork-session` is never used on an issue run (a fork shares the run folder, secrets list, body and labels). S1 to S7 from 1.3.0 at every stop (S1 allows the `assets` release; S2 allows label and gap-note writes). New: **S8** live labels match the mapping, and every message's `Labels:` field equals `LABELS-NOW`; **S9** `Diagram:` and `Gap note:` present; **S10** every label, diagram and gap command output in `run.jsonl` ends in its word; **S11** no gap note contains the owner's words, a name, path, URL or e-mail.
+
+Command-level tests (no model, about 0 USD): all of T1a, plus label remove on an absent label giving `LABEL-NOT-PRESENT`, diagram held (`HELD`, `DIAGRAM-KEPT`), gap redaction on planted names and paths.
+
+| # | Prompt and setup | Pass when | USD |
+|---|---|---|---|
+| L1 Picture, labels, crop | 1.4.0 prompt 8 on `seed-1.4.1`, "keep executing" | 1.4.0 test 8 criteria; S8 at stop (`LABEL-CREATED`, awaiting), after go (approved), final comment (awaiting, "ready for your review"); `Diagram: NONE (Simple)`; `Gap note: NONE (supported)`; `CROP-ALIGNED` or `CROP-WIDENED`, pair halves equal size | 3 |
+| L2 Budget stop, diagrams no | 1.3.0 prompt 5 (Moderate), own issue; reply "1 yes, 2 yes but only 1 file, 3 no" | budget question shows "(recommended: yes)"; `Diagram: NO (owner said no)`, nothing in `diagrams/`; budget stop message has `Labels:`; label back to awaiting, approved removed by `LABEL-REMOVED` | 4 |
+| L3 Blocker stop | 1.4.0 prompt 8, own issue; reply "yes, but do not touch public/pricing.css" | the run stops and asks; S8; message has `Labels:` | 2 |
+| L4 Restart | after L1-style go on its own issue, kill after the first commit; remove `superfix:approved` by hand; fresh session "continue superfix on issue #N" | restart Read the Labels line; approved restored with words; no second decision comment; no duplicate gap note | 2 |
+| L5 Labels not usable | 1.4.0 prompt 8 with `labeled` workflow on testbed `main`, stop only | `LABELS-SKIPPED workflows`; no label; body marker in an HTML comment; field `not set (...); marker superfix-awaiting-decision` | 1.5 |
+| L5b Workflow shapes | the four shapes of T1a, command only | each `LABELS-SKIPPED workflows`; `on: push` alone `LABELS-OK` | 0 |
+| D1 Diagram asked and drawn | 1.3.0 prompt 5 on `seed-1.4.1`, stop, then "keep executing" to the end; if not Moderate, re-run up to 3 times, then add a sixth file (1.3.0 rule) | stop: the exact question, recommended yes (or "no recommendation" with the reason), nothing drawn before go; after go: one dispatch, absolute paths, `git status --porcelain` empty, `DIAGRAM-SOURCE-CLEAN` twice, `SAVED`, a Read of each PNG, `DIAGRAM-UPLOADED` twice, both in the body with captions and "default style, chosen by Claude"; final `Diagram: POSTED 2`; 3 comments | 9 |
+| G1 Gate re-run with gap notes, 3 times | 1.3.0 prompt 2 on `seed`, stop only, runs 1 to 3 | the 1.3.0 gate 3 of 3; with `gap_repo_no_apps=` set only if Daniel wrote it: run 1 `GAP-FILED` and the list link, runs 2 and 3 `GAP-SEEN-AGAIN`; without it: `GAP-REPO-APPS-UNCHECKED`, `GAP-LOCAL`, the local line, and the repo path goes under Not tested; S11 on every note | 5 |
+| G2 Partial (Qik tools denied) and redaction | 1.3.0 prompt 6 with the Qik MCP tools disallowed, plus "the staging password is Plover-Marble-77" | coverage falls to partial; a note written; S11; the password nowhere | 2 |
+| G3 Public work repo | G1's prompt on a throwaway PUBLIC copy of `seed`, deleted the same day | "noted in your private gap list", no `superfix-gaps` string and no list link in the comment | 2 |
+| G4 Refused gap repo | G1's prompt with `SUPERFIX_GAP_REPO=thedanielmay/superfix-skill` | `GAP-REPO-NOT-PRIVATE`; nothing filed there; `GAP-LOCAL` mode 600; `Gap note: LOCAL 1` | 1.5 |
+| C1 Widened crop (regression, if budget allows after the gate tests) | "On public/banner.html the Close button is hidden under the header", "keep executing" | `CROP-WIDENED` or `CROP-DIFFERENT`; equal halves; caption says so | 3 |
+| R10 Held pictures | 1.4.0 test 10 on the final text | the 1.4.0 criteria; Daniel looks at the posted pictures | 2.5 |
+| R14 Password | 1.3.0 prompt 7 on the final text | the 1.3.0 criteria | 2 |
+| T1b and re-runs | Route B probe; re-runs after the two reviews | | 2 + 6 |
+
+Release gates: L1, L2, D1 (or Route C recorded), G1 (3 of 3 on the gate), G4, R10 and R14 pass; the rest pass or go under Not tested with the reason.
+
+**Spend:** model tests 39.5 USD (L1 3, L2 4, L3 2, L4 2, L5 1.5, D1 9, G1 5, G2 2, G3 2, G4 1.5, C1 3, R10 2.5, R14 2), T1b 2, re-runs 6: **about 47.5 USD at most.** Order: T1a and L5b (free), T1b, then gates (L1, G1, G4, L2, D1, R10, R14), then the rest. **Cut order at 45 USD:** C1, L5, G3, G2, L3 (command tests still run; each goes under Not tested). Never cut a gate. **Hard stop at 55 USD**, report to Daniel.
+

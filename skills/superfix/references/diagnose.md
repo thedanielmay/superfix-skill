@@ -6,6 +6,9 @@ Before approval the only writes allowed are the journal, a scratch folder outsid
 
 Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to its `assets` release through the upload gate in references/evidence.md, and creating the `assets` release and its tag, only after the workflow and ownership checks, and only for a private repo you own.
 
+Also allowed before approval: the superfix labels on the issue (journal.md, Labels) and gap
+notes in the checked private gap repo or ~/.superfix/gaps/ (references/gaps.md). Diagrams wait for go.
+
 ### Method
 
 1. Failing check first. Before any theory, run one check that fails on the
