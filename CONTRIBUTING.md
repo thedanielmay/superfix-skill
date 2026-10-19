@@ -4,7 +4,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 
 ## Where things live
 
-- This clone: `~/projects/skills-dev/superfix-skill`. The only place you edit.
+- This clone: `~/projects/skills-dev/superfix-skill`. Keep it on `main`: opencode reads it. Edit in a worktree of it (see Making a change).
 - `~/.agents/skills/superfix` is a symlink to this clone. opencode and anything else reading that path sees your checkout directly. Do not edit through it, edit here.
 - `~/.claude/plugins/cache/thedanielmay/superfix/` is Claude Code's installed copy. Never edit it. A plugin update overwrites it.
 - Work is tracked in GitHub issues. Start from the epic labelled `epic`.
@@ -20,15 +20,16 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 ## Making a change
 
 1. Pick an issue. Update main: `git switch main && git pull`.
-2. Branch: `git switch -c fix/<issue-number>-<short-slug>`.
+2. Branch in a separate worktree, never in this clone, because opencode reads this clone and it must stay on `main`: `git worktree add ../superfix-<short-slug> -b fix/<issue-number>-<short-slug> origin/main`. Do all the steps below inside that worktree. Remove it after the merge with `git worktree remove ../superfix-<short-slug>`.
 3. Edit `skills/superfix/SKILL.md`, then copy it to the root (above). If behaviour, scope, or installation changed, update `README.md` too: plain human description of what the skill is, what it does, and install directions for Claude Code and opencode.
-4. Test it (next section).
-5. Commit, push, open a PR with `Closes #<issue-number>` in the body. Merge, delete the branch.
+4. Run the preservation check: `python3 tests/preservation-check.py "$PWD"`. It lists every line of the last release that is gone from the skill files. Each one needs a line in `tests/preservation-<version>.md` (`- <exact old line> :: <reason>`). It must exit 0. Nothing useful is cut without a named reason. When starting the next release, change the tag in the script (now `v1.2.0`) to the last release and start a new justification file.
+5. Test it (next section).
+6. Commit, push, open a PR with `Closes #<issue-number>` in the body. Merge, delete the branch.
 
 ## Testing a change before release
 
 - opencode: type `superfix: <small task>`. It reads the repo file through the symlink, so it is live on your current branch.
-- Claude Code: `claude --plugin-dir ~/projects/skills-dev/superfix-skill`. This loads this checkout for that one session only, without releasing anything.
+- Claude Code: `claude --plugin-dir ~/projects/skills-dev/superfix-<short-slug>` (the worktree). This loads that checkout for that one session only, without releasing anything.
 - Try one Simple task and one Moderate task. Check the thing you changed actually happened.
 
 ## Releasing and deploying
