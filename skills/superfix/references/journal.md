@@ -151,10 +151,10 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
-Question 1 of the decision message:
+The LAST numbered question of the decision message, always, so the owner's numbered reply stays predictable:
 
 ```
-1. No issue exists yet. Create one in <owner/repo> (<private|PUBLIC>) with this
+<N>. No issue exists yet. Create one in <owner/repo> (<private|PUBLIC>) with this
    record? (yes / no, keep it in a local file)
 ```
 

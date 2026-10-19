@@ -36,3 +36,16 @@ These run as evidence collectors inside the diagnosis method in `references/diag
 **`feature` Moderate/Complex**
 - `feature-dev:code-explorer` - traces where feature integrates [sonnet/high]
 - `feature-dev:code-architect` - maps existing patterns, identifies what can be reused [sonnet/high]
+
+### Design step (type-specific, before writing-plans)
+
+Used in Phase 2 (Moderate and Complex), after the Stop gate. Moved here from SKILL.md in 1.3.0.
+
+| Type | Design approach |
+|------|----------------|
+| `bug` | No design step - exploration output feeds directly into plan |
+| `performance` | Plan based on measured baseline; state target improvement metric |
+| `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
+| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
+| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
+| `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
