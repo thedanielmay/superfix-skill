@@ -3,11 +3,11 @@ name: superfix
 description: >-
   Intelligent development orchestrator - accepts a GitHub issue number or
   freeform description of a bug, feature, UX change, or architecture change
-  and drives it to an opened PR with CI green. It diagnoses first and stops
-  for approval before fixing. Classifies the problem, assembles the right
-  skill set, and manages the full workflow. Triggers on: superfix, issue #N,
-  fix #N, implement #N, or a request to fix, build or change something in
-  code.
+  and drives it to an opened PR with CI green. Classifies the problem,
+  assembles the right skill set, and manages the full workflow. Triggers on:
+  superfix, issue #N, fix #N, implement #N, or a request to fix, build or
+  change something in code.
+  It diagnoses first and stops for approval before fixing.
 ---
 
 # Superfix Orchestrator
