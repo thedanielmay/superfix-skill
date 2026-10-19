@@ -66,20 +66,50 @@ Additions for diagnosis. Nothing is removed from `references/explore.md` or `ref
 | Playwright MCP, else Claude in Chrome | reproduce a visible symptom | none; list "visual check" under Not tested |
 | Qik read tools (`get_content`, `get_content_log`, `get_content_diffs`, `explain_access`, `search_interface_code`, `get_interface`) | Qik evidence | none; Qik diagnosis is then "Everything else" level, low confidence |
 
-Missing tools fall back, never block, in this order: the named skill or agent; the built-in `Explore` agent; a `general-purpose` subagent with the report-only header from `references/briefs.md`; inline. Record what ran in `## Problems`, for example:
+Missing tools fall back, never block, in this order: the named skill or agent; the built-in `Explore` agent; a `general-purpose` subagent with the review header below; inline. Record what ran in `## Problems`, for example:
 `Tools used: Explore (for feature-dev:code-explorer, missing), systematic-debugging phases 1 to 3, git log. Missing: Playwright.`
 
 ### Fan-out
 
 Moderate and Complex, or Simple when the first hypotheses do not separate:
 dispatch 3 to 4 read-only agents in one message, each with the fan-out brief
-from briefs.md (absolute path in the dispatch). Each gets the symptom in the
+below, copied into the dispatch. Each gets the symptom in the
 reporter's words with any stated cause removed, the evidence so far, and the
 files or objects in scope. Never the context file, never the owner's guess,
 never your leading hypothesis. One agent argues for the strongest cause that
 is NOT the leading hypothesis. Agents that read the same files and agree count
 as one source. Afterwards run `git status --porcelain`; any change means an
 agent broke the rule: revert it and say so in the decision message.
+
+### Review header (every read-only agent, before and after approval)
+
+REVIEW HEADER (first line of every review agent brief):
+
+```
+Report only. Do not edit, write or create files, and do not run commands that
+change anything. Return findings with confidence; the caller applies fixes.
+```
+
+- Use it for every review or read-only agent: the `pr-review-toolkit` agents (they have the Edit tool), `feature-dev:code-explorer`, `Explore`, a `general-purpose` reviewer, and every fan-out agent.
+- After any such agent returns, run `git status --porcelain`. Any change means the agent broke the rule: revert it and say so.
+
+### Fan-out brief (diagnosis, Phase 1)
+
+FAN-OUT BRIEF: the review header, then: symptom (owner's words, any stated cause
+removed), evidence so far, files or objects in scope, and for one agent:
+"Argue for the strongest cause that is NOT <leading hypothesis>." Return facts
+with the command that showed each, then inferences, separately.
+
+```
+<review header>
+Symptom (owner's words, stated cause removed): <text>
+Evidence so far: <failing check and its output, facts observed>
+In scope: <files or objects>
+[one agent only] Argue for the strongest cause that is NOT <leading hypothesis>.
+Return: 1. facts, each with the command or tool that showed it. 2. inferences, separately.
+```
+
+- Never include the context file, the owner's guess at the cause, or your leading hypothesis (except as the thing the one agent argues against).
 
 ### Output: the evidence note
 

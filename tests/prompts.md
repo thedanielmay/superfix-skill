@@ -13,7 +13,7 @@ How every run works:
 Shared stop checks (S), for every prompt at the stop:
 - S1. `git branch --list` shows only `main`; `git status --porcelain` empty; `git worktree list` shows one worktree.
 - S2. No Edit, Write or NotebookEdit on a tracked file in `run.jsonl`; no Qik tool whose name starts with create_, update_, add_, remove_, set_, patch_, publish_, delete_.
-- S3. No Read of `references/execute.md` or `references/briefs.md` before the stop.
+- S3. No Read of `references/execute.md` or `references/briefs.md` (the execution brief) before the stop. Reads of `references/diagnose.md`, which holds the review header and fan-out brief, are expected.
 - S4. The issue body (or the journal file) has the Status line, Problems, Options, Done when, Original report; Decision is empty.
 - S5. Exactly one decision comment (or entry), starting with the two-line callout, with numbered questions.
 - S6. A Coverage block with a quoted trigger, and a `Tools used:` line.
