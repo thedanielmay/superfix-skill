@@ -114,6 +114,13 @@ For a sheet, a data file or a document, Superfix fixes only against checks you a
 - **Checks for later.** A process check ("refunds under 3 days") is measured on a date you get told; the issue waits with "Waiting for you: re-check on <date>". Superfix can add one reminder task to your own task list, only if you say yes to that question. Jobs with no GitHub issue are listed in `~/.superfix/journal/INDEX.md` while they wait.
 - **Honest limits.** A script that misreads the file quietly is caught only when its count or rows differ from what you see in the plain lines. If every check passes but your description still seems true, Superfix says so and keeps the issue open.
 
+### Work orders: someone else makes the change (1.6.0)
+
+Say "work order", "someone else will do it" or "hand off" (in the request or the go reply) and Superfix diagnoses and plans as usual, but writes a work order folder instead of making the change. Code problems only.
+- The folder holds one file, `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). Anyone with git, Node and read access to the repo can carry it out: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately.
+- The work comes back as `return.bundle` inside the folder. Superfix trusts only its own locked copies and the shas in `## Decision`, runs the checks, held-back checks the executor never saw and the tests itself in a sandbox, and only then opens the PR. If something fails it asks: send it back, fix it myself, or stop.
+- It costs about the same as Superfix doing it, or more; the gain is handing the work off. Rules in `references/workorder.md`.
+
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
 Type-specific design step (brainstorming, threat modelling, UX iteration), then a written plan saved to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md` plus a context file passed to every subagent. All Moderate and Complex work goes through a blocking expert panel review before implementation.
@@ -229,6 +236,7 @@ skills/
       diagrams.md               Diagrams: when to ask, the brief, the source check, render and upload (1.4.1)
       gaps.md                   Private gap notes: what they hold, the repo checks, the local folder (1.4.1)
       criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts, the crit.py tool (1.5.0)
+      workorder.md              Work orders: the template, the checks, the hand-off and the return (1.6.0)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
       inventory.md              Every skill used, with its opencode name or fallback
