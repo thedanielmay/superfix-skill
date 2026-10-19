@@ -142,8 +142,8 @@ End of Phase 1, every tier: write `## Problems`, the evidence note (failing chec
 and output, baseline, cause confirmed or suspected, ruled out and how, Tools
 used). Later steps read evidence from here.
 
-### Evidence pictures (only when a screen shows the problem)
-Read `references/evidence.md` in full before the first picture; write `Loaded: evidence.md` in the decision comment.
+### Evidence pictures: if the problem is something you could see on a screen, take them (read references/evidence.md first)
+Read `references/evidence.md` in full before the first picture; write `Loaded: evidence.md` in the decision comment. A web page, app screen, rendered document or UI always counts as a screen: `NONE (no screen)` is only for command output, tests, servers and config.
 - Command, test, log and backend output stays text, never an image.
 - Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
 - Red box numbered like the problem, one caption that says it all in words. Width or height 0: no mark.
@@ -157,6 +157,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
 1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
+   The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)` line (journal.md); a stop without it is not complete.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -385,7 +386,7 @@ The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
 
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
-The final comment carries one before-and-after picture per problem with pictures, the website line, the cost estimate and the undo line (journal.md).
+The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 

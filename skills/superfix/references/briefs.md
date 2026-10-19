@@ -30,6 +30,7 @@ size and target as the before picture, a green box and the same number:
 reads `evidence/<before name>.json` and takes it the same way (add --url or
 --serve only if the page now lives in another folder). A before picture taken
 on the MCP path: return that to the caller, which retakes it on that path.
+A problem the owner could see on a screen needs an after picture, or a stated reason.
 If the run's secrets list has any entry, say so with the names: the caller
 keeps those pictures on the Mac until the owner says "post the pictures".
 
