@@ -6,3 +6,4 @@ Check: `python3 tests/preservation-check.py "$PWD" --tag v1.3.1` must print `0 u
 
 ## Justifications
 
+- skills/superfix/references/journal.md > Issue journal :: 1. <option> (Recommended): <trade-offs>. Effort: <about N minutes of my time; your part: reply once> :: deeper write-up (plan D6, C6; contradiction table row 15): the recommended option line now asks for what changes, Good and Cost or risk in place of the single <trade-offs> field; the Effort part is word for word. Same place, new text. The second option line is unchanged.
