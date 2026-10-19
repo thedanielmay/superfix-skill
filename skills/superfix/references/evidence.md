@@ -832,6 +832,7 @@ New in 1.4.1. In 1.4.0 `retake` centred the moved target again, so the after pic
 - `CROP-DIFFERENT`: the mark is outside the window at that scroll position, or the page can no longer scroll there. The 1.4.0 behaviour: the target is centred again. `pair` centres the smaller half on a grey canvas so the halves are the same size, and the caption says the two sides show different areas of the page.
 - No full-page shot for the large case: the marks are `position:fixed`, and a full-page shot would move them.
 - A before picture taken by 1.4.0 (no stored area) is retaken as in 1.4.0, with no CROP word. The MCP path keeps the 1.4.0 behaviour (Not tested).
+- The result is also stored as `crop` in the after picture's `evidence/<name>.json` (that file may be read; only `mark-*.side` may not). Whoever writes the caption reads it there, so the caption is right even when the fix agent took the after picture.
 
 ### Looking at each picture (the Viewed line)
 
