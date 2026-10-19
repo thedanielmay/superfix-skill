@@ -31,10 +31,10 @@ Never holds: a quote or paraphrase of the owner's request, a client, repo, organ
 
 Write three files under `umask 077`, each with a quoted heredoc (`cat > <file> <<'EOF'`), never with `echo "..."`: `$HOME/.superfix/runs/<run-key>/gap-<k>-title.txt`, `$HOME/.superfix/runs/<run-key>/gap-<k>-body.md` and `$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt` (the kind of problem alone, one line; `<k>` = 1, 2, ... in this run).
 
-The kind file is used in searches, so it may hold only letters, digits, spaces, commas, colons and hyphens:
+The kind file is used in searches, so it may hold only letters, digits, spaces, commas and hyphens, and must start with a letter or digit (no `:`, so it cannot become a search qualifier such as `user:x`; no leading `-`, so it cannot become `-label:y`):
 
 ```bash
-KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if [ "$(wc -l < "$KF" | tr -d ' ')" = 1 ] && grep -qxE '[A-Za-z0-9 ,:-]+' "$KF"; then echo GAP-KIND-OK; else echo GAP-KIND-BAD; fi
+KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if [ "$(wc -l < "$KF" | tr -d ' ')" = 1 ] && grep -qxE '[A-Za-z0-9][A-Za-z0-9 ,-]*' "$KF"; then echo GAP-KIND-OK; else echo GAP-KIND-BAD; fi
 ```
 
 `GAP-KIND-BAD`: write the kind again in plain words and run it again.
@@ -43,28 +43,33 @@ KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if [ "$(wc -l < "$KF" | tr
 
 It writes a normalised copy of each file (entities decoded, zero-width and direction characters removed, lines joined), runs the exact-string check on all four files, then the names check, then the pattern check extended with `/Users/` and `~/` paths, e-mail addresses, any URL and `owner/repo`-looking strings.
 
-- The names check looks, ignoring case, for the work repo's owner, its repo name and the run key (also with `-` and `_` read as spaces or left out), and the issue number as a word of its own (`#51` or `51`, not inside a version such as `1.4.1`). Names of 5 or more letters match anywhere, shorter ones only as whole words. `W` is the work repo (`none/none` without a remote) and `IN` the issue number (`none` without an issue).
+- The names check reads the note and every name with `-`, `_` and spaces collapsed to one space, ignoring case. The names: the work repo's owner login and repo name, the run key (with the file-mode slug), and `XN`: the issue author's login, the owner's display name when known, and the Qik organisation name when the coverage row is Qik (comma separated, or `none`). It blocks each whole name (also written without spaces), and each word of 3 or more letters in them, except dates, numbers and the fixed words of the note template ("superfix", "version", "problem" and the like). So repo `vce-exam-engine` blocks "the VCE exam-engine docs", "the vce_exam engine" and "the exam engine", and slug `2026-10-19-alison-fiske-booking` blocks "the Alison Fiske booking form". The issue number is blocked only as `#51`, `issue 51` or `issue #51` (a `.` or `,` after it still counts), so "step 3 fails" passes. `W` is the work repo (`none/none` without a remote) and `IN` the issue number (`none` without an issue).
+- Honest limit: a client name that appears nowhere in these sources is covered only by the writing rule above.
 
 ```bash
-umask 077; D="$HOME/.superfix/runs/<run-key>"; K='<k>'; W='<work owner>/<work repo>'; RK='<run-key>'; IN='<issue number, or none>'; T="$D/gap-$K-title.txt"; F="$D/gap-$K-body.md"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ ! -s "$T" ] || [ ! -s "$F" ]; then echo "GAP-NOTE-BLOCKED missing"; elif ! M="$(python3 -I -c 'import html, re, sys
+umask 077; D="$HOME/.superfix/runs/<run-key>"; K='<k>'; W='<work owner>/<work repo>'; RK='<run-key>'; IN='<issue number, or none>'; XN='<issue author login, owner display name, Qik organisation (Qik row only); comma separated, or none>'; T="$D/gap-$K-title.txt"; F="$D/gap-$K-body.md"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ ! -s "$T" ] || [ ! -s "$F" ]; then echo "GAP-NOTE-BLOCKED missing"; elif ! M="$(python3 -I -c 'import html, re, sys
 zw = re.compile("[\u00ad\u200b-\u200f\u2060\ufeff\u202a-\u202e]")
-w, rk, n = sys.argv[1:4]
-names = set()
-for x in w.split("/") + [w, rk]:
-    x = x.strip().lower()
-    if len(x) >= 2 and x != "none":
-        names |= {x, re.sub(r"[-_]", " ", x), re.sub(r"[-_]", "", x)}
+w, rk, n, xn = sys.argv[1:5]
+norm = lambda t: re.sub(r"[-_\s]+", " ", t.lower()).strip()
+stop = set("superfix version kind problem problems coverage row everything else covered code partial tools tool missing qik read why stopped diagnosis what was tried playbook would need needs recognisers evidence failing check form done means confidence low medium plain english met does not cover this note says the and for with gap".split())
+whole, words = set(), set()
+for x in w.split("/") + [w.replace("/", " ")] + rk.split("+") + [rk] + xn.split(","):
+    x = norm(x)
+    if not x or x == "none" or re.fullmatch(r"[\d ]+", x):
+        continue
+    whole |= {x, x.replace(" ", "")}
+    words |= {t for t in x.split() if len(t) >= 3 and not t.isdigit() and t not in stop}
 hit = False
-for f in sys.argv[4:]:
+for f in sys.argv[5:]:
     s = re.sub(r"\s+", " ", zw.sub("", html.unescape(open(f, encoding="utf-8", errors="replace").read())))
     open(f + ".norm", "w").write(s + "\n")
-    lo = s.lower()
-    for x in names:
-        if (len(x) >= 5 and x in lo) or re.search(r"(?<![a-z0-9])" + re.escape(x) + r"(?![a-z0-9])", lo):
+    lo = norm(s)
+    for x in whole | words:
+        if re.search(r"(?<![a-z0-9])" + re.escape(x) + r"(?![a-z0-9])", lo) or (len(x) >= 5 and " " not in x and x in lo.replace(" ", "")):
             hit = True
-    if n.isdigit() and re.search(r"(?<![\w.])#?" + n + r"(?![\w.])", s):
+    if n.isdigit() and re.search(r"(?<!\w)(?:#|issue\s+#?)" + n + r"(?!\w)", s, re.I):
         hit = True
-print("NAMES-HIT" if hit else "NAMES-CLEAN")' "$W" "$RK" "$IN" "$T" "$F")"; then echo "GAP-NOTE-BLOCKED normalise"; else X="$(P="$(grep -v '^[[:space:]]*$' "$D/secrets" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$T" "$F" "$T.norm" "$F.norm")"; rc=$?; if [ $rc -gt 1 ]; then echo ERROR; elif [ -n "$H" ]; then echo BLOCKED; else echo CLEAN; fi; fi)"; H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$T" "$F" "$T.norm" "$F.norm"; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|/Users/|~/|[A-Za-z][A-Za-z0-9+.-]*://|www\.|[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]*[A-Za-z0-9]' "$T" "$F" "$T.norm" "$F.norm"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; print "$ARGV:$.:\n" } close ARGV if eof' "$T" "$F" "$T.norm" "$F.norm"; } | cut -d: -f1,2 | sort -u )"; case "$X" in CLEAN|NO-LIST) if [ "$M" != NAMES-CLEAN ]; then echo "GAP-NOTE-BLOCKED names (the work repo's owner or name, the run key or the issue number is in the note; rewrite it generically)"; elif [ -n "$H" ]; then echo "GAP-NOTE-BLOCKED pattern (file:line; rewrite the note generically, then run this again):"; echo "$H"; else echo GAP-NOTE-CLEAN; fi;; BLOCKED) echo "GAP-NOTE-BLOCKED exact";; *) echo "GAP-NOTE-BLOCKED exact (the check did not run)";; esac; fi
+print("NAMES-HIT" if hit else "NAMES-CLEAN")' "$W" "$RK" "$IN" "$XN" "$T" "$F")"; then echo "GAP-NOTE-BLOCKED normalise"; else X="$(P="$(grep -v '^[[:space:]]*$' "$D/secrets" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$T" "$F" "$T.norm" "$F.norm")"; rc=$?; if [ $rc -gt 1 ]; then echo ERROR; elif [ -n "$H" ]; then echo BLOCKED; else echo CLEAN; fi; fi)"; H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$T" "$F" "$T.norm" "$F.norm"; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|/Users/|~/|[A-Za-z][A-Za-z0-9+.-]*://|www\.|[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]*[A-Za-z0-9]' "$T" "$F" "$T.norm" "$F.norm"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; print "$ARGV:$.:\n" } close ARGV if eof' "$T" "$F" "$T.norm" "$F.norm"; } | cut -d: -f1,2 | sort -u )"; case "$X" in CLEAN|NO-LIST) if [ "$M" != NAMES-CLEAN ]; then echo "GAP-NOTE-BLOCKED names (the work repo's owner or name, the run key or the issue number is in the note; rewrite it generically)"; elif [ -n "$H" ]; then echo "GAP-NOTE-BLOCKED pattern (file:line; rewrite the note generically, then run this again):"; echo "$H"; else echo GAP-NOTE-CLEAN; fi;; BLOCKED) echo "GAP-NOTE-BLOCKED exact";; *) echo "GAP-NOTE-BLOCKED exact (the check did not run)";; esac; fi
 ```
 
 - `GAP-NOTE-CLEAN`: go on.
@@ -75,6 +80,7 @@ print("NAMES-HIT" if hit else "NAMES-CLEAN")' "$W" "$RK" "$IN" "$T" "$F")"; then
 The repo is named by the line `gap_repo=<owner>/<repo>` in `~/.superfix/config` (read with `grep`, never `source`), or by the environment variable `SUPERFIX_GAP_REPO`. It is never hard-coded and never the work repo.
 
 - **Who may choose the repo:** only the owner, in `~/.superfix/config` or his own shell environment. A project setting (for example a work repo's `.claude/settings.json` setting `SUPERFIX_GAP_REPO`) must never redirect notes. A run cannot tell where an environment variable came from, so the variable is treated as untrusted: notes go to the repo it names only when `~/.superfix/config` also holds the owner's dated line for that same repo (below). Without that line the check says `GAP-REPO-APPS-UNCHECKED` and the note stays local.
+- **What cannot be defended mechanically:** a project's `.claude/settings.json` or direnv can also set `HOME` (and so which `~/.superfix/config` is read), `GH_TOKEN` (and so which account `gh` acts as) or `SUPERFIX_GAP_REPO`. No check here can tell. What could leak is only the generic note itself, and the attestation line names the one repo the owner checked.
 - **GitHub Apps cannot be checked with the `gh` login** (`gh api user/installations` answers 403, `repos/<o>/<r>/installation` 401). The owner checks them himself: he opens https://github.com/settings/installations, makes sure no App can read the gap repo, and then adds this line to `~/.superfix/config`, with the repo and today's date:
 
 ```
@@ -97,13 +103,13 @@ W='<work owner>/<work repo>'; G="${SUPERFIX_GAP_REPO:-$(grep -E '^gap_repo=' "$H
 De-duplicate first, in a new call, with the checked kind file (search can lag a few minutes behind a new note; that is a known limit):
 
 ```bash
-G='<gap repo>'; KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if S="$(gh issue list --repo "$G" --state open --label superfix:gap --search "$(cat "$KF") in:title" --limit 10 --json number,title -q '.[] | "\(.number) \(.title)"')"; then if [ -n "$S" ]; then echo GAP-CANDIDATES; printf '%s\n' "$S"; else echo GAP-NO-MATCH; fi; else echo GAP-SEARCH-FAILED; fi
+G='<gap repo>'; KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if S="$(gh issue list --repo "$G" --state open --label superfix:gap --search "\"$(cat "$KF")\" in:title" --limit 10 --json number,title -q '.[] | "\(.number) \(.title)"')"; then if [ -n "$S" ]; then echo GAP-CANDIDATES; printf '%s\n' "$S"; else echo GAP-NO-MATCH; fi; else echo GAP-SEARCH-FAILED; fi
 ```
 
-- A candidate is the same note only when its kind AND two distinct key words of its title match yours. Then post a "Seen again" comment. Its text is made by the command, not written by you: the date and an 8-character hash of the run key, never the run key itself, so it can hold no name:
+- A candidate is the same note only when its kind AND two distinct key words of its title match yours. Then post a "Seen again" comment. Its text is made by the command, not written by you: the date only, so it can hold no name (1.4.1 dropped the run-key hash it used to carry):
 
 ```bash
-umask 077; D="$HOME/.superfix/runs/<run-key>"; G='<gap repo>'; I='<note number>'; S="$D/gap-seen.md"; printf 'Seen again: %s, run %s\n' "$(date +%Y-%m-%d)" "$(printf '%s' '<run-key>' | shasum -a 256 | cut -c1-8)" > "$S" && if gh issue comment "$I" --repo "$G" --body-file "$S" >/dev/null; then echo "GAP-SEEN-AGAIN $I"; else echo GAP-FILE-FAILED; fi
+umask 077; D="$HOME/.superfix/runs/<run-key>"; G='<gap repo>'; I='<note number>'; S="$D/gap-seen.md"; printf 'Seen again: %s\n' "$(date +%Y-%m-%d)" > "$S" && if gh issue comment "$I" --repo "$G" --body-file "$S" >/dev/null; then echo "GAP-SEEN-AGAIN $I"; else echo GAP-FILE-FAILED; fi
 ```
 
 - Otherwise a new note. Only now, after `GAP-REPO-OK`, add one line to the end of the body file: `Source: [<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)` (the work issue). This is the one place the work repo is named, and only in the private gap repo. Then run both redaction.md checks (exact-string and pattern) on the title and body files: `CLEAN` or `NO-LIST`, and `PATTERN-CLEAN`.
@@ -118,17 +124,17 @@ umask 077; D="$HOME/.superfix/runs/<run-key>"; G='<gap repo>'; K='<k>'; if U="$(
 
 ### 4. The local folder (any word but GAP-REPO-OK, or a failed filing)
 
-The note is written WITHOUT any `Source:` line (the command leaves it out, also after a failed filing) and with an 8-character hash of the run key in place of the run key. Search first, with the checked kind file:
+The note is written WITHOUT any `Source:` line (the command leaves it out, also after a failed filing) and with no run key or hash of it. Search first, with the checked kind file:
 
 ```bash
 Q="$HOME/.superfix/gaps"; KF="$HOME/.superfix/runs/<run-key>/gap-<k>-kind.txt"; if [ ! -d "$Q" ]; then echo GAP-NO-MATCH; else S="$(find "$Q" -maxdepth 1 -name '*.md' | while IFS= read -r f; do printf '%s %s\n' "$f" "$(head -1 "$f")"; done | grep -i -F -f "$KF")"; if [ -n "$S" ]; then echo GAP-CANDIDATES; printf '%s\n' "$S"; else echo GAP-NO-MATCH; fi; fi
 ```
 
-- Same rule as above: kind AND two key words match: `umask 077; printf '\nSeen again: %s, run %s\n' "$(date +%Y-%m-%d)" "$(printf '%s' '<run-key>' | shasum -a 256 | cut -c1-8)" >> '<that file>' && echo "GAP-SEEN-AGAIN <that file>"`.
+- Same rule as above: kind AND two key words match: `umask 077; printf '\nSeen again: %s\n' "$(date +%Y-%m-%d)" >> '<that file>' && echo "GAP-SEEN-AGAIN <that file>"`.
 - Otherwise a new file, mode 600 in a folder of mode 700:
 
 ```bash
-umask 077; D="$HOME/.superfix/runs/<run-key>"; K='<k>'; Q="$HOME/.superfix/gaps"; F="$Q/<YYYY-MM-DD>-<slug>.md"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ -e "$F" ]; then echo "GAP-LOCAL-EXISTS $F"; else mkdir -p "$Q" && chmod 700 "$Q" && { cat "$D/gap-$K-title.txt"; echo; grep -v '^Source: ' "$D/gap-$K-body.md"; printf '\nRun: %s\n' "$(printf '%s' '<run-key>' | shasum -a 256 | cut -c1-8)"; } > "$F" && chmod 600 "$F" && echo "GAP-LOCAL $F"; fi
+umask 077; D="$HOME/.superfix/runs/<run-key>"; K='<k>'; Q="$HOME/.superfix/gaps"; F="$Q/<YYYY-MM-DD>-<slug>.md"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ -e "$F" ]; then echo "GAP-LOCAL-EXISTS $F"; else mkdir -p "$Q" && chmod 700 "$Q" && { cat "$D/gap-$K-title.txt"; echo; grep -v '^Source: ' "$D/gap-$K-body.md"; } > "$F" && chmod 600 "$F" && echo "GAP-LOCAL $F"; fi
 ```
 
 - `GAP-LOCAL-EXISTS`: use a new slug, or Seen again on that file.
