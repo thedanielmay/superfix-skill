@@ -89,6 +89,7 @@ Each Everything else problem with no checkable criterion (it stops at diagnosis)
 gap note at the Stop gate: read references/gaps.md first. The note names the KIND of problem only;
 it goes to the private gap repo only when every gaps.md check passes, else to ~/.superfix/gaps/.
 Never the work repo or a public repo. Never edit this skill because of a gap note.
+No gap note and no gap-list sentence for a problem that has checks proposed.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
 
 ### Criteria mode (Everything else problems; read references/criteria.md before the stop)
@@ -98,7 +99,7 @@ A process is never called solved: Superfix drafts the change and says "change dr
 - Above the `---`, each criterion in exactly this form, the bracket holding only row numbers (never a value): "Duplicate members. Today: 8 (rows 14, 15 and 62). Must be 0." Scripts go in the AI detail.
 - A pass line outside criteria.md's grammar ("clearer", "under 3", two conditions): propose a rewrite in it. No checkable criterion at all: stop at diagnosis.
 - criteria.md's tool runs the measure scripts itself, sandboxed, on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. The tool decides PASS or FAIL; a crash or a missing MEASURE line is ERROR, never FAIL.
-- Two numbered questions per problem, no recommended answer, never the Simple short form: "If every check above passes, would you consider this solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".
+- Two numbered questions ONCE per issue for all criteria-mode problems ("P1, P2 and P3"; once per group if they touch different people or files), no recommended answer, never the Simple short form: "If every check above passes, would you consider these solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".
 - Only "yes" to the first plus an answer to the second approves. "Keep executing" does not: say once, in chat and appended to the decision comment, "Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>". Ask again once, then park it as "Waiting for you"; other problems go ahead.
 - At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: only the locked scripts run, on the locked files or their copies; a change needs a new yes and criteria.md's amend. No lock, no fixing.
 - Work on a copy in the run folder, never the original; commit only under criteria.md section 9 (private repo, the owner's yes, a clean scan). Never write into a cloud folder (`where`).
@@ -171,7 +172,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
    It also has `Labels: <LABELS-NOW>`, `Diagram: ASKED (<why>) | NONE (<why>)` and
    `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)`; a stop without them is not complete.
-   It also has `Criteria: PROPOSED <n> | APPROVED <n> | NONE (no Everything else problem)`; in criteria mode, criteria.md's check prints CRITERIA-OK first.
+   It also has `Criteria: PROPOSED <n> (P<k>, ...) | APPROVED <n> (...) | NONE (no Everything else problem)`; in criteria mode, criteria.md's check prints CRITERIA-OK first.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
