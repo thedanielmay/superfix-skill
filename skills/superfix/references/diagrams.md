@@ -50,7 +50,13 @@ umask 077; C="$HOME/.superfix/config"; if grep -q '^diagram_style=' "$C" 2>/dev/
 - `DIAGRAM-SKILL-MISSING`: no diagrams; `Diagram: NOT-POSTED (diagram skill not found)`. No `BROWSER-SCRIPT` line in this run (evidence.md, Finding the tools): `Diagram: NOT-POSTED (no browser script)`.
 - Superfix never invokes the diagram skill and never writes a `.diagram-design` marker (it would sit in the clone and break the stop check). A subagent follows the skill's files.
 
-Write the brief to `$HOME/.superfix/runs/<run-key>/diagrams/brief.md` (under `umask 077`), with every path absolute and written out in full. Its text comes from `## Problems` and the approved option, redacted text only (never a credential, never the owner's words in quotes):
+The subagent never gets a path in the run folder or the clone. It writes into a fresh folder of its own, and the main thread copies its two files in afterwards. Before dispatch, in one call (`<clone>` written out in full):
+
+```bash
+umask 077; D="$HOME/.superfix/runs/<run-key>"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else mkdir -p "$HOME/.superfix/tmp" && chmod 700 "$HOME/.superfix/tmp" && T="$(mktemp -d "$HOME/.superfix/tmp/diagram.XXXXXX")" && chmod 700 "$T" && echo "DIAGRAM-TMP $T"; echo "SECRETS-SHA $({ [ -f "$D/secrets" ] && echo present; cat "$D/secrets" 2>/dev/null; } | shasum -a 256 | cut -c1-16)"; echo "CLONE-STATE $(git -C '<clone>' rev-parse HEAD) $(git -C '<clone>' branch --show-current) $(git -C '<clone>' status --porcelain | shasum -a 256 | cut -c1-16)"; fi
+```
+
+Keep the three printed values; the after-check below takes them written out literally. Write the brief to `$HOME/.superfix/runs/<run-key>/diagrams/brief.md` (under `umask 077`), with every path absolute and written out in full. Its text comes from `## Problems` and the approved option, redacted text only (never a credential, never the owner's words in quotes):
 
 ```
 DIAGRAM BRIEF (superfix 1.4.1). Do not ask any question; the owner cannot be reached.
@@ -61,11 +67,12 @@ onboarding and the style gate. Type: flowchart. Size: doc-inline.
 Diagram 1, the cause today: nodes <id: label (file:line)>, edges <id -> id>, accent node <id> (the part that fails).
 Diagram 2, the change: the same layout; accent node <id> (the part that changes).
 Write exactly two files, nothing else anywhere:
-  /Users/<you>/.superfix/runs/<run-key>/diagrams/sf-<N>-diagram-problem.html
-  /Users/<you>/.superfix/runs/<run-key>/diagrams/sf-<N>-diagram-solution.html
+  <DIAGRAM-TMP folder>/sf-<N>-diagram-problem.html
+  <DIAGRAM-TMP folder>/sf-<N>-diagram-solution.html
 Every node is a <g data-sf-node="<id>"> group; at most 9 per diagram. No <image>, no
-<foreignObject>, no script, no external asset beyond Google Fonts. Do not write a .diagram-design
-file or anything in a git repository. Proceed and list your assumptions in your reply.
+<foreignObject>, no script, no external asset beyond Google Fonts. Do not read or write anything
+under ~/.superfix/runs, do not write a .diagram-design file or anything in a git repository.
+Proceed and list your assumptions in your reply.
 Return exactly one line first: DIAGRAMS-WRITTEN <path> <path>, or DIAGRAM-QUESTION <one line>.
 ```
 
@@ -73,12 +80,21 @@ Return exactly one line first: DIAGRAMS-WRITTEN <path> <path>, or DIAGRAM-QUESTI
 - Run the exact-string check (redaction.md) on the brief file before dispatch; `BLOCKED` stops it.
 - Dispatch: `Agent` [sonnet/high] with the brief copied into the prompt. One dispatch.
 - `DIAGRAM-QUESTION <line>`: nothing is drawn or posted; `Diagram: NOT-POSTED (the diagram skill needed an answer)` and the Not tested line below. The run never ends on the skill's question; the fix goes on.
-- After it returns, the clone must be unchanged: `if [ -z "$(git -C '<clone>' status --porcelain)" ]; then echo CLONE-CLEAN; else echo CLONE-CHANGED; git -C '<clone>' status --porcelain; fi`. `CLONE-CHANGED`: remove what the subagent wrote there, say so, and post no diagram.
+- After it returns, whatever it returned, compare and copy in one call (the three values from before, written out literally):
+
+```bash
+umask 077; D="$HOME/.superfix/runs/<run-key>"; T='<DIAGRAM-TMP folder>'; S0='<SECRETS-SHA value>'; C0='<CLONE-STATE value>'; S1="$({ [ -f "$D/secrets" ] && echo present; cat "$D/secrets" 2>/dev/null; } | shasum -a 256 | cut -c1-16)"; C1="$(git -C '<clone>' rev-parse HEAD) $(git -C '<clone>' branch --show-current) $(git -C '<clone>' status --porcelain | shasum -a 256 | cut -c1-16)"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ "$S1" != "$S0" ]; then echo DIAGRAM-RUN-FOLDER-CHANGED; elif [ "$C1" != "$C0" ]; then echo "CLONE-CHANGED before: $C0 after: $C1"; else case "$T" in "$HOME"/.superfix/tmp/diagram.*) n=0; for f in "$T"/sf-<N>-diagram-problem.html "$T"/sf-<N>-diagram-solution.html; do if [ -f "$f" ]; then cp "$f" "$D/diagrams/" && n=$((n + 1)); fi; done; rm -rf "$T" && echo "CLONE-CLEAN DIAGRAMS-COPIED $n";; *) echo "DIAGRAM-TMP-REFUSED $T";; esac; fi
+```
+
+- `CLONE-CLEAN DIAGRAMS-COPIED <n>`: the clone's commit, branch and status are as before and the run folder's credential list is unchanged; the two files are now in `$HOME/.superfix/runs/<run-key>/diagrams/` and the temp folder is gone. Go on to the source check.
+- `DIAGRAM-RUN-FOLDER-CHANGED`: the credential list changed while the subagent ran. Stop the run, post nothing, restore nothing, and tell the owner what happened.
+- `CLONE-CHANGED`: the clone's commit, branch or status differs. Post no diagram and delete nothing: not the subagent's files, and never a plan, context file or a fix agent's work. Stop and tell the owner what differs, and wait.
+- The temp folder is kept in both cases, for the owner to look at.
 - Put the subagent's assumptions in the AI detail of the final comment.
 
 ### Source check (before rendering, one command per file)
 
-It writes a normalised copy (`<name>.norm.txt`: entities decoded, zero-width and direction characters removed, and the text with tags removed so text split across `<tspan>` joins up) and a copy with all spaces removed (`<name>.flat.txt`). The exact-string check runs on all three; the skill's `self_check.py` must print `OK`; the pattern check (redaction.md, plus e-mail) runs on the file and the normalised copy, never on the copy without spaces; the file must hold 1 to 9 `data-sf-node` groups. `<python>` is the BROWSER-SCRIPT interpreter; `<SK>` the skill folder from `DIAGRAM-SKILL`.
+It writes a normalised copy (`<name>.norm.txt`: entities decoded, zero-width and direction characters removed, and the text with tags removed so text split across `<tspan>` joins up), a copy with all spaces removed (`<name>.flat.txt`) and the shown text alone (`<name>.text.txt`). The exact-string check runs on all three; the skill's `self_check.py` must print `OK`; the pattern check (redaction.md, plus e-mail) runs on the file and the normalised copy, never on the copy without spaces, and the shown text is also checked for `/Users/` and `~/` paths and URLs with a query string, as gap notes are (the source itself always holds the Google Fonts address, so that rule runs on the shown text only); the file must hold 1 to 9 `data-sf-node` groups. `<python>` is the BROWSER-SCRIPT interpreter; `<SK>` the skill folder from `DIAGRAM-SKILL`.
 
 ```bash
 umask 077; D="$HOME/.superfix/runs/<run-key>"; N='<name>'; PY='<python>'; SK='<SK>'; F="$D/diagrams/$N.html"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ ! -f "$F" ]; then echo "DIAGRAM-SOURCE-BLOCKED missing"; else B="$("$PY" -I -c 'import html, re, sys
@@ -87,7 +103,8 @@ zw = re.compile("[\u00ad\u200b-\u200f\u2060\ufeff\u202a-\u202e]")
 t = re.sub(r"\s+", " ", zw.sub("", html.unescape(re.sub(r"<[^>]*>", "", s))))
 open(f[:-5] + ".norm.txt", "w").write(zw.sub("", html.unescape(s)) + "\n" + t + "\n")
 open(f[:-5] + ".flat.txt", "w").write(re.sub(r"\s+", "", t) + "\n")
-print(len(re.findall(r"<g\b[^>]*\bdata-sf-node", s)))' "$F")"; if [ -z "$B" ]; then echo "DIAGRAM-SOURCE-BLOCKED normalise"; else X="$(L="$D/secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$F" "$D/diagrams/$N.norm.txt" "$D/diagrams/$N.flat.txt")"; rc=$?; if [ $rc -gt 1 ]; then echo ERROR; elif [ -n "$H" ]; then echo BLOCKED; else echo CLEAN; fi; fi)"; K="$("$PY" -I "$SK/scripts/self_check.py" "$F" 2>&1 | head -1)"; H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$F" "$D/diagrams/$N.norm.txt"; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$F" "$D/diagrams/$N.norm.txt"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; next if $s=~/^[0-9a-f]{40}$/i; print "$ARGV:$.:\n" } close ARGV if eof' "$F" "$D/diagrams/$N.norm.txt"; } | cut -d: -f1,2 | sort -u )"; case "$X" in CLEAN|NO-LIST) ;; BLOCKED) echo "DIAGRAM-SOURCE-BLOCKED exact"; X=STOP;; *) echo "DIAGRAM-SOURCE-BLOCKED exact (the check did not run)"; X=STOP;; esac; if [ "$X" != STOP ]; then if [ "$K" != "OK $F" ]; then echo "DIAGRAM-SOURCE-BLOCKED self-check"; elif [ -n "$H" ]; then echo "DIAGRAM-SOURCE-BLOCKED pattern"; echo "$H"; elif [ "$B" -lt 1 ] || [ "$B" -gt 9 ]; then echo "DIAGRAM-SOURCE-BLOCKED boxes $B"; else echo DIAGRAM-SOURCE-CLEAN; fi; fi; fi; fi
+open(f[:-5] + ".text.txt", "w").write(t + "\n")
+print(len(re.findall(r"<g\b[^>]*\bdata-sf-node", s)))' "$F")"; if [ -z "$B" ]; then echo "DIAGRAM-SOURCE-BLOCKED normalise"; else X="$(L="$D/secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - "$F" "$D/diagrams/$N.norm.txt" "$D/diagrams/$N.flat.txt")"; rc=$?; if [ $rc -gt 1 ]; then echo ERROR; elif [ -n "$H" ]; then echo BLOCKED; else echo CLEAN; fi; fi)"; K="$("$PY" -I "$SK/scripts/self_check.py" "$F" 2>&1 | head -1)"; H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' "$F" "$D/diagrams/$N.norm.txt"; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$F" "$D/diagrams/$N.norm.txt"; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; next if $s=~/^[0-9a-f]{40}$/i; print "$ARGV:$.:\n" } close ARGV if eof' "$F" "$D/diagrams/$N.norm.txt"; grep -H -n -E '/Users/|~/|https?://[^[:space:]]*[?]' "$D/diagrams/$N.text.txt"; } | cut -d: -f1,2 | sort -u )"; case "$X" in CLEAN|NO-LIST) ;; BLOCKED) echo "DIAGRAM-SOURCE-BLOCKED exact"; X=STOP;; *) echo "DIAGRAM-SOURCE-BLOCKED exact (the check did not run)"; X=STOP;; esac; if [ "$X" != STOP ]; then if [ "$K" != "OK $F" ]; then echo "DIAGRAM-SOURCE-BLOCKED self-check"; elif [ -n "$H" ]; then echo "DIAGRAM-SOURCE-BLOCKED pattern"; echo "$H"; elif [ "$B" -lt 1 ] || [ "$B" -gt 9 ]; then echo "DIAGRAM-SOURCE-BLOCKED boxes $B"; else echo DIAGRAM-SOURCE-CLEAN; fi; fi; fi; fi
 ```
 
 - `DIAGRAM-SOURCE-CLEAN`: go on to render.

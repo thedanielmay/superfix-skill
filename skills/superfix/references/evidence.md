@@ -645,6 +645,7 @@ def diagram(a, secrets):
         if os.path.exists(os.path.join(dg, old)):
             os.remove(os.path.join(dg, old))
     from playwright.sync_api import sync_playwright
+    import urllib.parse
     raw = os.path.join(dg, a.name + ".raw.png")
     out, big = os.path.join(dg, a.name + ".png"), os.path.join(dg, a.name + ".ocr.png")
     blocked = []
@@ -652,9 +653,12 @@ def diagram(a, secrets):
     def gate(route):
         u = route.request.url
         host = re.sub(r"^[a-z]+://([^/:?#]*).*$", r"\1", u, flags=re.S) if "://" in u else ""
-        if u.startswith("file:") or (u.startswith("https://") and host in ("fonts.googleapis.com", "fonts.gstatic.com")):
+        # Only the diagram file itself among file: addresses; any other file (<use href>, @import, url()) is blocked.
+        if u.startswith("file:") and urllib.parse.unquote(urllib.parse.urlsplit(u).path) == src:
             return route.continue_()
-        blocked.append(host or "other")
+        if u.startswith("https://") and host in ("fonts.googleapis.com", "fonts.gstatic.com"):
+            return route.continue_()
+        blocked.append("local-file" if u.startswith("file:") else "remote-asset")
         return route.abort()
 
     try:
@@ -670,7 +674,7 @@ def diagram(a, secrets):
             except Exception:
                 pass
             if blocked:
-                return say("UNREACHABLE remote-asset")
+                return say("UNREACHABLE " + " ".join(sorted(set(blocked))))
             if not timed(page.evaluate, "() => !!document.querySelector('svg')"):
                 return say("NO-SVG")
             n = timed(page.evaluate, "() => document.querySelectorAll('svg g[data-sf-node]').length")

@@ -155,8 +155,8 @@ Read `references/evidence.md` in full before the first picture; write `Loaded: e
 ### Diagrams (ask first, always; read references/diagrams.md before the question)
 Moderate or Complex, a problem that will be fixed, and 3 or more parts that interact: diagrams.md's
 numbered question, recommended yes, before the assets and create-issue questions. Never Simple or the
-fast lane. Nothing is drawn before a yes. After go: diagrams.md's subagent, absolute paths in the run
-folder; source checks, render, Read, then diagrams.md's own upload command, never evidence.md's.
+fast lane. Nothing is drawn before a yes. After go: diagrams.md's subagent in its own temp folder (run
+folder and clone compared after); source checks, render, Read, diagrams.md's upload command only.
 
 ## Stop gate
 
