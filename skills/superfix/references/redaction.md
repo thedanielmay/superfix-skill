@@ -39,7 +39,7 @@ L="$HOME/.superfix/session-secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/n
 ```
 
 - `CLEAN`: no session credential in those files.
-- `BLOCKED <files>`: a credential is in the named files. Do not post, push or commit. Replace it with `[redacted]` in that file and run the check again.
+- `BLOCKED <files>`: a session credential is in the named files. Do not post, push or commit. In a comment, body, title or commit message file, replace it with `[redacted]` and run the check again. In the diff (source code), never write `[redacted]`: stop and ask the owner.
 - `NO-LIST`: the list file is missing or empty, which means no credential was given this session. Run the pattern check anyway.
 - It prints file names only (`-l`), never the matching line, so the secret does not land in the transcript.
 
