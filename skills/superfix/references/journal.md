@@ -27,6 +27,8 @@ umask 077; F="$HOME/.superfix/runs/<run-key>/body-<N>.md"
 cat > "$F" <<'EOF'
 **Status:** <value> (updated <YYYY-MM-DD HH:MM>)
 
+**Labels:** <LABELS-NOW, or "not set (<word>) <!-- marker superfix-<awaiting-decision|approved> -->">
+
 Contents: Summary, Problems (P1, P2), Options, Proposed solution, Decision, Done when, Original report
 
 ## Summary
@@ -47,6 +49,7 @@ Contents: Summary, Problems (P1, P2), Options, Proposed solution, Decision, Done
 - Ruled out: <hypothesis>: <how>
 - Siblings: <same cause found elsewhere, or none>
 - After: <filled at close: the after picture, or the passing check>
+- Diagram: ![P1 cause today: <full caption>](<url>)  (only after the owner said yes; diagrams.md)
 
 Seen, not diagnosed:
 - <one line each>
@@ -66,6 +69,7 @@ Proposed budget: Up to <N> hours, touching these <N> files: <files>. I stop and 
 What will look different afterwards: <what the owner will see>
 What could go wrong: <risk> (how I would notice: <check>)
 Will stay untested: <items, or "nothing known">
+Diagram: ![P1 the change: <full caption>](<url>)  (only after a yes)
 
 ## Decision
 <empty until the owner answers; then the paraphrase in plain words, and last a line "Internal: approval-sha <40 hex>, approved <YYYY-MM-DD HH:MM>">
@@ -116,6 +120,8 @@ Comment triggers:
 | Budget stop, diagnosis wrong, blocker | stop message | Status |
 | PR open and CI green | final result: solved check, Not tested, PR link | Status |
 
+Every message in this table carries the required Labels: line, and every Status change runs the label commands (Labels, below). Go's body update also adds the diagrams after they pass diagrams.md.
+
 - Any significant scope change or blocker encountered
 - Child issues, when they exist: progress goes on the parent only.
 - A Simple fix posts 2 comments (decision request, final result). A Moderate or Complex fix posts 3 (plus the plan comment).
@@ -153,6 +159,58 @@ Template fields the body must fill, with their length by the confirmed tier. A S
 - Per option: what changes, good, cost or risk, effort.
 - `## Proposed solution`, one block per problem: numbered steps; what will look different afterwards; what could go wrong and how I would notice; what will stay untested.
 
+### Labels
+
+New in 1.4.1. The labels follow the Status line, so the owner can list everything waiting for him with one saved search (README). A Status value starting "Waiting for you", "Stopped" or "Ready for review" means `superfix:awaiting-decision`; "Fixing" means `superfix:approved`; "Diagnosing" and "Done" mean neither.
+
+| Moment | Status (1.4.0 text) | Label after |
+|---|---|---|
+| Stop gate | Waiting for you: N questions | awaiting-decision |
+| Go, or fast lane | Fixing problem 1 of N | approved |
+| Loop back (fix failed twice), panel overturn | Waiting for you: N questions | awaiting-decision |
+| Budget stop, blocker | Stopped: <reason> | awaiting-decision |
+| Qik waiting for "published", held pictures | Waiting for you to publish / post the pictures? | awaiting-decision |
+| PR ready | Ready for review: PR <link> | awaiting-decision |
+| Re-diagnose after reply 1 | Diagnosing | none |
+| Merged and closed | Done | none |
+
+- Colours and descriptions: `superfix:awaiting-decision` yellow `FBCA04` "Superfix is waiting for you"; `superfix:approved` green `0E8A16` "Approved; Superfix is working"; `superfix:gap` purple `5319E7` "A kind of problem Superfix does not cover yet" (gap repo only, references/gaps.md).
+- After every Status change, in this order: ensure the new label exists, add it, remove the old one (only if the read-back lists it), read back. Add before remove, so the issue is never without a label in between. Each command prints one word and is never silenced (no `2>/dev/null`).
+- The `Labels:` field and the body's `**Labels:**` line are copied from `LABELS-NOW`, never typed from memory.
+- Labels are not a reason to stop. When the permission check says `LABELS-SKIPPED`, or a create or add fails, carry on: the field reads `not set (<word>); marker superfix-awaiting-decision` (or `superfix-approved`), and the body line reads `**Labels:** not set (<word>) <!-- marker superfix-awaiting-decision -->`. The visible text stays plain because the Status line already says "Waiting for you"; the marker sits in the body because the body is the current state (a comment would keep matching after the state moved on). GitHub search does find the marker inside the HTML comment, a few minutes after the edit (checked in 1.4.1), but it also matches any issue that mentions the same words.
+- No issue (file-mode journal): no label commands; `Labels: none (no issue)`.
+- On restart: read the Status line, the `**Labels:**` line and the live labels (read-back command), then run the commands so the labels match the Status line.
+
+Permission check, once per run before the first label (the owner test and workflow scan of the `assets` command in evidence.md, with the label words). It prints `LABELS-OK`, or `LABELS-SKIPPED not-owner`, `LABELS-SKIPPED workflows` (with the `FLAG` and `UNREAD` lines) or `LABELS-SKIPPED could-not-list-files`. A workflow flags when its text contains `issues`, `label`, `labeled` or `unlabeled` (any case), or writes `on:` in flow syntax; a file it cannot read is `UNREAD` and counts as a flag. Webhooks and GitHub Apps may still react to a label; they cannot be checked from here.
+
+```bash
+umask 077; D="$HOME/.superfix/runs/<run-key>"; R='<owner>/<repo>'; ME="$(gh api user -q .login)"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ -z "$ME" ] || [ "${R%%/*}" != "$ME" ]; then echo "LABELS-SKIPPED not-owner"; else L="$(gh api "repos/$R/git/trees/HEAD?recursive=1" -q 'if .truncated then "TRUNCATED" else (.tree[] | select(.type == "blob") | .path) end' 2>&1)"; rc=$?; if [ $rc -ne 0 ] && ! printf '%s\n' "$L" | grep -q 'HTTP 409'; then echo "LABELS-SKIPPED could-not-list-files"; else : > "$D/label-flags"; if [ $rc -eq 0 ]; then printf '%s\n' "$L" | grep -qx TRUNCATED && echo "UNREAD the file list is too long to read in full" >> "$D/label-flags"; printf '%s\n' "$L" | grep -i '^\.github/workflows/' | while IFS= read -r p; do T="$(gh api "repos/$R/contents/$p" -q .content 2>/dev/null | base64 -d 2>/dev/null)"; if [ -z "$T" ]; then echo "UNREAD $p" >> "$D/label-flags"; elif printf '%s\n' "$T" | grep -qiE 'issues|label|labeled|unlabeled|(^|[[:space:]])"?on"?:[[:space:]]*[[{]'; then echo "FLAG $p" >> "$D/label-flags"; fi; done; fi; if [ -s "$D/label-flags" ]; then echo "LABELS-SKIPPED workflows"; cat "$D/label-flags"; else echo LABELS-OK; fi; fi; fi
+```
+
+Ensure the label exists (prints `LABEL-EXISTS`, `LABEL-CREATED` or `LABEL-CREATE-FAILED`; GitHub's own "Not Found (HTTP 404)" line before `LABEL-CREATED` is normal). Write `L`, `C` and `T` from the colours above:
+
+```bash
+R='<owner>/<repo>'; L='superfix:awaiting-decision'; C='FBCA04'; T='Superfix is waiting for you'; E="$(printf '%s' "$L" | sed 's/:/%3A/')"; if gh api "repos/$R/labels/$E" -q .name >/dev/null; then echo "LABEL-EXISTS $L"; elif gh label create "$L" --repo "$R" --color "$C" --description "$T"; then echo "LABEL-CREATED $L"; else echo "LABEL-CREATE-FAILED $L"; fi
+```
+
+Add (prints `LABEL-ADDED` or `LABEL-ADD-FAILED`):
+
+```bash
+R='<owner>/<repo>'; L='<label>'; if gh issue edit <N> --repo "$R" --add-label "$L"; then echo "LABEL-ADDED $L"; else echo "LABEL-ADD-FAILED $L"; fi
+```
+
+Remove (reads first; never calls `--remove-label` on a label the issue lacks; prints `LABEL-REMOVED`, `LABEL-REMOVE-FAILED` or `LABEL-NOT-PRESENT`). For the record (1.4.1 probe): a raw `--remove-label` exits 0 when the label exists in the repo but not on the issue, and 1 when the repo has no such label.
+
+```bash
+R='<owner>/<repo>'; L='<label>'; if ! V="$(gh issue view <N> --repo "$R" --json labels -q '.labels[].name')"; then echo "LABEL-REMOVE-FAILED $L (could not read the labels)"; elif printf '%s\n' "$V" | grep -qxF "$L"; then if gh issue edit <N> --repo "$R" --remove-label "$L"; then echo "LABEL-REMOVED $L"; else echo "LABEL-REMOVE-FAILED $L"; fi; else echo "LABEL-NOT-PRESENT $L"; fi
+```
+
+Read back (prints `LABELS-NOW <list>`, `LABELS-NOW none`, or `LABELS-READ-FAILED`):
+
+```bash
+R='<owner>/<repo>'; if S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then echo "LABELS-NOW ${S:-none}"; else echo LABELS-READ-FAILED; fi
+```
+
 ### Decision message (posted at the Stop gate)
 
 ONE comment, or one journal entry, per run. It holds every question for this run, numbered, each with the recommended answer, the effort and the budget.
@@ -168,6 +226,9 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 ---
 <AI detail: Coverage block, Problem Profile, Tools used, failing check output, hypotheses table>
 Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo) | NOT-POSTED (why)>
+Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
+Diagram: <ASKED (why) | NONE (why)>
+Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -188,6 +249,13 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {prin
 - Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
 - Required in every decision comment and decision journal entry, and in the final comment, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)`. A stop is not complete without it. `NOT-POSTED` is for `NO-OCR`, no ImageMagick and an `assets` release waiting for a yes. `TAKEN <n>` must equal the `PICTURES-SAVED` count from evidence.md. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
+- 1.4.1: the budget question always ends "(recommended: yes)". The example above keeps its 1.4.0 wording.
+- 1.4.1, also required in the AI detail of every decision comment and decision journal entry, and of the final comment (a stop is not complete without them):
+  - `Labels: <LABELS-NOW>`, copied from the read-back command, never typed from memory; or `not set (<word>); marker superfix-awaiting-decision` (or `superfix-approved`); or `none (no issue)`.
+  - `Diagram: ASKED (<why>) | NONE (<why>)` at the stop; at the end `POSTED <n> | NO (owner said no) | HELD (<why>) | LOCAL (<why>) | NOT-POSTED (<why>) | NONE (<why>)` (references/diagrams.md).
+  - `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)` (references/gaps.md); the final comment adds "open notes in your gap list: <n>".
+- The diagram question (exact text in references/diagrams.md) goes after the problem and budget questions and before the `assets` and create-issue questions; the create-issue question stays last.
+- The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -216,6 +284,7 @@ umask 077; S="$HOME/.superfix/runs/<journal run-key>"; T="$HOME/.superfix/runs/<
 - Same body template as above. The Status line is the file's first line, updated in place.
 - `## Original report` holds the owner's description copied exactly, including URLs, record ids and commit ids. Only a credential is replaced by `[redacted]` (redaction check first). Never summarise or reword it.
 - Comments become dated `### <YYYY-MM-DD HH:MM> <stage>` entries appended at the end, each starting with the plain-English callout.
+- No issue: the label commands do not run; the `Labels:` line reads `Labels: none (no issue)`. The `Diagram:` and `Gap note:` lines are written as for an issue.
 - The decision entry carries the same required `Pictures:` line as the decision comment (Decision message, above).
 - Say the file path in chat every time you stop.
 
@@ -226,6 +295,7 @@ umask 077; S="$HOME/.superfix/runs/<journal run-key>"; T="$HOME/.superfix/runs/<
 
 Plan: docs/superpowers/plans/<filename>.md
 Key decisions: [brief summary]
+Labels: <LABELS-NOW>
 ```
 Post it with `--body-file` (Comment format above).
 
@@ -243,6 +313,9 @@ To undo: close PR <link> without merging. After a merge, tell me "undo this" and
 Budget used: <commits, files, time> of <budget>
 Loaded: execute.md
 Pictures: <the same required line, now for the after pictures too>
+Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
+Diagram: <POSTED n | NO (owner said no) | HELD (why) | LOCAL (why) | NOT-POSTED (why) | NONE (why)>
+Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>; open notes in your gap list: <n>
 ## Not tested
 - <item, and why>
 ```
@@ -251,6 +324,7 @@ Without an issue, write the same as a journal entry and say it in chat.
 - The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with a before picture has an after picture or a stated reason (for example "P1 after picture not taken: <why>"); a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
 - Cost line: always present and always marked as an estimate, because the run cannot read its own bill. Rough figures by tier until the 1.4.0 test record gives measured ones: Simple about 2 USD, Moderate about 6 USD, Complex about 15 USD.
 - Undo line: always present, in plain words. The revert command (`git revert -m 1 <merge sha>`) goes in the AI detail, not in the undo line. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
+- Diagrams (1.4.1): when posted, one pointer line after the picture lines, not the diagrams themselves: "The diagrams of the cause and of the change are in the issue description, under P1 and under Proposed solution (default style, chosen by Claude)." The `Labels:` line of the final comment reads `superfix:awaiting-decision (ready for your review)`, because "Ready for review" brings that label back.
 
 ### Context file (Moderate, Complex)
 
