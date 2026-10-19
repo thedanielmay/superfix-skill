@@ -167,7 +167,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 
 ---
 <AI detail: Coverage block, Problem Profile, Tools used, failing check output, hypotheses table>
-Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo)>
+Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo) | NOT-POSTED (why)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -187,7 +187,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {prin
 
 - Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
-- Required in every decision comment and decision journal entry, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)`. A stop is not complete without it. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
+- Required in every decision comment and decision journal entry, and in the final comment, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)`. A stop is not complete without it. `NOT-POSTED` is for `NO-OCR`, no ImageMagick and an `assets` release waiting for a yes. `TAKEN <n>` must equal the `PICTURES-SAVED` count from evidence.md. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -242,6 +242,7 @@ Cost: about <n> USD (estimate for a <tier> run; the run cannot read its own bill
 To undo: close PR <link> without merging. After a merge, tell me "undo this" and I will revert it.
 Budget used: <commits, files, time> of <budget>
 Loaded: execute.md
+Pictures: <the same required line, now for the after pictures too>
 ## Not tested
 - <item, and why>
 ```

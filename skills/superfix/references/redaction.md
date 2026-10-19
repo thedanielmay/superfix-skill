@@ -44,6 +44,7 @@ EOF
 ```
 
 - `NO-RUN-FOLDER` here means the key is wrong or the folder was never made: nothing was saved. Rebuild the key from the facts and append again.
+- A credential you SEE, not only one you are TOLD, goes on the list: one in the reporter's issue body, the chat, a URL the owner gave (its query string too), a file the run read (`.env`, config) or a log. Append it at once, and always before any picture is taken (evidence.md).
 
 - The list is a file, so it survives a restart. Blank lines are ignored by the check.
 - At the end of the run, delete this run's folder and nothing else. The guard prints `REFUSED` instead of deleting when the path is not one folder inside `~/.superfix/runs/` (an empty key, `..`, or a `/` in the key; a `+` is fine), so it can never delete `~/.superfix/runs/` itself:
@@ -102,6 +103,8 @@ Allowlist, never redacted:
 ### The reporter's own issue body
 
 `## Original report` is copied word for word, so it cannot be redacted. If the reporter's original issue body itself contains a credential (a `BLOCKED` or a real pattern hit inside it): stop, post nothing, and tell the owner in chat to edit the issue and rotate the credential. Continue only after the owner says it is done and the check prints `CLEAN`.
+
+That credential goes on the session list, so every picture already taken in this run is held (evidence.md).
 
 ### Repo visibility
 
