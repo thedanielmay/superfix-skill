@@ -1,6 +1,6 @@
 # superfix-skill
 
-Intelligent development orchestrator for Claude Code - takes a GitHub issue or freeform description and drives it end-to-end to a merged PR.
+Intelligent development orchestrator for Claude Code - takes a GitHub issue or freeform description and drives it end-to-end to an opened PR with CI green.
 
 ---
 
@@ -103,8 +103,8 @@ Nothing is hard-required. Superfix names Claude Code skills; any step whose skil
 - `architecture-deep-dive` - installed in this Claude Code setup, no verifiable upstream found; missing in opencode. Runs as an inline structural review.
 - `ui-ux-pro-max` ([nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)), `impeccable` ([pbakaus/impeccable](https://github.com/pbakaus/impeccable)) - registered but not installed in either harness here. Runs inline from UX intent.
 - `security` (threat-model step) - no such skill exists in either harness; the closest family is the memstack security skills ([cwinvestments/memstack](https://github.com/cwinvestments/memstack)). Always runs inline.
-- `webapp-testing` - no upstream found; Playwright steps run inline.
-- `simplify` - exists nowhere; the fallback is `refactor` above, else inline.
+- `webapp-testing` - ships as `example-skills:webapp-testing` in [anthropics/skills](https://github.com/anthropics/skills); where it is not installed the Playwright steps run inline.
+- `simplify` - bundled with some Claude Code versions, not a plugin. The fallback is the `code-simplifier` agent, then `refactor` above, else inline.
 
 ---
 
