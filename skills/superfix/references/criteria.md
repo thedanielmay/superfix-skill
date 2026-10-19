@@ -65,18 +65,21 @@ For example: `Duplicate members. Today: 8 (rows 14, 15 and 62). Must be 0.` and 
 
 ### 4. The questions
 
-Exact, after the problem questions and before the budget question, two per problem in criteria mode, with no recommended answer and never in the Simple short form:
+Exact, after the problem questions and before the budget question, with no recommended answer and never in the Simple short form. The two questions are asked ONCE per issue, for all the criteria-mode problems together; only when the problems touch different people or different files, once per group of problems with the same people and files (live tests: three small problems with two questions each made 11 questions; together it is 7):
 
 ```
-<n>. P<k> (problem <k>: <short name>): if every check above passes, would you consider this solved? (yes / no, and what is missing)
-<n+1>. P<k>: what must not get worse, for you or anyone affected (staff, customers)? My suggestions: <K lines in plain words>. (reply "those", add your own, or "none")
+<n>. P1, P2 and P3 (<short names>): if every check above passes, would you consider these solved? (yes / no, and what is missing)
+<n+1>. P1, P2 and P3: what must not get worse, for you or anyone affected (staff, customers)? My suggestions: <K lines in plain words, each with its problem>. (reply "those", add your own, or "none")
 ```
+
+- One problem: `<n>. P<k> (problem <k>: <short name>): ... would you consider this solved? ...`. Groups: one pair per group, each naming its problems and who or what it touches (`P1 and P2 (... ; the members sheet)`, `P3 (...; staff who claim mileage)`).
+- The answers apply to every problem in the group: a "yes" approves the `C` lines of each; "no, P2 ..." means rewrite P2's and ask again for P2 only. The lock records the approval per problem (`lock --approved P1,P2,P3`, section 12). The comment check asks each criteria-mode problem to be in exactly one of each question (`CRITERIA-QUESTIONS-MISSING P<k>`, `CRITERIA-QUESTIONS-TWICE P<k>`).
 
 - An unclear definition (a date that reads two ways, which row wins) gets its own numbered question before these two.
 - Meanings:
   - "yes" to the first approves the `C` lines; "no ..." means rewrite them and ask again; anything else means not approved yet.
   - "those" keeps the suggested `K` lines; added words become new `K` lines, shown back for a yes; "none" means no guard, recorded in ## Decision as `P<k>: You chose no 'must not get worse' check, so a fix could break something unnoticed.`
-  - Only "yes" to the first plus an answer to the second approves problem <k>.
+  - Only "yes" to the first plus an answer to the second approves the problems they name.
 - "Keep executing" (or "keep going", "yes to all") does not approve them, because these questions have no recommended answer. Say once, in chat and in the decision comment: `Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>.` The notice is APPENDED to the existing decision comment, never a new comment, so the comment counts in journal.md stay the same: record the decision comment's id when it is posted (the number after `#issuecomment-` in the URL `gh issue comment` prints) in `$HOME/.superfix/runs/<run-key>/decision-comment-id`, add the notice to the comment file, run the checks again, then `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<comment file>`. Never `--edit-last` (it edits the newest comment by whoever is logged in). Ask again once more, at most; then park that problem with Status `Waiting for you: <n> questions` (the label rule applies). Code and Qik problems in the same issue go ahead on their own answers.
 - Two more criteria questions, each with NO recommended answer (anything but an explicit yes is no), after the two above and before the budget question, only when they apply:
   - `<n>. The measure scripts cannot run in the macOS sandbox here (SANDBOX-MISSING), so nothing would stop a script reaching the network or writing files. Run them without it? (yes / no)` When it applies it is asked FIRST and alone (no baseline can be measured without it): stop on it; after an explicit yes, write `Internal: unsandboxed approved by <gh login, or the owner at the keyboard>, <YYYY-MM-DD HH:MM>` in ## Decision, then measure with `--unsandboxed-ok`. Every record and attempt line made that way is stamped (`SANDBOX off`, `sbx off`), and every criteria comment of that epoch carries the line `UNSANDBOXED: the measure scripts ran without the macOS sandbox, as you agreed.`
@@ -218,9 +221,10 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" sendcheck --log "<run.jsonl>
 ### 12. Lock (at go, before any change)
 
 ```bash
-python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" lock --run "$HOME/.superfix/runs/<run-key>" --issue '<owner>/<repo>#<N>' --scripts "<criteria folder>" --attempts "<criteria folder>/attempts" --data "<each original data file>" --by "<gh login, or the owner at the keyboard>"
+python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" lock --run "$HOME/.superfix/runs/<run-key>" --issue '<owner>/<repo>#<N>' --scripts "<criteria folder>" --attempts "<criteria folder>/attempts" --data "<each original data file>" --by "<gh login, or the owner at the keyboard>" --approved P1,P2,P3
 ```
 
+- `--approved` names every problem whose checks the owner approved (from his answers to the shared questions); the lock file records `approved P<k> by <who>` for each, and a problem left out is `CRITERIA-BAD approval`.
 - It hashes (sha256) every `P<k>-` line of `## Done when` with its checklist lines (each checkbox read as `[ ]`, so ticking a box never changes the lock), every `measure-*.py` in the criteria folder, and the real path of each original named by `--data` (repeat it per file). It writes `<criteria folder>/lock` (the hash, each script's sha, each data path), adds a `locked` line to the attempts file, and prints `Internal: criteria-sha <64 hex> (sha256), locked <YYYY-MM-DD HH:MM>, approved by <who>`, `Internal: crit-sha <64 hex> (sha256)` (the sha256 of this tool, for the owner's re-check) and `CRITERIA-LOCKED`. Both Internal lines go in ## Decision. The lock is written once; every later change goes through `amend`.
 - It refuses with `CRITERIA-BAD ...` (no criteria, a missing script, no `--data`, no approver, a baseline measured with another version of a script, or a baseline measured on a file not named by `--data`), `CRITERIA-INCOMPLETE <id>` (a `check` or `later` criterion with no baseline measure), or `ATTEMPTS-TAMPERED`.
 - The word `sha256` on the line lets redaction.md's pattern check pass the hash; never redact it. Any other sha in a comment or body is written next to the word `sha256` too.
@@ -330,13 +334,14 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 ```
 
 - Fences: a line starting (after any indent) with three or more backticks or tildes opens one; it closes only on the same character, at least as long, with nothing after it. An unclosed fence is `CRITERIA-FENCE-UNCLOSED`. Lines outside fences are read for the checks below, with their indent removed.
-- `decision`: `Criteria: PROPOSED <n>` (or `APPROVED <n>`) once in the AI detail below the LAST `---`, with `<n>` equal to the `P<k>-` lines; one plain line per criterion above the FIRST `---`, in exactly the section 3 form.
+- `decision`: `Criteria: PROPOSED <n> (P1, P2)` (or `APPROVED ...`), and `; NONE (P<k>: <why>)` for each Everything else problem with no checkable criterion, once in the AI detail below the LAST `---`, with `<n>` equal to the `P<k>-` lines and the named problems equal to theirs; one plain line per criterion above the FIRST `---`, in exactly the section 3 form; the two shared questions (section 4).
+- No gap note for a problem whose checks are proposed: a `Gap note: FILED|SEEN-AGAIN|LOCAL <n>` larger than the number of problems that are `NONE` on the `Criteria:` line or have an `owner` criterion (one that fell to the owner because nothing could check it), or a gap-list sentence ("P<k> ... is outside what I cover") for a problem with `check` or `later` criteria, is `LINES-GAP-WITH-CRITERIA`. This is the one place the gap-note rule is checked mechanically: the comment check runs right after the lines check on every criteria-mode post.
 - Every kind: `Criteria check: ` once, naming every criterion by its plain name, each `<plain name> <PASS|FAIL|ERROR|LATER YYYY-MM-DD|OWNER> (<value>)` or `(<before> -> <after>)`, separated by `, `. **Every criterion is recomputed:** a `check` criterion's word must be the verdict of its newest measured value, and one with no measured value is `CRITERIA-INCOMPLETE <id>`; a `later` criterion's word is `LATER <its re-measure date>` and an `owner` criterion's word is `OWNER`, never PASS.
 - Every kind: the line `attempts: <n> lines, head <8 hex>`, equal to the head record now (the tool printed it after its last write); and, when any measure in the epoch ran unsandboxed, the `UNSANDBOXED:` line (section 4).
 - `final`: one table row per criterion, `| <plain name> | <before> | <after> | <must be> | <result> |`. Before and after are plain numbers (a `later` after may be `LATER YYYY-MM-DD`; an `owner` row reads `OWNER` in before, after and result); `must be` is the pass line word for word; the result is the computed one. Note the two forms: the table's result cell is the bare word `LATER` (or `OWNER`), while the `Criteria check:` line writes `LATER <YYYY-MM-DD>`. Any other cell is `TABLE-CELL-UNCHECKED` and fails.
 - Values are compared at fixed places only (the pass line's own number is not a measure): the plain line's Today number and rows against the epoch's line 0 and its records; the `Criteria check:` values against the newest line that has that criterion (`<before>` against line 0); the table cells likewise. The attempt lines and records are checked as in section 14.
 - A personal-data scan reads EVERY line of the comment, fenced text included: an e-mail address, a phone-like number (8 or more digits), a link, a run of 9 or more digits, or a value after a label such as `Name:`, `Customer:` or `Phone:` is `CRITERIA-PII <what> (comment line <n>)`. Only these links are allowed: exactly `https://github.com/<owner>/<repo>/issues/<N>` or `.../pull/<N>`, with nothing after the number (no `#fragment`, query or further path), on the work repo (`--repo`) or the gap repo (`--gap-repo`). Every other link is scanned as text and fails, the gap list link (`...issues?q=...`) included. The numbers the tool validated itself (the Today number, the `Criteria check:` values, the table's before and after cells, the `attempts:` line) are not scanned for long digit runs, so a count of 10 million or more can be shown.
-- It prints `CRITERIA-OK`, or one line each: `CRITERIA-MISSING <what>`, `CRITERIA-COUNT <n>/<m>`, `CRITERIA-IDS-MISSING <names>`, `CRITERIA-INCOMPLETE <id>`, `CRITERIA-PLAIN-BAD <name> (<why>)`, `CRITERIA-VALUE-MISMATCH <name> comment <a> measured <b>` (or `computed <b>`), `TABLE-CELL-UNCHECKED <name> <cell>`, `CRITERIA-PII <what>`, `CRITERIA-FENCE-UNCLOSED`, `ATTEMPTS-TAMPERED`, or a lock word. Post only after `LINES-OK` and `CRITERIA-OK`.
+- It prints `CRITERIA-OK`, or one line each: `CRITERIA-MISSING <what>`, `LINES-GAP-WITH-CRITERIA`, `CRITERIA-QUESTIONS-MISSING <P>`, `CRITERIA-QUESTIONS-TWICE <P>`, `CRITERIA-COUNT <n>/<m>`, `CRITERIA-IDS-MISSING <names>`, `CRITERIA-INCOMPLETE <id>`, `CRITERIA-PLAIN-BAD <name> (<why>)`, `CRITERIA-VALUE-MISMATCH <name> comment <a> measured <b>` (or `computed <b>`), `TABLE-CELL-UNCHECKED <name> <cell>`, `CRITERIA-PII <what>`, `CRITERIA-FENCE-UNCLOSED`, `ATTEMPTS-TAMPERED`, or a lock word. Post only after `LINES-OK` and `CRITERIA-OK`.
 
 ### 19. Final comment additions
 
@@ -349,7 +354,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 
 - A problem with no checkable criterion (section 1) stops at diagnosis and gets one note (gaps.md), kind "no checkable criterion".
 - One note when a criterion would have been `check` but Superfix had no tool or access to measure it, so it fell to `later` or `owner`.
-- A problem fully handled in criteria mode gets no note.
+- A problem fully handled in criteria mode gets no note and no gap-list sentence: no gap note for a problem that has checks proposed (`LINES-GAP-WITH-CRITERIA`, section 18).
 - In a criteria-mode comment the gap note line (gaps.md) ends after the note's own link; the "All notes, most seen first" list link is left out, because the comment check allows only issue and PR links.
 
 ### 21. Not tested lines (exact)
@@ -921,7 +926,14 @@ def cmd_lock(a):
     if bad:
         print("\n".join(dict.fromkeys(bad)))
         return 1
+    probs = sorted({c["p"] for c in cs if c.get("name")})
+    appr = sorted({int(x) for v in (a.approved or []) for x in re.findall(r"P?(\d+)", v)}) if a.approved != ["all"] else probs
+    if a.approved is None or [k for k in probs if k not in appr]:
+        print(f"CRITERIA-BAD approval (name every problem the owner approved: --approved P1,P2,...; missing {', '.join('P%d' % k for k in probs if k not in appr)})")
+        return 1
     sha = write_lock(text, sc, data, a.by.strip())
+    with open(sc / "lock", "a") as f:
+        f.write("".join(f"approved P{k} by {a.by.strip()}\n" for k in probs))
     if all_lines(a.attempts) or ids:
         append_line(a.attempts, f"locked {now()} {sha}")
     print_lock(sha, a.by.strip())
@@ -1519,15 +1531,41 @@ def cmd_comment(a):
     def last(i):
         return next((r for r in reversed(rows) if i in r["v"]), new)
 
+    none_ps = set()
     if a.kind == "decision":
         cl = [l for l in ai if l.startswith("Criteria: ")]
         if len(cl) != 1:
             bad.append("CRITERIA-MISSING Criteria:")
         else:
-            m = re.match(r"^Criteria: (PROPOSED|APPROVED) (\d+)$", cl[0])
+            m = re.match(r"^Criteria: (PROPOSED|APPROVED) (\d+)(?: \((P\d+(?:, P\d+)*)\))?((?:; NONE \(P\d+[^)]*\))*)$", cl[0])
             got = int(m.group(2)) if m else 0
             if got != len(cs):
                 bad.append(f"CRITERIA-COUNT {got}/{len(cs)}")
+            if m and m.group(3) and {int(x) for x in re.findall(r"\d+", m.group(3))} != {c["p"] for c in cs}:
+                bad.append("CRITERIA-MISSING the Criteria: line names other problems than ## Done when")
+            none_ps = {int(x) for x in re.findall(r"NONE \(P(\d+)", m.group(4) or "")} if m else set()
+        # F1 (live tests): no gap note for a problem whose checks are proposed
+        allowed_ps = (none_ps if cl else set()) | {c["p"] for c in cs if c["kind"] == "owner"}
+        checkable_ps = {c["p"] for c in cs if c["kind"] in ("check", "later")} - allowed_ps
+        g = sum(int(m2.group(2)) for l in ai if (m2 := re.match(r"^Gap note: (FILED|SEEN-AGAIN|LOCAL) (\d+)", l)))
+        if g > len(allowed_ps):
+            bad.append(f"LINES-GAP-WITH-CRITERIA (Gap note: {g}, but only {len(allowed_ps)} problem(s) have no checkable criterion or a criterion that fell to OWNER)")
+        # F2 (live tests): the two criteria questions, once per problem, asked for a group of problems together
+        qs = {"solved": collections.Counter(), "worse": collections.Counter()}
+        for l in plain:
+            mq = re.match(r"^\d+\. (P\d+(?:(?:, P\d+)*(?:,? and P\d+))?)\b(.*)$", l)
+            if not mq:
+                continue
+            ps = [int(x) for x in re.findall(r"P(\d+)", mq.group(1))]
+            key = "solved" if re.search(r"would you consider (this|these|them|it) solved", mq.group(2)) else "worse" if "what must not get worse" in mq.group(2) else None
+            if key:
+                qs[key].update(ps)
+        for k in sorted({c["p"] for c in cs if c["kind"] in ("check", "later", "owner")}):
+            for key, word in (("solved", "would you consider ... solved"), ("worse", "what must not get worse")):
+                if qs[key][k] == 0:
+                    bad.append(f"CRITERIA-QUESTIONS-MISSING P{k} ({word})")
+                elif qs[key][k] > 1:
+                    bad.append(f"CRITERIA-QUESTIONS-TWICE P{k} ({word}: ask it once, for the group)")
     ck = [l for l in lines if l.startswith("Criteria check: ")]
     if len(ck) != 1:
         bad.append("CRITERIA-MISSING Criteria check:")
@@ -1611,6 +1649,10 @@ def cmd_comment(a):
             want = verdict(c, r["v"][c["id"]], base["raw"].get(c["id"])) if c["id"] in r["v"] else None
             if not ((c["kind"] == "check" and result == want) or (c["kind"] == "later" and result == "LATER")):
                 bad.append(f"TABLE-CELL-UNCHECKED {c['name']} result (computed {want if c['kind'] == 'check' else 'LATER'})")
+    for l in lines:     # every kind: a gap-list sentence for a problem with checks proposed
+        mg = re.match(r"^P(\d+) \(problem \d+: [^)]*\) is outside what I cover", l)
+        if mg and int(mg.group(1)) in {c["p"] for c in cs if c["kind"] in ("check", "later")} - {c["p"] for c in cs if c["kind"] == "owner"}:
+            bad.append(f"LINES-GAP-WITH-CRITERIA P{mg.group(1)} (no gap note and no gap-list sentence for a problem that has checks proposed)")
     names = [c["name"].lower() for c in cs]
     bad += pii([blank_slots(l, names) for l in raw_lines], {r.lower() for r in [a.repo] + (a.gap_repo or [])})   # every line, fenced text included
     print("\n".join(dict.fromkeys(bad)) if bad else "CRITERIA-OK")
@@ -2064,7 +2106,7 @@ def main():
     s.add_argument("--attempts"); s.add_argument("--expect", choices=["PASS", "FAIL"]); s.add_argument("--asked", action="store_true")
     s.add_argument("--neg-of"); s.add_argument("--defect"); s.add_argument("--unsandboxed-ok", action="store_true")
     s.add_argument("--timeout", type=int, default=120)
-    s = p("lock", cmd_lock, "scripts", "by", "run", "attempts", body=True); s.add_argument("--data", action="append")
+    s = p("lock", cmd_lock, "scripts", "by", "run", "attempts", body=True); s.add_argument("--data", action="append"); s.add_argument("--approved", action="append")
     s = p("lockcheck", cmd_lockcheck, "scripts", "attempts", body=True); s.add_argument("--run")
     s = p("baseline", cmd_baseline, "run", "attempts", "scripts", "label", body=True); run_args(s); s.add_argument("--redo", action="store_true")
     s = p("attempt", cmd_attempt, "run", "attempts", "scripts", "label", body=True); run_args(s); s.add_argument("--recheck", action="store_true")
