@@ -3,14 +3,15 @@ name: superfix
 description: >-
   Intelligent development orchestrator - accepts a GitHub issue number or
   freeform description of a bug, feature, UX change, or architecture change
-  and drives it to a merged PR. Classifies the problem, assembles the right
-  skill set, and manages the full workflow. Triggers on: superfix, issue #N,
-  fix #N, implement #N, or any work description.
+  and drives it to an opened PR with CI green. Classifies the problem,
+  assembles the right skill set, and manages the full workflow. Triggers on:
+  superfix, issue #N, fix #N, implement #N, or a request to fix, build or
+  change something in code.
 ---
 
 # Superfix Orchestrator
 
-Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to a merged PR without requiring manual skill invocation or step breakdown.
+Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
 
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
@@ -77,10 +78,15 @@ State it in conversation if no issue.
 When working from a GitHub issue, the issue is the single source of truth for the work. Apply this pattern throughout the pipeline:
 
 **Issue body = living spec/plan**
-Keep the issue body current. After Phase 0 and after any plan is written or significantly revised, edit the issue body to reflect the current spec, scope, and key decisions. The body should always answer: "what are we building, why, and what's out of scope?"
+Keep the issue body current, but never overwrite what the reporter wrote.
+- First edit: copy the existing body word for word under a `## Original report` heading at the bottom. Never edit that section afterwards.
+- Later edits: if the body already has `## Original report`, keep everything from that heading to the end untouched and rewrite only the sections above it.
+- After Phase 0 and after any plan is written or significantly revised, update those sections. They should always answer: "what are we building, why, and what's out of scope?"
+- Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
 
 ```bash
-gh issue edit <N> --body "$(cat <<'EOF'
+ORIG="$(gh issue view <N> --json body -q .body)"   # if it has no "## Original report" yet, nest it below
+gh issue edit <N> --body "$(cat <<EOF
 ## Summary
 <one paragraph: what this is and why>
 
@@ -95,7 +101,10 @@ gh issue edit <N> --body "$(cat <<'EOF'
 - <decision 2>
 
 ## Plan
-docs/superpowers/plans/<filename>.md
+docs/superpowers/plans/<filename>.md   <!-- only when a plan exists -->
+
+## Original report
+$ORIG
 EOF
 )"
 ```
@@ -121,16 +130,18 @@ gh issue comment <N> --body "✅ Phase N complete - [one sentence summary of out
 
 ## Classification Rules
 
-### Type detection (apply in priority order)
+### Type detection (apply in priority order; security signals win over bug signals)
 
 | Signals | Type |
 |---------|------|
+| Labels: `security`, `vuln`, `cve`; keywords: "injection", "auth bypass", "XSS", "CSRF", "exposed", "CVE", "vulnerability" | `security` |
 | Labels: `bug`, `regression`; keywords: "broken", "error", "exception", "crash", "not working", "fails" | `bug` |
 | Labels: `performance`, `perf`, `optimization`; keywords: "slow", "latency", "N+1", "cache", "index", "timeout" | `performance` |
 | Labels: `ui`, `ux`, `frontend`, `design`, `a11y`; keywords: "layout", "style", "visual", "animation", "mobile", "component", "accessibility" | `ux` |
-| Labels: `security`, `vuln`, `cve`; keywords: "injection", "auth bypass", "XSS", "CSRF", "exposed", "CVE", "vulnerability" | `security` |
 | Labels: `architecture`, `refactor`, `epic`; cross-cutting scope, multiple subsystems, structural change | `architecture` |
 | Everything else | `feature` |
+
+If a security signal and another type both match (for example "XSS error"), `security` is primary and the other type is secondary (see Compound issues).
 
 ### Complexity tier (provisional from issue text; confirmed after exploration)
 
@@ -201,7 +212,7 @@ Applies to **Moderate and Complex** only. Simple goes directly to Phase 3.
 | `performance` | Plan based on measured baseline; state target improvement metric |
 | `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
 | `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
-| `security` | `security` skill - produce threat model; identify trust boundaries and attack surface [opus/high] |
+| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
 | `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
 
 ### Plan
@@ -337,7 +348,7 @@ implement improvement [sonnet/high]
 superpowers:test-driven-development [sonnet/high]
 → implement [sonnet/high]
 → react-vite-best-practices (if React components changed) [sonnet/high]
-→ Playwright visual verification (document-skills:webapp-testing) [sonnet/high]
+→ Playwright visual verification (example-skills:webapp-testing) [sonnet/high]
 → accessibility (WCAG 2.2 check on changed components) [sonnet/high]
 → simplify [sonnet/high]
 → re-run impacted tests
@@ -367,8 +378,8 @@ implement fix [sonnet/high]
 → run tests
 → simplify [sonnet/high]
 → re-run impacted tests
-→ code-security-audit (primary - 80%+ confidence threshold) [sonnet/high]
 → pr-review-toolkit:code-reviewer (cross-check) [sonnet/high]
+→ code-security-audit (primary - 80%+ confidence threshold) [sonnet/high]
 → pr-review-toolkit:silent-failure-hunter [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
@@ -467,13 +478,13 @@ If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the sa
 | `ui-ux-pro-max` | 2 | ux | inline from UX intent |
 | `impeccable` (sub-skills) | 2 + 3 | ux | inline from UX intent |
 | `accessibility` | 2 + 3 | ux | same name both |
-| `security` | 2 | security | `security-audit` |
+| threat model (inline) | 2 | security | `security-audit` for guidance, else inline |
 | `code-security-audit` | 1 (security - pre-plan scan) + 3 (all) | all | same name, else inline review |
 | `superpowers:writing-plans` | 2 | Moderate + Complex | `writing-plans` skill |
 | `expert-panel` | 2 | all Moderate + Complex | same where installed, else structured self-review |
 | `superpowers:test-driven-development` | 3 | bug, ux, feature | `test-driven-development` skill |
 | `react-vite-best-practices` | 3 | ux | same name, else inline |
-| `document-skills:webapp-testing` | 3 | ux (Playwright visual) | `webapp-testing`, else Playwright steps inline |
+| `example-skills:webapp-testing` | 3 | ux (Playwright visual) | `webapp-testing`, else Playwright steps inline |
 | `pr-review-toolkit:code-reviewer` | 3 | all | `code-reviewer` subagent |
 | `pr-review-toolkit:silent-failure-hunter` | 3 | all | `silent-failure-hunter` subagent |
 | `pr-review-toolkit:type-design-analyzer` | 3 | architecture, feature (new types only) | `type-design-analyzer` subagent |
