@@ -137,7 +137,10 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
 - When the work needs a login, add one line: "Please don't type passwords here. Name the 1Password item instead."
 - First mention of any P number in a message reads "P1 (problem 1: <short name>)".
-- One coverage line per problem, in plain words, before the numbered questions (wording in SKILL.md, Coverage check).
+- One coverage line per problem, in plain words, before the numbered questions:
+  - Code: This is a code problem, because you wrote "<quote>". I can find the cause and fix it.
+  - Qik: This is a Qik settings problem, because you wrote "<quote>". I can fix it in the draft, but my Qik fixing is not yet proven by a test, so you check it and publish.
+  - Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
 - Simple with one problem: the short form, three lines (problem, fix, effort) and "Go?". The effort line carries the budget in its plain wording.
 - Write `Loaded: journal.md` (and the other references read so far) in the AI detail part.
 
@@ -163,3 +166,56 @@ Question 1 of the decision message:
 - `## Original report` holds the owner's description, with every credential replaced by `[redacted]` (redaction check first).
 - Comments become dated `### <YYYY-MM-DD HH:MM> <stage>` entries appended at the end, each starting with the plain-English callout.
 - Say the file path in chat every time you stop.
+
+### Plan comment (Moderate, Complex, after the expert panel)
+
+```
+> **In plain English:** The plan passed expert review and I am starting the fix. Nothing needed from you now.
+
+Plan: docs/superpowers/plans/<filename>.md
+Key decisions: [brief summary]
+```
+Post it with `--body-file` (Comment format above).
+
+### Final comment (Phase 4, after CI is green)
+
+```
+> **In plain English:** PR <link> is open and its checks are green. Please review and merge it.
+
+Solved check: run 1 <output>, run 2 <output>, run 3 <output>
+Budget used: <commits, files, time> of <budget>
+Loaded: execute.md
+## Not tested
+- <item, and why>
+```
+Without an issue, write the same as a journal entry and say it in chat.
+
+### Context file (Moderate, Complex)
+
+After plan is written, create `docs/superpowers/plans/<slug>-context.md` using this structure:
+
+```markdown
+# Context: <slug>
+
+## Problem Profile
+- Primary type: <type>
+- Secondary type: <type or none>
+- Complexity: <tier>
+- Skill manifest: <ordered list>
+
+## Problem Description
+<full issue text or conversation summary>
+
+## Plan
+Path: docs/superpowers/plans/<plan-filename>.md
+
+## Key Decisions from Exploration
+- <decision 1>
+- <decision 2>
+
+## Relevant Files
+- <path>: <why relevant>
+
+## Evidence
+<copied from ## Problems in the issue body or journal file>
+```

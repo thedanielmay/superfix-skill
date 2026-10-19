@@ -18,8 +18,6 @@ It diagnoses first and stops for approval before fixing: one decision message pe
 
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
----
-
 ## Model & Effort Policy
 
 Applied automatically. No user configuration required.
@@ -33,8 +31,6 @@ Applied automatically. No user configuration required.
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 
 Skill names are Claude Code names. If a name does not resolve, use the opencode equivalent from the inventory; if neither exists, do the step inline from its stated purpose and write `ran inline: <skill>` in the PR body. Never skip tests or verification.
-
----
 
 ## Input Handling
 
@@ -51,8 +47,6 @@ never in the working tree. Read `references/journal.md` before the first
 comment, body edit or journal entry.
 
 If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
-
----
 
 ## Phase 0 - Problem Profile
 
@@ -80,13 +74,9 @@ Do not post it as a comment. The Problem Profile goes in the AI detail part of t
 
 State it in conversation if no issue.
 
----
-
 ## GitHub Issue as Work Journal
 
 When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced or the file-mode journal is needed, before the first comment, body edit or journal entry, and write `Loaded: journal.md` in the decision comment.
-
----
 
 ## Classification Rules
 
@@ -98,19 +88,12 @@ When working from a GitHub issue, the issue is the single source of truth for th
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
 | Everything else | documents, process, sheets, business, anything not above | diagnose only, low confidence |
 
-Write the result at the top of the Problem Profile:
-  Coverage: <Code | Qik configuration | Everything else>
-  Trigger:  "<the exact words from the report that matched>"
-  Evidence: <one observation that confirms it, e.g. the file exists>
+Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile.
+The plain coverage line for the decision message is in `references/journal.md`.
 Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
 "Everything else" stop at diagnosis even after approval.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
-
-Coverage line in the decision message, one per problem:
-- Code: This is a code problem, because you wrote "<quote>". I can find the cause and fix it.
-- Qik: This is a Qik settings problem, because you wrote "<quote>". I can fix it in the draft, but my Qik fixing is not yet proven by a test, so you check it and publish.
-- Everything else: This is not code or Qik, because you wrote "<quote>". I can only work out what is wrong, not fix it. My findings are low confidence because nothing can be run to prove them.
 
 ### Type detection (apply in priority order; security signals win over every other type)
 
@@ -137,8 +120,6 @@ If a security signal and another type both match (for example "XSS error"), `sec
 
 **Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
 
----
-
 ## Phase 1 - Explore and Diagnose
 
 Run before writing a single line of code. Exploration is type-aware.
@@ -148,11 +129,8 @@ the exploration skills collect the evidence, the method decides what it proves.
 Diagnosis does not fix anything. Before approval the only writes allowed are
 the journal, a scratch folder outside the repo, and a detached worktree in that
 folder (removed before the stop). No branch. No edits to tracked files. No Qik
-writes.
-
-### Exploration by type
-
-Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` (and `diagnose.md`) in the decision comment, or in your next message to the user if there is no issue.
+writes. Write `Loaded: explore.md, diagnose.md` in the decision comment, or in
+your next message to the user if there is no issue.
 
 ### After exploration: confirm complexity tier
 
@@ -161,8 +139,6 @@ Re-assess the provisional tier. If scope is larger than described, upgrade and s
 End of Phase 1, every tier: write `## Problems` (the evidence note: failing
 check and its output, baseline numbers, cause confirmed or suspected, ruled
 out and how, Tools used). Later steps read evidence from here.
-
----
 
 ## Stop gate
 
@@ -210,8 +186,6 @@ redacted. If something already leaked: delete the comment (never edit it,
 GitHub keeps edit history), tell the owner to rotate the credential, and say
 what leaked where.
 
----
-
 ## Phase 2 - Design & Plan
 
 Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
@@ -239,33 +213,7 @@ Plan must document:
 
 ### Context file
 
-After plan is written, create `docs/superpowers/plans/<slug>-context.md` using this structure:
-
-```markdown
-# Context: <slug>
-
-## Problem Profile
-- Primary type: <type>
-- Secondary type: <type or none>
-- Complexity: <tier>
-- Skill manifest: <ordered list>
-
-## Problem Description
-<full issue text or conversation summary>
-
-## Plan
-Path: docs/superpowers/plans/<plan-filename>.md
-
-## Key Decisions from Exploration
-- <decision 1>
-- <decision 2>
-
-## Relevant Files
-- <path>: <why relevant>
-
-## Evidence
-<copied from ## Problems in the issue body or journal file>
-```
+After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
 
 **Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
 
@@ -277,20 +225,11 @@ Invoke `expert-panel` [opus/high] after plan is written, at the plan→implement
 - Must-fix findings addressed before implementation proceeds
 - Update the plan with any must-fix resolutions
 - Post comment if issue exists:
-
-```
-> **In plain English:** The plan passed expert review and I am starting the fix. Nothing needed from you now.
-
-Plan: docs/superpowers/plans/<filename>.md
-Key decisions: [brief summary]
-```
-Post it with `--body-file` (journal.md, Comment format).
+  the plan comment in `references/journal.md`, posted with `--body-file`.
 
 **Max 2 expert panel passes.** If must-fix items remain after pass 2, escalate to the user with specific questions.
 
 If the panel overturns the approved option or breaks the approved budget, go back to the owner at once with one batched decision message (Stop gate form) and wait. That is not a pass. Must-fix items left after pass 2 go to the owner in the same message form.
-
----
 
 ## Phase 3 - Execute
 
@@ -399,8 +338,6 @@ Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
 These are in `references/execute.md`. Read it in full before implementing (see the start of Phase 3).
 
----
-
 ## Phase 4 - Close
 
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
@@ -413,21 +350,9 @@ The PR body and the final comment both end with:
 - <each thing not checked, and why>
 An empty list says "Nothing known untested". Never leave it out.
 
-If GitHub issue exists, post the final comment (journal.md, Comment format) and set the Status line to "Ready for review: PR <link>":
-```
-> **In plain English:** PR <link> is open and its checks are green. Please review and merge it.
-
-Solved check: run 1 <output>, run 2 <output>, run 3 <output>
-Budget used: <commits, files, time> of <budget>
-Loaded: execute.md
-## Not tested
-- <item, and why>
-```
-Without an issue, write the same as a journal entry and say it in chat.
+If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
-
----
 
 ## Shortcuts
 
@@ -435,8 +360,6 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 |-----------|----------|
 | Plan already exists in `docs/superpowers/plans/` | Run exploration as normal; skip design step and `writing-plans`; create context file from existing plan; verify plan reflects current codebase state before expert panel. The Stop gate still applies; offer the existing plan as the recommended option. |
 | PR already exists | Use `pr-review-toolkit:review-pr` instead of `code-reviewer` in execute phase |
-
----
 
 ## Red Flags
 
@@ -458,14 +381,10 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
 
----
-
 ## Out of Scope
 
 - `roadmap-planning` - sits above this orchestrator; invoke separately for planning work
 - Observability tooling - post-deployment concern; not part of pre-merge workflow
-
----
 
 ## Skill Inventory Reference
 
