@@ -163,7 +163,7 @@ Question 1 of the decision message:
 - Path: `~/.superfix/journal/<owner>-<repo>/<YYYY-MM-DD>-<slug>.md`, or `~/.superfix/journal/<folder-name>/<YYYY-MM-DD>-<slug>.md` when there is no remote. `mkdir -p` the folder first.
 - It is never inside the repo, so it is never committed and never breaks the `git status --porcelain` check.
 - Same body template as above. The Status line is the file's first line, updated in place.
-- `## Original report` holds the owner's description, with every credential replaced by `[redacted]` (redaction check first).
+- `## Original report` holds the owner's description copied exactly, including URLs, record ids and commit ids. Only a credential is replaced by `[redacted]` (redaction check first). Never summarise or reword it.
 - Comments become dated `### <YYYY-MM-DD HH:MM> <stage>` entries appended at the end, each starting with the plain-English callout.
 - Say the file path in chat every time you stop.
 

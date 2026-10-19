@@ -2,7 +2,7 @@
 
 New in 1.3.0. SKILL.md Phase 1 says when to read this file. The exploration skills in `references/explore.md` collect the evidence; this method decides what the evidence proves. Diagnosis does not fix anything. It ends at the Stop gate in SKILL.md.
 
-Before approval the only writes allowed are the journal, a scratch folder outside the repo, and a detached worktree inside that folder (removed before the stop). No branch, no edits to tracked files, no Qik writes, no change to org data, roles or permissions.
+Before approval the only writes allowed are the journal, a scratch folder outside the repo, and a detached worktree inside that folder (removed before the stop). No branch, no edits to tracked files, no Qik writes, no change to org data, roles or permissions. Run installs and test commands (`npm install`, `pip install`, a build) in the scratch worktree, never in the repo, so no stray file such as `package-lock.json` is left. If `git status --porcelain` is not empty at the stop, remove the stray file and say so.
 
 ### Method
 
