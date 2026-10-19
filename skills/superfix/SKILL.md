@@ -22,10 +22,11 @@ Supersedes `change-pipeline` - do not invoke change-pipeline.
 
 Applied automatically. No user configuration required.
 
-Haiku for file reads, symbol lookups and quick checks; Sonnet for exploration,
-planning, implementation and review; Opus for expert panel, brainstorming,
-complex architecture judgment and ambiguous cross-cutting triage. All at high
-effort (table in `references/inventory.md`).
+| Task category | Model | Effort |
+|---------------|-------|--------|
+| File reads, symbol lookups, quick checks | Haiku | High |
+| Exploration, planning, implementation, review | Sonnet | High |
+| Expert panel, brainstorming, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
 
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 
@@ -208,7 +209,14 @@ Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop 
 
 ### Design step (type-specific, before writing-plans)
 
-Run the design step for the type, from the table in `references/explore.md` (Design step), before writing-plans.
+| Type | Design approach |
+|------|----------------|
+| `bug` | No design step - exploration output feeds directly into plan |
+| `performance` | Plan based on measured baseline; state target improvement metric |
+| `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
+| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
+| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
+| `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
 
 ### Plan
 
@@ -393,7 +401,13 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
 
+## Out of Scope
+
+- `roadmap-planning` - sits above this orchestrator; invoke separately for planning work
+- Observability tooling - post-deployment concern; not part of pre-merge workflow
+
+---
+
 ## Skill Inventory Reference
 
 The table of every skill this orchestrator can employ, with the opencode name or fallback for each, is in `references/inventory.md`. Read it only when a named skill does not resolve (see Model & Effort Policy).
-Out of scope (`roadmap-planning`, observability tooling) is listed there too.
