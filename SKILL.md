@@ -129,6 +129,8 @@ the exploration skills collect the evidence, the method decides what it proves.
 Diagnosis fixes nothing. Before approval the only writes allowed are the
 journal, a scratch folder outside the repo, and a detached worktree in it
 (removed before the stop): no branch, no edits to tracked files, no Qik writes.
+Also allowed before approval, PRIVATE repo only: evidence pictures uploaded to
+its `assets` release through the upload gate in references/evidence.md.
 Write `Loaded: explore.md, diagnose.md` in the decision comment, or in your next
 message if there is no issue.
 
@@ -139,6 +141,14 @@ Re-assess the provisional tier. If scope is larger than described, upgrade and s
 End of Phase 1, every tier: write `## Problems`, the evidence note (failing check
 and output, baseline, cause confirmed or suspected, ruled out and how, Tools
 used). Later steps read evidence from here.
+
+### Evidence pictures (only when a screen shows the problem)
+Read `references/evidence.md` in full before the first picture; write `Loaded: evidence.md` in the decision comment.
+- Command, test, log and backend output stays text, never an image.
+- Probe first: BROWSER-SCRIPT, BROWSER-MCP (only when the list is NO-LIST) or NO-BROWSER.
+- Red box numbered like the problem, one caption that says it all in words. Width or height 0: no mark.
+- Upload only with evidence.md's one upload command, only to a PRIVATE repo. Public: upload nothing.
+- Never paste a session secret into a browser tool call; Claude in Chrome is never a picture source. Never read a mark-*.side file.
 
 ## Stop gate
 
