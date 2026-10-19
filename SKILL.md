@@ -144,7 +144,7 @@ out and how, Tools used). Later steps read evidence from here.
 
 Every tier, every run, unless the fast lane was asked for in this run.
 
-1. ## Problems, ## Options and ## Done when are written (journal.md template).
+1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
 2. Status line: "Waiting for you: <N> questions".
