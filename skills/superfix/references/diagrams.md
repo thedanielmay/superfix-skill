@@ -83,7 +83,7 @@ It writes a normalised copy (`<name>.norm.txt`: entities decoded, zero-width and
 ```bash
 umask 077; D="$HOME/.superfix/runs/<run-key>"; N='<name>'; PY='<python>'; SK='<SK>'; F="$D/diagrams/$N.html"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ ! -f "$F" ]; then echo "DIAGRAM-SOURCE-BLOCKED missing"; else B="$("$PY" -I -c 'import html, re, sys
 f = sys.argv[1]; s = open(f, encoding="utf-8", errors="replace").read()
-zw = re.compile("[­​-‏⁠﻿‪-‮]")
+zw = re.compile("[\u00ad\u200b-\u200f\u2060\ufeff\u202a-\u202e]")
 t = re.sub(r"\s+", " ", zw.sub("", html.unescape(re.sub(r"<[^>]*>", "", s))))
 open(f[:-5] + ".norm.txt", "w").write(zw.sub("", html.unescape(s)) + "\n" + t + "\n")
 open(f[:-5] + ".flat.txt", "w").write(re.sub(r"\s+", "", t) + "\n")
