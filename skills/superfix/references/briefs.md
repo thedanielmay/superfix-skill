@@ -6,12 +6,18 @@ New in 1.3.0. Read only after the owner approves at the Stop gate. Agents never 
 
 FIX AGENT BRIEF (Moderate, Complex): branch, context file, plan file, Problem
 Profile, execute.md path, this file's path, the budget and approval-sha from
-the ## Decision section, the session redaction file path. Before every commit, run the
-budget commands; over any limit, stop and return a message whose first line is
-exactly BUDGET STOP, then done, left, used versus budget. Before every push or
-post, run the redaction check (references/redaction.md, absolute path given).
-Run the solved check before declaring done. Tick plan checkboxes as you go.
-Do not post to GitHub; return results to the caller.
+the ## Decision section, the session list path `~/.superfix/session-secrets`.
+Before every commit, run the budget commands; over any limit, stop and return
+a message whose first line is exactly BUDGET STOP, then done, left, used
+versus budget. Run the solved check before declaring done. Tick plan
+checkboxes as you go.
+
+GitHub rule (the only one): you may commit locally, push the branch and open
+the PR, each only after the redaction checks in references/redaction.md
+(absolute path given) print CLEAN or NO-LIST, and PATTERN-CLEAN or hits you
+decided, on the diff, the commit messages and the PR body file. Open the PR
+with `--body-file`. Never post issue comments, edit the issue body or change
+the Status line: return those results to the caller, which posts them.
 
 Budget commands (copy into the brief with the real values):
 
