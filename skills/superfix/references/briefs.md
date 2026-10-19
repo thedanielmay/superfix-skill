@@ -19,6 +19,15 @@ decided, on the diff, the commit messages and the PR body file. Open the PR
 with `--body-file`. Never post issue comments, edit the issue body or change
 the Status line: return those results to the caller, which posts them.
 
+Qik work (copy into the brief when the coverage row is Qik configuration): no
+git branch; plan and context files live in `~/.superfix/journal/<name>/`.
+1. Back up before the first edit: the exact before text and the undo step, in a
+   folder outside any repo. No backup, no edit.
+2. Edit the draft only.
+3. Never publish. Say "in the draft", never "live".
+4. If the qik skill has no backup recipe for what you are changing, stop and
+   return the question. Do not invent one.
+
 Budget commands (copy into the brief with the real values):
 
 ```bash
