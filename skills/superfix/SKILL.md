@@ -136,17 +136,76 @@ If a security signal and another type both match (for example "XSS error"), `sec
 
 ---
 
-## Phase 1 - Explore
+## Phase 1 - Explore and Diagnose
 
 Run before writing a single line of code. Exploration is type-aware.
+Read `references/explore.md` and `references/diagnose.md` in full now. Run the
+exploration for the primary (and secondary) type inside the diagnosis method:
+the exploration skills collect the evidence, the method decides what it proves.
+Diagnosis does not fix anything. Before approval the only writes allowed are
+the journal, a scratch folder outside the repo, and a detached worktree in that
+folder (removed before the stop). No branch. No edits to tracked files. No Qik
+writes.
 
 ### Exploration by type
 
-Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` in the Phase 1 progress comment, or in your next message to the user if there is no issue.
+Read `references/explore.md` in full (this skill's base directory) and run the exploration listed for the primary type, and for the secondary type if there is one. Write `Loaded: explore.md` (and `diagnose.md`) in the decision comment, or in your next message to the user if there is no issue.
 
 ### After exploration: confirm complexity tier
 
-Re-assess the provisional tier. If scope is larger than described, upgrade and state why. Post updated comment if issue exists.
+Re-assess the provisional tier. If scope is larger than described, upgrade and state why. Put the confirmed tier in the decision comment.
+
+End of Phase 1, every tier: write `## Problems` (the evidence note: failing
+check and its output, baseline numbers, cause confirmed or suspected, ruled
+out and how, Tools used). Later steps read evidence from here.
+
+---
+
+## Stop gate
+
+Every tier, every run, unless the fast lane was asked for in this run.
+
+1. ## Problems, ## Options and ## Done when are written (journal.md template).
+   The ## Done when section quotes the owner's own description of the problem (redacted):
+   that is the acceptance criterion.
+2. Status line: "Waiting for you: <N> questions".
+3. Run the redaction check (below), then post ONE decision comment, or write
+   it to the file-mode journal. It holds every question for this run,
+   numbered, each with the recommended answer, the effort and the budget.
+   Simple with one problem: three lines (problem, fix, effort) and "Go?".
+4. Say the same in chat and END THE TURN. Do not create a branch, edit a
+   tracked file, write to Qik, read references/execute.md or
+   references/briefs.md, or start any Phase 2 or 3 step until a go arrives.
+
+Go: "yes", "go", "1 yes, 2 option two", "keep going", "keep executing", "do
+it", or any reply that answers every question. "Keep going" style replies
+accept every recommendation. A reply that answers only some questions: ask
+only the rest. Anything else (a question, a new fact): answer it, update the
+record, stay stopped.
+
+On go: write ## Decision (below) as a body update, no comment. Record
+approval-sha = `git rev-parse origin/<default-branch>` and the approval time.
+Status "Fixing problem 1 of <N>".
+
+Fast lane: only when THIS run's request says so ("just fix it", "don't
+wait"). Only for one problem, Simple tier, row Code, type not security.
+Still run Phase 1 and write ## Problems; post the decision message as a
+notice and continue. Otherwise say in one line why it does not apply, and stop.
+
+### Decision and redaction
+
+Write the ## Decision section only after the owner answers, in your own
+words: what was chosen, for which problem, any condition. Never paste the owner's message.
+Example: "P1: option A (fix the loop bound). Budget as proposed. Approved by the
+owner in chat, 2026-10-19 14:32. approval-sha: <40 hex>."
+
+Keep a session list of every credential, password or token the owner gives you,
+in any message. Before ANY push, issue create, comment, body edit, PR create or
+--body-file, run the redaction check in references/redaction.md over the diff,
+the commit messages and every body file. A match blocks the post until
+redacted. If something already leaked: delete the comment (never edit it,
+GitHub keeps edit history), tell the owner to rotate the credential, and say
+what leaked where.
 
 ---
 
