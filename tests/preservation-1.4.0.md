@@ -43,3 +43,7 @@ Changes made after review pass 1, on the coordinator's decisions:
 Disputed or unsure:
 - `css.html` (secret in a `data-` attribute shown by `::before`) does not end UNREACHABLE: blanking now covers every attribute, so the shown text becomes `[redacted]` and the picture is SAVED clean. A secret written literally in a stylesheet file ends `UNREACHABLE css-content`; one in an inline `<style>` element is blanked with the text nodes.
 - With the list non-empty, every one of the reviewer's pages ends `UNREACHABLE` or `HELD` (kept, not uploaded).
+
+## Final-test fix (19 Oct 2026)
+
+- A final-text run on the pricing page never read evidence.md and took no picture. The trigger was conditional and optional. Fix: a required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)` line in the AI detail of every decision comment and decision journal entry (journal.md template and rules; SKILL.md Stop gate item 1 gains one new line, so SKILL.md is 430 lines), with the rule that a web page, app screen, rendered document or UI is never `NONE (no screen)`. The SKILL.md pictures heading now says to take them when the problem can be seen on a screen. The final comment and the fix agent brief say a problem with a before picture has an after picture or a stated reason. All add-only against v1.3.1 (the changed heading and lines are 1.4.0 text).

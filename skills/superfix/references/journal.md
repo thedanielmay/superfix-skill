@@ -167,6 +167,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 
 ---
 <AI detail: Coverage block, Problem Profile, Tools used, failing check output, hypotheses table>
+Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo)>
 ```
 
 - Effort wording, exact form: "About 1 hour of my time; your part: publish once." (Qik) or "...your part: reply once." (code).
@@ -186,6 +187,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {prin
 
 - Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
+- Required in every decision comment and decision journal entry, in the AI detail: `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)`. A stop is not complete without it. For any problem the owner could see on a screen (a web page, an app screen, a rendered document or UI), `NONE (no screen)` is wrong: first Read references/evidence.md and take the picture. `NONE` is only for problems with no screen (command output, tests, servers, config).
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
@@ -214,6 +216,7 @@ umask 077; S="$HOME/.superfix/runs/<journal run-key>"; T="$HOME/.superfix/runs/<
 - Same body template as above. The Status line is the file's first line, updated in place.
 - `## Original report` holds the owner's description copied exactly, including URLs, record ids and commit ids. Only a credential is replaced by `[redacted]` (redaction check first). Never summarise or reword it.
 - Comments become dated `### <YYYY-MM-DD HH:MM> <stage>` entries appended at the end, each starting with the plain-English callout.
+- The decision entry carries the same required `Pictures:` line as the decision comment (Decision message, above).
 - Say the file path in chat every time you stop.
 
 ### Plan comment (Moderate, Complex, after the expert panel)
@@ -244,7 +247,7 @@ Loaded: execute.md
 ```
 Without an issue, write the same as a journal entry and say it in chat.
 
-- The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
+- The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with a before picture has an after picture or a stated reason (for example "P1 after picture not taken: <why>"); a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
 - Cost line: always present and always marked as an estimate, because the run cannot read its own bill. Rough figures by tier until the 1.4.0 test record gives measured ones: Simple about 2 USD, Moderate about 6 USD, Complex about 15 USD.
 - Undo line: always present, in plain words. The revert command (`git revert -m 1 <merge sha>`) goes in the AI detail, not in the undo line. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
 
