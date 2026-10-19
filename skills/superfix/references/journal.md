@@ -184,7 +184,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {print}' "$F" | grep -cE '^[0-9]+\. ')"; C="$(head -1 "$F" | grep -oE '[0-9]+ answers?' | grep -oE '[0-9]+')"; if [ -n "$C" ] && [ "$Q" = "$C" ]; then echo COUNT-OK; else echo "COUNT-MISMATCH: $Q numbered questions, callout says ${C:-no number}"; fi
 ```
 
-- Pictures (references/evidence.md): below the numbered questions, the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures.
+- Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)

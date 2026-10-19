@@ -22,7 +22,7 @@ Each is the safest reading of the plan, or a fix for something the plan's wordin
 - **The upload command has a mode `A='upload'` or `A='keep'`.** `keep` (public repo, or no issue) runs the same checks and copies only a clean picture to `~/.superfix/journal/<owner>-<repo>/pictures/<run-key>/`, so a picture that failed a check is never kept outside the run folder. New words: `KEPT`, and the command also prints `NO-RUN-FOLDER` and `NOT-VIEWED`.
 - **No issue (file-mode journal):** pictures are kept locally like a public repo; if the owner says yes to creating the issue on a PRIVATE repo, they are uploaded after `gh issue create`. The plan named file-mode picture names but not where they go.
 - **Two extra Not tested lines:** magick missing; the `assets` release still waiting for the owner's yes.
-- **evidence.md is 531 lines, not about 220:** the script is about 290 of them.
+- **evidence.md is 531 lines, not about 220:** the script is 360 of them.
 - **C4 position.** The plan puts the SKILL.md pictures sentence on a new line right after the line starting "Pattern hits are only reported and you decide: code reading a variable". That line is the first half of a sentence, so a line there would split it. The sentence goes at the end of the same paragraph (same section, "Decision and redaction").
 - **One extra SKILL.md line** in the agent dispatch list: the fix agent gets the absolute path of evidence.md and the interpreter, because briefs.md says "absolute path given". SKILL.md is 429 lines.
 - **Count check:** the callout states the number in digits; the command counts numbered lines above the `---` only, so the AI detail's numbered lists do not count; the Simple short form is exempt.
