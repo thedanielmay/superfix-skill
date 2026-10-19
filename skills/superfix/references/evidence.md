@@ -630,6 +630,105 @@ def pair(a):
 
 
 
+def diagram(a, secrets):
+    """1.4.1 diagrams (references/diagrams.md): render the first <svg> of a checked diagram file to a PNG.
+    Page scripts off; only file: and Google Fonts are let through; paper background; 1 to 9 node groups."""
+    dg = os.path.join(a.run, "diagrams")
+    src = os.path.realpath(a.html)
+    if os.path.dirname(src) != os.path.realpath(dg) or not src.endswith(".html") or not os.path.isfile(src):
+        return say("ERROR the diagram file must be an .html file in the run folder's diagrams folder")
+    if not shutil.which("magick"):
+        return say("ERROR magick not installed")
+    for old in (a.name + ".png", a.name + ".ocr.png", a.name + ".viewed", a.name + ".json", "ocr-%s.txt" % a.name):
+        if os.path.exists(os.path.join(dg, old)):
+            os.remove(os.path.join(dg, old))
+    from playwright.sync_api import sync_playwright
+    raw = os.path.join(dg, a.name + ".raw.png")
+    out, big = os.path.join(dg, a.name + ".png"), os.path.join(dg, a.name + ".ocr.png")
+    blocked = []
+
+    def gate(route):
+        u = route.request.url
+        host = re.sub(r"^[a-z]+://([^/:?#]*).*$", r"\1", u, flags=re.S) if "://" in u else ""
+        if u.startswith("file:") or (u.startswith("https://") and host in ("fonts.googleapis.com", "fonts.gstatic.com")):
+            return route.continue_()
+        blocked.append(host or "other")
+        return route.abort()
+
+    try:
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            ctx = b.new_context(viewport={"width": 1280, "height": 800}, device_scale_factor=2, java_script_enabled=False)
+            ctx.route("**/*", gate)
+            page = ctx.new_page()
+            page.set_default_timeout(LIMIT * 1000)
+            timed(page.goto, "file://" + src)
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            if blocked:
+                return say("UNREACHABLE remote-asset")
+            if not timed(page.evaluate, "() => !!document.querySelector('svg')"):
+                return say("NO-SVG")
+            n = timed(page.evaluate, "() => document.querySelectorAll('svg g[data-sf-node]').length")
+            if n < 1 or n > 9:
+                return say("ERROR boxes %d" % n)
+            box = timed(page.evaluate, "() => { const r = document.querySelector('svg').getBoundingClientRect(); return {x: r.left, y: r.top, width: r.width, height: r.height}; }")
+            kinds = timed(page.evaluate, SCAN_JS, box)
+            if timed(page.evaluate, "() => document.getElementsByTagNameNS('http://www.w3.org/2000/svg', 'foreignObject').length"):
+                kinds = sorted(set(kinds) | {"foreign-object"})
+            if kinds:
+                return say("UNREACHABLE " + " ".join(kinds))
+            if not timed(page.evaluate, "async () => { await document.fonts.ready; return document.fonts.check('600 12px Geist'); }"):
+                return say("ERROR fonts: the Geist font did not load (no network?)")
+            timed(lambda: page.locator("svg").first.screenshot(path=raw))
+            b.close()
+        magick(raw, "-background", "#f5f5f5", "-flatten", "-strip", big)
+        magick(raw, "-background", "#f5f5f5", "-flatten", "-resize", "50%", "-strip", "-resize", "1600x>", out)
+        os.remove(raw)
+        if not small_enough(out):
+            return say("ERROR picture over 1 MB")
+        with open(os.path.join(dg, a.name + ".json"), "w") as f:
+            json.dump({"path": "diagram", "html": src, "nodes": n, "held": bool(secrets), "reason": "a secret is on the list" if secrets else ""}, f)
+        say("SAVED " + out)
+    finally:
+        if os.path.exists(raw):
+            os.remove(raw)
+
+
+def diagram_verify(a, secrets):
+    """1.4.1: OCR the rendered diagram, look for every listed secret, and check the self-report Viewed line."""
+    dg = os.path.join(a.run, "diagrams")
+    png, big, txt = (os.path.join(dg, x) for x in (a.name + ".png", a.name + ".ocr.png", "ocr-%s.txt" % a.name))
+    if not os.path.isfile(png):
+        return say("ERROR no picture")
+    tess = shutil.which("tesseract")
+    if not tess:
+        return say("NO-OCR")
+    up = os.path.join(dg, a.name + ".up.png")
+    try:
+        magick(big if os.path.isfile(big) else png, "-resize", "200%", "-colorspace", "Gray", "-normalize", up)
+        parts = []
+        for img in (png, big, up):
+            if os.path.isfile(img):
+                r = subprocess.run([tess, img, "-"], capture_output=True, text=True)
+                if r.returncode:
+                    return say("ERROR ocr")
+                parts.append(r.stdout)
+    finally:
+        if os.path.exists(up):
+            os.remove(up)
+    with open(txt, "w", encoding="utf-8") as f:
+        f.write("\n".join(parts))
+    say("OCR-BLOCKED" if ocr_hit("\n".join(parts), secrets) else "OCR-CLEAN")
+    viewed = os.path.join(dg, a.name + ".viewed")
+    if not os.path.isfile(viewed) or os.path.getmtime(viewed) < os.path.getmtime(png):
+        return say("NOT-VIEWED")
+    with open(viewed, encoding="utf-8") as f:
+        say("VIEWED-SELF-REPORT" if f.readline().startswith("Viewed (self-report): diagram, ") else "NOT-VIEWED")
+
+
 def mcp_code(a, secrets):
     if secrets:
         return say("ERROR the secrets list is not empty: use the script path, never the MCP path")
@@ -666,6 +765,10 @@ def main():
     s.add_argument("--selector", required=True); s.add_argument("--num", required=True)
     s.add_argument("--colour", choices=["red", "green"], required=True); s.add_argument("--name", required=True)
     s.add_argument("--storage"); s.add_argument("--hide", action="append")
+    dg = sub.add_parser("diagram")  # 1.4.1, references/diagrams.md
+    dg.add_argument("--run", required=True); dg.add_argument("--html", required=True); dg.add_argument("--name", required=True)
+    dv = sub.add_parser("diagram-verify")  # 1.4.1
+    dv.add_argument("--run", required=True); dv.add_argument("--name", required=True)
     rt = sub.add_parser("retake")
     rt.add_argument("--run", required=True); rt.add_argument("--source", required=True); rt.add_argument("--name", required=True)
     rt.add_argument("--colour", choices=["red", "green"]); rt.add_argument("--url"); rt.add_argument("--serve")
@@ -695,6 +798,15 @@ def main():
     if not all(NAME.match(n) for n in names):
         return say("ERROR bad picture name")
     secrets = read_secrets(a.run)
+    if a.cmd in ("diagram", "diagram-verify"):
+        # 1.4.1 diagrams: their own commands and their own folder (diagrams/), so the picture count stays as in 1.4.0.
+        try:
+            (diagram if a.cmd == "diagram" else diagram_verify)(a, secrets)
+        except Exception as e:
+            kind = type(e).__name__
+            code = "timeout" if kind == "TimeoutError" else ("browser" if kind == "Error" else "python")
+            say("ERROR timeout" if code == "timeout" else "ERROR %s: %s" % (code, tidy(str(e), secrets)))
+        return
     try:
         {"shoot": lambda: shoot(a, secrets), "retake": lambda: retake(a, secrets), "verify": lambda: verify(a, secrets),
          "ocr": lambda: ocr(a), "pair": lambda: pair(a), "mcp-code": lambda: mcp_code(a, secrets),
