@@ -85,8 +85,15 @@ Keep the issue body current, but never overwrite what the reporter wrote.
 - Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
 
 ```bash
-ORIG="$(gh issue view <N> --json body -q .body)"   # if it has no "## Original report" yet, nest it below
-gh issue edit <N> --body "$(cat <<EOF
+BODY="$(gh issue view <N> --json body -q .body)"
+# Reporter's text: after the heading if it already exists, else the whole body
+if printf '%s\n' "$BODY" | grep -q '^## Original report$'; then
+  ORIG="$(printf '%s\n' "$BODY" | awk '/^## Original report$/{f=1;next} f')"
+else
+  ORIG="$BODY"
+fi
+F="$(mktemp)"
+cat > "$F" <<'EOF'
 ## Summary
 <one paragraph: what this is and why>
 
@@ -102,11 +109,9 @@ gh issue edit <N> --body "$(cat <<EOF
 
 ## Plan
 docs/superpowers/plans/<filename>.md   <!-- only when a plan exists -->
-
-## Original report
-$ORIG
 EOF
-)"
+printf '\n## Original report\n%s\n' "$ORIG" >> "$F"
+gh issue edit <N> --body-file "$F"
 ```
 
 **Progress comments = timestamped changelog**
@@ -130,7 +135,7 @@ gh issue comment <N> --body "✅ Phase N complete - [one sentence summary of out
 
 ## Classification Rules
 
-### Type detection (apply in priority order; security signals win over bug signals)
+### Type detection (apply in priority order; security signals win over every other type)
 
 | Signals | Type |
 |---------|------|
