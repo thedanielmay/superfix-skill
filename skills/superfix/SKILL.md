@@ -37,7 +37,7 @@ Skill names are Claude Code names. If a name does not resolve, use the opencode 
 | Input form | How to get context |
 |------------|-------------------|
 | `/issue #N` | `gh issue view N` - read title, body, labels, all comments |
-| `/issue "description"`, in a git repo with a GitHub remote | Use the text. Search once: `gh issue list --state open --search "<3 key words>" --limit 5`. Diagnose read-only, keeping the record in the file-mode journal. Question 1 of the decision message offers to create the issue (see journal.md) |
+| `/issue "description"`, in a git repo with a GitHub remote | Use the text. Search once: `gh issue list --state open --search "<3 key words>" --limit 5`. Diagnose read-only, keeping the record in the file-mode journal. The last numbered question of the decision message offers to create the issue (see journal.md) |
 | `/issue "description"`, anywhere else | Use the text. Keep the record in the file-mode journal. No issue question |
 | `/issue` (no args) | Ask: "GitHub issue number or describe what needs doing?" |
 
@@ -153,8 +153,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    numbered, each with the recommended answer, the effort and the budget.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    No issue was given and the repo has a GitHub remote: the LAST numbered question is always
-   "Create a GitHub issue for this? (the repo is PRIVATE|PUBLIC)". Never leave it out, and never
-   put it anywhere but last, so the owner's numbered reply stays predictable.
+   the create-issue question (journal.md). Never leave it out or move it.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
    references/briefs.md, or start any Phase 2 or 3 step until a go arrives.
@@ -200,14 +199,7 @@ Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop 
 
 ### Design step (type-specific, before writing-plans)
 
-| Type | Design approach |
-|------|----------------|
-| `bug` | No design step - exploration output feeds directly into plan |
-| `performance` | Plan based on measured baseline; state target improvement metric |
-| `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
-| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
-| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
-| `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
+Run the design step for the type, from the table in `references/explore.md` (Design step), before writing-plans.
 
 ### Plan
 

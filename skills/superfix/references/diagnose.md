@@ -50,7 +50,7 @@ Existing skills, with their limits:
 - Every other skill in explore.md: as listed there.
 
 Already fixed: if the failing check cannot fail on current main, the escape
-hatch in SKILL.md applies; it becomes question 1 of the decision message.
+hatch in SKILL.md applies; it becomes the first question of the decision message (the create-issue question, when there is one, stays last).
 
 ### Tools and fallbacks
 
