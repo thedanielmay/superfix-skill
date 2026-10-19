@@ -8,34 +8,53 @@ Rules that hold everywhere:
 - The exact-string check on session credentials BLOCKS. A pattern hit is REPORTED, and you decide (below).
 - Every post uses `--body-file`. Never pass `--body "..."` inline. A `--title` from chat text is written to a file and checked first, then passed as `--title "$(cat <title file>)"`.
 
+### Run folder (one per run, survives a restart)
+
+New in 1.3.1. Each run keeps its credential list and its scratch files in its own folder, `~/.superfix/runs/<run-key>/`, never in a shared file.
+
+- `<run-key>` is built from facts the run already has, so it needs no remembered variable and comes out the same after a restart:
+  - With an issue: `<owner>-<repo>-<issue number>`, for example `thedanielmay-superfix-skill-48`.
+  - Without an issue: `<owner>-<repo>-<journal file name without .md>`, for example `thedanielmay-superfix-skill-2026-10-19-login-loop`.
+  - No remote: the repo folder name in place of `<owner>-<repo>`.
+  - A journal run that later creates its issue moves the folder to the issue key (journal.md, the issue question) and uses the issue key from then on.
+- Write the literal folder in every command, for example `$HOME/.superfix/runs/thedanielmay-superfix-skill-48`. A variable set in an earlier Bash call is gone.
+- The folder is mode 700 and `secrets` in it is mode 600 (created under `umask 077`).
+- Two runs on two different issues never share a list: each has its own folder, and the end-of-run step deletes only its own.
+- Two runs on the SAME issue at the same time are not supported. They share one folder and one list, and the first to finish deletes the list the other is still using, so the other's check then prints `NO-LIST`.
+- The journal files stay in `~/.superfix/journal/`, outside the run folder, and are never deleted by the end-of-run step.
+
 ### Session list (a fixed file, survives a restart)
 
 Every exact string the owner gave as a credential, password or token, in any message, plus any found in tool output. One per line. Append with a quoted heredoc, so quotes and `$` survive unchanged:
 
 ```bash
-mkdir -p ~/.superfix && (umask 077; cat >> ~/.superfix/session-secrets <<'EOF'
+D="$HOME/.superfix/runs/<run-key>"; (umask 077; mkdir -p "$D" && chmod 700 "$D" && cat >> "$D/secrets" <<'EOF'
 <exact string>
 EOF
-) && chmod 600 ~/.superfix/session-secrets && echo LIST-SAVED
+) && chmod 600 "$D/secrets" && echo LIST-SAVED
 ```
 
 - The list is a file, so it survives a restart. Blank lines are ignored by the check.
-- At the end of the run: `rm -f ~/.superfix/session-secrets && rm -rf ~/.superfix/check && echo LIST-DELETED`.
+- At the end of the run, delete this run's folder and nothing else. The guard prints `REFUSED` instead of deleting when the path is not one folder inside `~/.superfix/runs/` (an empty key, `..`, or a `/` in the key), so it can never delete `~/.superfix/runs/` itself:
+
+```bash
+D="$HOME/.superfix/runs/<run-key>"; K="${D#"$HOME/.superfix/runs/"}"; if [ "$K" = "$D" ] || [ -z "$K" ] || [ "$K" = . ] || [ "$K" = .. ] || [ "$K" != "${K%/*}" ]; then echo "REFUSED: not a run folder: $D"; else rm -rf "$D" && echo LIST-DELETED; fi
+```
 
 ### Files to check
 
 Body files (comment, issue body, PR body, title file) are checked as they are. After a branch exists, also write the diff and the commit messages to files:
 
 ```bash
-mkdir -p ~/.superfix/check && git diff <approval-sha>..HEAD > ~/.superfix/check/diff && git log --format=%B <approval-sha>..HEAD > ~/.superfix/check/msgs && echo FILES-READY
+D="$HOME/.superfix/runs/<run-key>"; (umask 077; mkdir -p "$D") && git diff <approval-sha>..HEAD > "$D/diff" && git log --format=%B <approval-sha>..HEAD > "$D/msgs" && echo FILES-READY
 ```
 
-`<files>` below means the paths written out in full, for example `~/.superfix/check/diff ~/.superfix/check/msgs /tmp/body.md` (zsh does not split a variable into several file names).
+`<files>` below means the paths written out in full, for example `~/.superfix/runs/<run-key>/diff ~/.superfix/runs/<run-key>/msgs ~/.superfix/runs/<run-key>/body-<N>.md` (zsh does not split a variable into several file names).
 
 ### Exact-string check (blocks; catches a password with no keyword)
 
 ```bash
-L="$HOME/.superfix/session-secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - <files>)"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi
+L="$HOME/.superfix/runs/<run-key>/secrets"; P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - <files>)"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi
 ```
 
 - `CLEAN`: no session credential in those files.

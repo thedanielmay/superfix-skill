@@ -6,7 +6,7 @@ New in 1.3.0. Read only after the owner approves at the Stop gate. Agents never 
 
 FIX AGENT BRIEF (Moderate, Complex): branch, context file, plan file, Problem
 Profile, execute.md path, this file's path, the budget and approval-sha from
-the ## Decision section, the session list path `~/.superfix/session-secrets`.
+the ## Decision section, the session list path `~/.superfix/runs/<run-key>/secrets` (written out in full).
 Before every commit, run the budget commands; over any limit, stop and return
 a message whose first line is exactly BUDGET STOP, then done, left, used
 versus budget. Run the solved check before declaring done. Tick plan
