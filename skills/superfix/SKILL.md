@@ -229,29 +229,6 @@ Pictures: no upload except through evidence.md's upload command; a pattern hit i
 
 Applies to **Moderate and Complex** only. Simple goes to Phase 3 after the Stop gate.
 
-### Design step (type-specific, before writing-plans)
-| Type | Design approach |
-|------|----------------|
-| `bug` | No design step - exploration output feeds directly into plan |
-| `performance` | Plan based on measured baseline; state target improvement metric |
-| `ux` | `superpowers:brainstorming` [opus/high] → `ui-ux-pro-max` or `impeccable` sub-skill as appropriate → `accessibility` (WCAG 2.2 check) |
-| `architecture` | `superpowers:brainstorming` [opus/high] - explore structural options before committing |
-| `security` | Threat model, done inline (no skill of this name exists; `security-audit` can inform it): identify trust boundaries and attack surface [opus/high] |
-| `feature` | `superpowers:brainstorming` [opus/high] (Moderate/Complex only) |
-
-### Plan
-Invoke `superpowers:writing-plans` [sonnet/high]. Save to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`.
-
-Plan must document:
-- What files change and why
-- Key design decisions made
-- What is explicitly NOT in scope
-- For performance: baseline measurement and target
-
-### Context file
-After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
-
-**Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
 
 ### Expert panel (all Moderate + Complex - blocking)
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
