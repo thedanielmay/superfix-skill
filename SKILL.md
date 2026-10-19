@@ -100,7 +100,7 @@ A process is never called solved: Superfix drafts the change and says "change dr
 - criteria.md's tool runs the measure scripts itself, sandboxed, on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. The tool decides PASS or FAIL; a crash or a missing MEASURE line is ERROR, never FAIL.
 - Two numbered questions per problem, no recommended answer, never the Simple short form: "If every check above passes, would you consider this solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".
 - Only "yes" to the first plus an answer to the second approves. "Keep executing" does not: say once, in chat and appended to the decision comment, "Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>". Ask again once, then park it as "Waiting for you"; other problems go ahead.
-- At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: only the locked scripts run, on the locked files or their copies; a change needs a new yes and a new epoch. No lock, no fixing.
+- At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: only the locked scripts run, on the locked files or their copies; a change needs a new yes and criteria.md's amend. No lock, no fixing.
 - Work on a copy in the run folder, never the original; commit only under criteria.md section 9 (private repo, the owner's yes, a clean scan). Never write into a cloud folder (`where`).
 - Nothing leaves the repo, the run folder and the owner's Mac, by any route (criteria.md's list): no send, share, publish, upload or post. Messages are drafts.
 - An attempt has moved only when a failing C improved and no C or K got worse. Two attempts that do not move: stop and say why.
@@ -255,7 +255,7 @@ Proposed in the decision message, fixed at approval. Defaults: Simple 6 commits,
 2 hours, the files named in ## Options plus their tests; Moderate 15 commits, 4
 hours, the files in the plan plus their tests; Complex as stated in the plan.
 Plain wording: "Up to 2 hours, touching these 3 files. I stop and ask if I go over."
-Criteria mode budget: time, attempts (default 5), about <n> USD, and the named files or copies; commits count only in git.
+Criteria mode budget: time, at most 5 attempts per epoch (fixed in criteria.md's tool), about <n> USD, and the named files or copies; commits count only in git.
 
 Measure before every commit (main thread or fix agent):
   commits: git rev-list --count <approval-sha>..HEAD -- . ':(exclude)docs/superpowers/plans'
