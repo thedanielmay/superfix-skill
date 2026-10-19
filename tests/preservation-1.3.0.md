@@ -35,3 +35,31 @@ One line per 1.2.0 line that is removed or changed: `- <exact old line> :: <mani
 - - Measure before planning: run actual timing/profiling. Record baseline numbers in context file. :: explore.md "Record baseline numbers in context file."
 - - Verification re-runs the Phase 1 repro or baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met :: execute.md "Verification re-runs the Phase 1 repro or baseline..."
 - Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when to read this file. :: "Moved word for word from SKILL.md 1.1.1" first lines of journal, explore, execute
+
+## Deviations
+
+Places where the build differs from the plan, with the reason. Recorded by the builder (T0 to T15).
+
+- T0: no commit, because T0 changes no file. The child issue also has the label `harness` (coordinator instruction) and is linked as a sub-issue of the epic.
+- T2: `tests/prompts.md` has a three-line header above the section (g) text, which is otherwise copied word for word.
+- T4, redaction.md: the plan's recipe was made runnable.
+  - Added a `[ -s "$SECRETS" ]` guard. Found in the T4 test: macOS grep with an empty pattern file matches every line, so an empty session list would block every post.
+  - Wrote the three pattern checks as concrete `grep` and `perl` commands. File names are written out, because zsh does not split a variable into several names.
+  - Added an allowlist entry for the `Claude-Session:` commit trailer. Without it the keyword rule (`session:`) flags every commit message.
+- T5, briefs.md: added the budget commands and the solved-check steps to the fix agent brief. Agents never load SKILL.md, so without them the brief names checks the agent cannot see.
+- T6, diagnose.md: added one sentence on "Everything else" problems (no check can fail, findings low confidence) and a closing "Output: the evidence note" section that points at the journal.md template.
+- T7: no testbed exists yet (T1 is the coordinator's) and `superfix-skill` is PUBLIC, so no scratch issue was created. Instead, the bash block in journal.md was run twice locally, with `gh issue view` and `gh issue edit` replaced by reads and writes of a local file. Result: `## Original report` appears once, the reporter text is byte-identical, and the Status line is line 1 and changed in place.
+- T7: the decision message short form (Simple, one problem) carries the budget on its effort line, so it stays three lines plus "Go?".
+- T8 and T14: the C2 lines "Write the result at the top of the Problem Profile:" plus three field lines became one sentence, because the Problem Profile block already has the same three lines (Coverage, Trigger, Evidence).
+- T10 verify: "plan file's task checkboxes" also appears in the KEPT UNCHANGED line "The agent ticks the plan file's task checkboxes as each task completes." That line is in the Moderate and Complex path, where a plan always exists. The restart line has "if a plan exists".
+- T11, frontmatter (D11): "It diagnoses first and stops for approval before fixing." was added as a new last line of the description instead of being inserted before "Triggers on:". D-1 has no row for the frontmatter, and this way no 1.2.0 line changes. Same for the intro (section (f) row 1): a new paragraph, the old line kept word for word.
+- T14: SKILL.md was 472 lines after T11. To reach 391:
+  - Moved to journal.md: the context file template (its intro sentence moved word for word), the plan comment, the final comment template, and the three plain coverage lines for the decision message.
+  - Removed the 14 `---` section dividers in the body. No rule text was removed.
+  - Merged the 1.2.0 "Exploration by type" paragraph in SKILL.md into the C3 paragraph (the heading still exists in explore.md).
+  - Stop gate, Decision and redaction trigger, solved check and budget stay inline.
+- T13: the preservation output is posted on the child issue once, after T14, so it shows the final text and saves a comment.
+- Sizes: journal.md is 221 lines (plan estimate about 100), because of the T14 moves and the full template.
+- Phase 0 heading kept as "## Phase 0 - Problem Profile". D3 names the phase "Intake, coverage check, Problem Profile", but D-1 has no row for a heading change. The new line "Run the Coverage check (Classification Rules) first, then type and tier." gives the order.
+- inventory.md: its first line "Moved word for word from SKILL.md 1.1.1" was kept, because D-1 lists only journal, explore and execute for that change.
+- CONTRIBUTING: besides the worktree rule and the preservation check, the "This clone" bullet and the `--plugin-dir` line were edited to match the worktree rule.
