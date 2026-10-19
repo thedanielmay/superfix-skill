@@ -152,6 +152,9 @@ Every tier, every run, unless the fast lane was asked for in this run.
    it to the file-mode journal. It holds every question for this run,
    numbered, each with the recommended answer, the effort and the budget.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
+   No issue was given and the repo has a GitHub remote: the LAST numbered question is always
+   "Create a GitHub issue for this? (the repo is PRIVATE|PUBLIC)". Never leave it out, and never
+   put it anywhere but last, so the owner's numbered reply stays predictable.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
    references/briefs.md, or start any Phase 2 or 3 step until a go arrives.
