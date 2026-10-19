@@ -1,6 +1,6 @@
 # Working on superfix
 
-Plain steps. This repo is a prompt-only skill, so "the code" is two identical markdown files.
+Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL.md` (two identical copies) and the files in `skills/superfix/references/`.
 
 ## Where things live
 
@@ -13,6 +13,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is two identical ma
 
 - `skills/superfix/SKILL.md` is the real one (the plugin loads this).
 - `SKILL.md` at the root is a copy (the skills CLI and opencode load this).
+- `skills/superfix/references/` holds the long parts that `SKILL.md` tells the model to Read when a step needs them. The root `references` is a symlink to it, so the root copy works for opencode. Do not copy files there.
 - After every edit, run: `cp skills/superfix/SKILL.md SKILL.md`
 - Check before every commit: `diff skills/superfix/SKILL.md SKILL.md && echo in-sync`
 

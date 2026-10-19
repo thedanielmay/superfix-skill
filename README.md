@@ -10,6 +10,8 @@ Intelligent development orchestrator for Claude Code - takes a GitHub issue or f
 
 It supersedes the older `change-pipeline` skill.
 
+The skill file is kept short. The long parts (the issue journal, exploration by type, the execute sequences and review rules, the skill inventory) live in `skills/superfix/references/` and are read only when a step needs them.
+
 ---
 
 ## When to use / Triggers
