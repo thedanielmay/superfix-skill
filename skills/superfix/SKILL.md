@@ -173,9 +173,12 @@ solved check never count other people's commits.
 Status "Fixing problem 1 of <N>".
 
 Fast lane: only when THIS run's request says so ("just fix it", "don't
-wait"). Only for one problem, Simple tier, row Code, type not security.
-Still run Phase 1 and write ## Problems; post the decision message as a
-notice and continue. Otherwise say in one line why it does not apply, and stop.
+wait"). Only for one problem, Simple tier, row Code, type not security; never
+Qik. Record approval-sha (after `git fetch origin`) and the approval time at
+the moment the owner asks. No create-issue question: keep the file-mode
+journal. Still run Phase 1, write ## Problems and post the decision message as
+a notice; the redaction check, budget and solved check all still apply.
+Otherwise say in one line why it does not apply, and stop.
 
 ### Decision and redaction
 
