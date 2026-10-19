@@ -182,10 +182,15 @@ Example: "P1: option A (fix the loop bound). Budget as proposed. Approved by the
 owner in chat, 2026-10-19 14:32. approval-sha: <40 hex>."
 
 Keep a session list of every credential, password or token the owner gives you,
-in any message. Before ANY push, issue create, comment, body edit, PR create or
---body-file, run the redaction check in references/redaction.md over the diff,
-the commit messages and every body file. A match blocks the post until
-redacted. If something already leaked: delete the comment (never edit it,
+in any message, in the fixed file `~/.superfix/session-secrets` (recipe in
+references/redaction.md; it survives a restart, delete it at the end). Before
+ANY push, commit, issue create, comment, body edit or PR create, run the
+redaction checks over the diff, the commit messages and every body and title
+file. Each check prints one word (CLEAN, BLOCKED <files>, NO-LIST); silence is
+never a pass. BLOCKED stops the post until redacted. Post only with
+--body-file, never inline --body; a --title from chat goes in a file and is
+checked first. A credential in the reporter's original issue body: stop, post
+nothing, ask the owner to edit it. If something already leaked: delete the comment (never edit it,
 GitHub keeps edit history), tell the owner to rotate the credential, and say
 what leaked where.
 
@@ -301,7 +306,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Absolute path of `references/execute.md`. The agent reads it first. Agents do not load this file, so they only know what the brief tells them.
 - Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
 - The budget and approval-sha from `## Decision`.
-- The session redaction file path and the absolute path of `references/redaction.md`.
+- The session list path `~/.superfix/session-secrets` and the absolute path of `references/redaction.md`.
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
