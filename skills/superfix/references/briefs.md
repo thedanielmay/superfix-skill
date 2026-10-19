@@ -21,6 +21,12 @@ the Status line: return those results to the caller, which posts them.
 NO-RUN-FOLDER (the folder or its key file is missing) is a stop: commit,
 push and post nothing, and return it to the caller.
 
+After pictures: during solved-check run 2, take them with the script in
+references/evidence.md (absolute path given) and save them in the run folder.
+Never upload pictures: return their names; the caller runs the upload command.
+Use the interpreter the caller names (its BROWSER-SCRIPT line), the same page,
+size and target as the before picture, a green box and the same number.
+
 Qik work (copy into the brief when the coverage row is Qik configuration): no
 git branch; plan and context files live in `~/.superfix/journal/<name>/`.
 1. Back up before the first edit: the exact before text and the undo step, in a
