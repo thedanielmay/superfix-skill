@@ -318,7 +318,7 @@ The agent may commit, push and open the PR only after the redaction checks pass 
 
 The agent ticks the plan file's task checkboxes as each task completes.
 
-On restart (limit, crash, new session): read the Status line, `## Problems` and `## Decision` (issue body or journal file), the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. Continue from the first unfinished stage. Do not redo finished stages.
+On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/session-secrets`; do not start a new one. Continue from the first unfinished stage. Do not redo finished stages.
 
 ### Solved check
 
