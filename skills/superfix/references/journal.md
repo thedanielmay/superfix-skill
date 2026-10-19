@@ -184,7 +184,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {print}' "$F" | grep -cE '^[0-9]+\. ')"; C="$(head -1 "$F" | grep -oE '[0-9]+ answers?' | grep -oE '[0-9]+')"; if [ -n "$C" ] && [ "$Q" = "$C" ]; then echo COUNT-OK; else echo "COUNT-MISMATCH: $Q numbered questions, callout says ${C:-no number}"; fi
 ```
 
-- Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures.
+- Pictures (references/evidence.md): below the numbered questions (Simple short form: below "Go?", the three lines unchanged), the first picture of each problem that has one, each followed by its caption line, then once the line "Pictures show on the website, not in the GitHub app: <issue link>". The callout and the questions never depend on a picture. A public repo or no issue: the local folder line from evidence.md in place of the pictures. A credential given in this run (any `HELD`): the "Pictures are not posted because you gave me a password or token in this run" line from evidence.md in place of the pictures.
 - The Viewed line of each picture goes in the AI detail part, never above the `---`.
 
 ### Create-issue question (description only, in a git repo with a GitHub remote)
@@ -236,7 +236,7 @@ Solved check: run 1 <output>, run 2 <output>, run 3 <output>
 P1 before and after: left, <what was wrong> (red box 1); right, <what is fixed> (green box 1).
 Pictures show on the website, not in the GitHub app: <issue link>
 Cost: about <n> USD (estimate for a <tier> run; the run cannot read its own bill)
-To undo: close PR <link> without merging. After a merge: git revert -m 1 <merge sha>.
+To undo: close PR <link> without merging. After a merge, tell me "undo this" and I will revert it.
 Budget used: <commits, files, time> of <budget>
 Loaded: execute.md
 ## Not tested
@@ -244,9 +244,9 @@ Loaded: execute.md
 ```
 Without an issue, write the same as a journal entry and say it in chat.
 
-- The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead.
+- The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
 - Cost line: always present and always marked as an estimate, because the run cannot read its own bill. Rough figures by tier until the 1.4.0 test record gives measured ones: Simple about 2 USD, Moderate about 6 USD, Complex about 15 USD.
-- Undo line: always present. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
+- Undo line: always present, in plain words. The revert command (`git revert -m 1 <merge sha>`) goes in the AI detail, not in the undo line. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
 
 ### Context file (Moderate, Complex)
 
