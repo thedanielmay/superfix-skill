@@ -192,7 +192,10 @@ references/redaction.md; it survives a restart, delete it at the end). Before
 ANY push, commit, issue create, comment, body edit or PR create, run the
 redaction checks over the diff, the commit messages and every body and title
 file. Each check prints one word (CLEAN, BLOCKED <files>, NO-LIST); silence is
-never a pass. BLOCKED stops the post until redacted. Post only with
+never a pass. BLOCKED (a session credential) stops the post until redacted.
+Pattern hits are only reported and you decide: code reading a variable
+(`password = request.form[...]`) is fine. Never write [redacted] into source
+code; a real credential in the diff means stop and ask. Post only with
 --body-file, never inline --body; a --title from chat goes in a file and is
 checked first. A credential in the reporter's original issue body: stop, post
 nothing, ask the owner to edit it. If something already leaked: delete the comment (never edit it,
