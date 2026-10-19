@@ -188,12 +188,12 @@ Example: "P1: option A (fix the loop bound). Budget as proposed. Approved by the
 owner in chat, 2026-10-19 14:32." Last line, not for the owner: "Internal: approval-sha <40 hex>".
 
 Keep a session list of every credential, password or token the owner gives you,
-in any message, in the fixed file `~/.superfix/session-secrets` (recipe in
-references/redaction.md; it survives a restart, delete it at the end). Before
+in any message, in this run's file `~/.superfix/runs/<run-key>/secrets` (key and recipe in
+references/redaction.md; create the folder as soon as the key is known; it survives a restart, delete only this run's folder at the end). Before
 ANY push, commit, issue create, comment, body edit or PR create, run the
 redaction checks over the diff, the commit messages and every body and title
-file. Each check prints one word (CLEAN, BLOCKED <files>, NO-LIST); silence is
-never a pass. BLOCKED (a session credential) stops the post until redacted.
+file. Each check prints one word (CLEAN, BLOCKED <files>, NO-LIST, NO-RUN-FOLDER); silence is
+never a pass; NO-LIST passes only when the run folder exists, NO-RUN-FOLDER stops. BLOCKED (a session credential) stops the post until redacted.
 Pattern hits are only reported and you decide: code reading a variable
 (`password = request.form[...]`) is fine. Never write [redacted] into source
 code; a real credential in the diff means stop and ask. Post only with
@@ -315,7 +315,7 @@ Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture 
 - Absolute path of `references/execute.md`. The agent reads it first. Agents do not load this file, so they only know what the brief tells them.
 - Absolute path of `references/briefs.md`, with its fix agent brief copied into the prompt.
 - The budget and approval-sha from `## Decision`.
-- The session list path `~/.superfix/session-secrets` and the absolute path of `references/redaction.md`.
+- The session list path `~/.superfix/runs/<run-key>/secrets`, written out in full, and the absolute path of `references/redaction.md`.
 
 Agent runs the full execute sequence autonomously. Surfaces only:
 - Blockers requiring human judgment (with specific question, not just "stuck")
@@ -326,7 +326,7 @@ The agent may commit, push and open the PR only after the redaction checks pass 
 
 The agent ticks the plan file's task checkboxes as each task completes.
 
-On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/session-secrets`; do not start a new one. Continue from the first unfinished stage. Do not redo finished stages.
+On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/runs/<run-key>/secrets` (the same key, built again: the run key on the journal's issue line, else the issue number, else the journal file name; redaction.md); do not start a new one, and a NO-RUN-FOLDER stops. Continue from the first unfinished stage. Do not redo finished stages.
 
 ### Solved check
 
