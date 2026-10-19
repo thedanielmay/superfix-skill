@@ -33,3 +33,18 @@ Diagnosis tools and their fallbacks (Explore, a report-only `general-purpose` ag
 | `superpowers:subagent-driven-development` | 3 | Complex only | `subagent-driven-development` skill |
 | `superpowers:using-git-worktrees` | 3 | architecture | `using-git-worktrees` skill |
 | `superpowers:finishing-a-development-branch` | 4 | all | `finishing-a-development-branch` skill |
+
+## Model & Effort Policy (table)
+
+SKILL.md keeps a one-line summary. Moved here in 1.3.0.
+
+| Task category | Model | Effort |
+|---------------|-------|--------|
+| File reads, symbol lookups, quick checks | Haiku | High |
+| Exploration, planning, implementation, review | Sonnet | High |
+| Expert panel, brainstorming, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
+
+## Out of Scope
+
+- `roadmap-planning` - sits above this orchestrator; invoke separately for planning work
+- Observability tooling - post-deployment concern; not part of pre-merge workflow

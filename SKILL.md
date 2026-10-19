@@ -22,11 +22,10 @@ Supersedes `change-pipeline` - do not invoke change-pipeline.
 
 Applied automatically. No user configuration required.
 
-| Task category | Model | Effort |
-|---------------|-------|--------|
-| File reads, symbol lookups, quick checks | Haiku | High |
-| Exploration, planning, implementation, review | Sonnet | High |
-| Expert panel, brainstorming, complex architecture judgment, ambiguous cross-cutting triage | Opus | High |
+Haiku for file reads, symbol lookups and quick checks; Sonnet for exploration,
+planning, implementation and review; Opus for expert panel, brainstorming,
+complex architecture judgment and ambiguous cross-cutting triage. All at high
+effort (table in `references/inventory.md`).
 
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 
@@ -265,6 +264,9 @@ Max 2 review passes and max 2 expert panel passes are unchanged.
 ### Qik configuration (provisional)
 
 Qik configuration (provisional). Load the qik skill first. No branch.
+Moderate or Complex Qik work: no git branch either; the plan and context files
+go in the journal folder (`~/.superfix/journal/<name>/`), never in a repo, and
+the fix agent brief carries the four rules below.
 1. Back up before the first edit: the exact before text and the undo step, in a
    folder outside any repo. No backup, no edit.
 2. Edit the draft only. Never publish. Say "in the draft", never "live".
@@ -294,7 +296,7 @@ create branch → (bug: failing test or repro command first) → implement → i
 
 ### Moderate + Complex path (autonomous agent)
 
-Create branch with the shared block above before dispatching the agent. Architecture: create the worktree from `<approval-sha>` instead of creating a branch first.
+Create branch with the shared block above before dispatching the agent (except Qik work, which has no branch). Architecture: create the worktree from `<approval-sha>` instead of creating a branch first.
 
 Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. Pass:
 - Branch name
@@ -388,11 +390,7 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Naming a coverage row without a quoted trigger and evidence
 - Calling it fixed without the solved check (three runs, with output)
 
-## Out of Scope
-
-- `roadmap-planning` - sits above this orchestrator; invoke separately for planning work
-- Observability tooling - post-deployment concern; not part of pre-merge workflow
-
 ## Skill Inventory Reference
 
 The table of every skill this orchestrator can employ, with the opencode name or fallback for each, is in `references/inventory.md`. Read it only when a named skill does not resolve (see Model & Effort Policy).
+Out of scope (`roadmap-planning`, observability tooling) is listed there too.
