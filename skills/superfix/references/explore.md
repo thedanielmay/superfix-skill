@@ -1,8 +1,10 @@
 # Exploration by type
 
-Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when to read this file.
+Moved from SKILL.md 1.1.1 (superfix-skill#42); edited in 1.3.0. SKILL.md says when to read this file.
 
 ### Exploration by type
+
+These run as evidence collectors inside the diagnosis method in `references/diagnose.md`, under its limits (before approval, `systematic-debugging` and `diagnose` stop after their Phase 3).
 
 **`bug`**
 - `superpowers:systematic-debugging` - frames the failure, classifies root cause category [sonnet/high]
@@ -12,7 +14,7 @@ Moved word for word from SKILL.md 1.1.1 (superfix-skill#42). SKILL.md says when 
 **`performance`**
 - `feature-dev:code-explorer` - maps the hot path end-to-end [sonnet/high]
 - `grepai-trace-graph` - builds recursive call graph of the slow path [sonnet/high]
-- Measure before planning: run actual timing/profiling. Record baseline numbers in context file.
+- Measure before planning: run actual timing/profiling. Record baseline numbers in ## Problems; the context file copies them in Phase 2.
 
 **`ux`**
 - `feature-dev:code-explorer` - reads component tree, design tokens, layout patterns [sonnet/high]
