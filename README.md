@@ -181,8 +181,8 @@ skills/
     SKILL.md                    Full skill implementation and phase definitions
     references/
       journal.md                Issue body template, Status line, comments, decision message, file-mode journal
-      diagnose.md               Diagnosis method, stop rules, tools and fallbacks, fan-out
-      briefs.md                 Agent briefs: review header, fan-out brief, fix agent brief
+      diagnose.md               Diagnosis method, stop rules, tools and fallbacks, review header, fan-out brief
+      briefs.md                 Execution brief for the fix agent (read only after approval)
       redaction.md              Credential check before any post, commit or PR
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope

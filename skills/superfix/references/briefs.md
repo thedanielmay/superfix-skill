@@ -1,36 +1,6 @@
-# Agent briefs
+# Execution brief
 
-New in 1.3.0. Agents never load SKILL.md, so a rule kept only there is invisible to them. Every dispatch passes this file by absolute path and copies the matching brief into the agent prompt. SKILL.md and `references/diagnose.md` say which brief goes to which agent.
-
-### Review header
-
-REVIEW HEADER (first line of every review agent brief):
-
-```
-Report only. Do not edit, write or create files, and do not run commands that
-change anything. Return findings with confidence; the caller applies fixes.
-```
-
-- Use it for every review or read-only agent: the `pr-review-toolkit` agents (they have the Edit tool), `feature-dev:code-explorer`, `Explore`, a `general-purpose` reviewer, and every fan-out agent.
-- After any such agent returns, run `git status --porcelain`. Any change means the agent broke the rule: revert it and say so.
-
-### Fan-out brief (diagnosis, Phase 1)
-
-FAN-OUT BRIEF: the review header, then: symptom (owner's words, any stated cause
-removed), evidence so far, files or objects in scope, and for one agent:
-"Argue for the strongest cause that is NOT <leading hypothesis>." Return facts
-with the command that showed each, then inferences, separately.
-
-```
-<review header>
-Symptom (owner's words, stated cause removed): <text>
-Evidence so far: <failing check and its output, facts observed>
-In scope: <files or objects>
-[one agent only] Argue for the strongest cause that is NOT <leading hypothesis>.
-Return: 1. facts, each with the command or tool that showed it. 2. inferences, separately.
-```
-
-- Never include the context file, the owner's guess at the cause, or your leading hypothesis (except as the thing the one agent argues against).
+New in 1.3.0. Read only after the owner approves at the Stop gate. Agents never load SKILL.md, so a rule kept only there is invisible to them. The fix agent dispatch passes this file by absolute path and copies the brief below into the agent prompt. The review header and the fan-out brief used during diagnosis are in `references/diagnose.md`; review agents during execution get the review header written out in `references/execute.md`.
 
 ### Fix agent brief (Moderate, Complex; Phase 3)
 
