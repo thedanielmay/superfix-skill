@@ -6,7 +6,7 @@ description: >-
   and drives it to an opened PR with CI green. Classifies the problem,
   assembles the right skill set, and manages the full workflow. Triggers on:
   superfix, issue #N, fix #N, implement #N, or a request to fix, build or
-  change something in code.
+  change something in code, or clean up a document or data file against criteria the owner approves.
   It diagnoses first and stops for approval before fixing.
 ---
 
@@ -78,19 +78,35 @@ superfix-awaiting-decision` (or superfix-approved) and the body carries the mark
 |-----|----------------------------------|-------|
 | Code | source, tests, build or config files in this repo, including `.md` files a program reads (skills, prompts, templates); a wrong command, code sample, link or version in a README or docs page; a docs page that renders wrongly; a stack trace, CLI or page output from this repo | diagnose and fix |
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only (provisional: not yet proven by a test) |
-| Everything else | prose files (README, ONBOARDING.md, guides, CHANGELOG) when the problem is only how they are written; documents, process, sheets, business, anything not above | diagnose only, low confidence |
+| Everything else | prose files (README, ONBOARDING.md, guides, CHANGELOG) when the problem is only how they are written; documents, process, sheets, business, anything not above | diagnose; data and document clean-ups fixed in criteria mode (below) on a copy; processes: draft only |
 
 Write the result in the Coverage, Trigger and Evidence lines at the top of the Problem Profile
 (the plain coverage line for the decision message is in `references/journal.md`).
 Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
-"Everything else" stop at diagnosis even after approval.
-Each "Everything else" problem, and each problem whose row's tools were missing (partial), gets one
+"Everything else" are fixed only in criteria mode (below), never by the code path.
+Each Everything else problem with no checkable criterion (it stops at diagnosis), each criterion with no tool or access to check it, and each partial problem (its row's tools missing) gets one
 gap note at the Stop gate: read references/gaps.md first. The note names the KIND of problem only;
 it goes to the private gap repo only when every gaps.md check passes, else to ~/.superfix/gaps/.
 Never the work repo or a public repo. Never edit this skill because of a gap note.
+No gap note and no gap-list sentence for a problem that has checks proposed.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
 
+### Criteria mode (Everything else problems; read references/criteria.md before the stop)
+Data and document clean-ups are fixed only against criteria the owner approves; never against criteria Superfix invented alone.
+A process is never called solved: Superfix drafts the change and says "change drafted (or adopted), effect measured on <date>: <result>".
+- Take the owner's criteria, else draft them. Each is one line in ## Done when, in criteria.md's shape, with every definition stated (what counts as a duplicate, which row wins, how 03/04 is read). An unclear definition gets its own numbered question.
+- Above the `---`, each criterion in exactly this form, the bracket holding only row numbers (never a value): "Duplicate members. Today: 8 (rows 14, 15 and 62). Must be 0." Scripts go in the AI detail.
+- A pass line outside criteria.md's grammar ("clearer", "under 3", two conditions): propose a rewrite in it. No checkable criterion at all: stop at diagnosis.
+- criteria.md's tool runs the measure scripts itself, sandboxed, on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. The tool decides PASS or FAIL; a crash or a missing MEASURE line is ERROR, never FAIL.
+- Two numbered questions ONCE per issue for all criteria-mode problems ("P1, P2 and P3"; once per group if they touch different people or files), no recommended answer, never the Simple short form: "If every check above passes, would you consider these solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".
+- Only "yes" to the first plus an answer to the second approves. "Keep executing" does not: say once, in chat and appended to the decision comment, "Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>". Ask again once, then park it as "Waiting for you"; other problems go ahead.
+- At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: only the locked scripts run, on the locked files or their copies; a change needs a new yes and criteria.md's amend. No lock, no fixing.
+- Work on a copy in the run folder, never the original; commit only under criteria.md section 9 (private repo, the owner's yes, a clean scan). Never write into a cloud folder (`where`).
+- Nothing leaves the repo, the run folder and the owner's Mac, by any route (criteria.md's list): no send, share, publish, upload or post. Messages are drafts.
+- An attempt has moved only when a failing C improved and no C or K got worse. Two attempts that do not move: stop and say why.
+- A copy the owner puts back into a live file is "ready, not verified on the real file" until re-measured on his export.
+- Checks met but the owner's description still seems to hold: say so; never call it solved.
 ### Type detection (apply in priority order; security signals win over every other type)
 | Signals | Type |
 |---------|------|
@@ -156,6 +172,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
    It also has `Labels: <LABELS-NOW>`, `Diagram: ASKED (<why>) | NONE (<why>)` and
    `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)`; a stop without them is not complete.
+   It also has `Criteria: PROPOSED <n> (P<k>, ...) | APPROVED <n> (...) | NONE (no Everything else problem)`; in criteria mode, criteria.md's check prints CRITERIA-OK first.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -239,6 +256,7 @@ Proposed in the decision message, fixed at approval. Defaults: Simple 6 commits,
 2 hours, the files named in ## Options plus their tests; Moderate 15 commits, 4
 hours, the files in the plan plus their tests; Complex as stated in the plan.
 Plain wording: "Up to 2 hours, touching these 3 files. I stop and ask if I go over."
+Criteria mode budget: time, at most 5 attempts per epoch (fixed in criteria.md's tool), about <n> USD, and the named files or copies; commits count only in git.
 
 Measure before every commit (main thread or fix agent):
   commits: git rev-list --count <approval-sha>..HEAD -- . ':(exclude)docs/superpowers/plans'
@@ -306,9 +324,12 @@ The agent ticks the plan file's task checkboxes as each task completes.
 On restart (limit, crash, new session): re-read the Status line, `## Problems`, `## Decision`, the budget and approval-sha (its `Internal:` line) from the issue body or journal file, the latest progress comment on the issue (if any), the plan file's task checkboxes if a plan exists, and `git log` on the branch. The secrets list is the file `~/.superfix/runs/<run-key>/secrets` (the same key, built again: the run key on the journal's issue line, else the issue number, else the journal file name; redaction.md); do not start a new one, and a NO-RUN-FOLDER stops. Continue from the first unfinished stage. Do not redo finished stages.
 Also re-read the `**Labels:**` line and the last `Diagram:` and `Gap note:` lines; run the label
 commands so the labels match the Status line; search before filing any gap note (gaps.md).
+Also re-read `## Done when`, the newest `criteria-sha` line and criteria.md's attempts file; run its lock check before any attempt.
 
 ### Solved check
 Runs inside `verification-before-completion`, on both paths. Code only (Qik: see above).
+Criteria mode: criteria.md's three runs instead (the original, the change, and a negative control: one known defect put back must FAIL).
+`later` and `owner` criteria are listed as waiting, never counted as passes.
 "Solved" means three runs, each recorded with output in the final comment.
 <s1>, <s3> are new folders outside the repo (`mktemp -d`), written out in full.
   Run 1, base fails: `git worktree add --detach <s1> <approval-sha>`, then
@@ -342,6 +363,7 @@ These are in `references/execute.md`. Read it in full before implementing (see t
 
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
+Criteria mode: the PR body says `Refs #<N>`, not `Closes`, when any non-code problem has a `later` or `owner` criterion, is a process, or still matches the owner's description; it says what is not yet measured.
 If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
 The PR body and the final comment both end with `## Not tested`: one bullet per
@@ -349,6 +371,7 @@ thing not checked, and why. An empty list says "Nothing known untested". Never l
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
 The final comment also carries the `Labels:`, `Diagram:` and `Gap note:` lines (journal.md).
+Every stop message and the final comment carry `Criteria check: <plain name> PASS|FAIL|ERROR|LATER <date>|OWNER (<before> -> <after>), ...`.
 
 If the PR targets a non-default branch, `Closes` does not fire. Close manually only after `gh pr view <PR> --json state -q .state` returns `MERGED`.
 
@@ -381,6 +404,8 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Uploading a picture without the upload command, or to a public repo
 - Drawing a diagram without the owner's yes, or writing it inside the clone
 - A gap note with the owner's words, a name, path or link, or outside the checked repo or local folder
+- Fixing an "Everything else" problem without an approved, locked criterion
+- Calling a criteria-mode problem solved when only its criteria passed and the owner's description still holds
 
 ## Out of Scope
 

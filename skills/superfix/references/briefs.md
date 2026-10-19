@@ -48,6 +48,9 @@ git branch; plan and context files live in `~/.superfix/journal/<name>/`.
 4. If the qik skill has no backup recipe for what you are changing, stop and
    return the question. Do not invent one.
 
+Criteria mode: never edit the original or write into a cloud folder; never change a measure script or a criterion line; never call a send, share, publish or write tool on anything outside the repo and the run folder; return CRITERIA-CHANGED if the lock check fails.
+Run measure scripts only through criteria.md's tool (`attempt` for every attempt, which measures by itself), never directly, and never with `--unsandboxed-ok` unless the caller says the owner said yes to the sandbox question. Never edit the attempts file, the records or the lock file.
+
 Budget commands (copy into the brief with the real values):
 
 ```bash

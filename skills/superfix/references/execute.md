@@ -112,6 +112,23 @@ superpowers:test-driven-development [sonnet/high]
 → verification-before-completion [sonnet/high]
 ```
 
+### Criteria mode sequence (Everything else problems, after go; references/criteria.md)
+
+Criteria mode never reuses a code sequence above. Simple runs it on the main thread; Moderate and Complex give the fix agent this file, criteria.md and briefs.md.
+- Where: copy mode by default, for every criteria-mode file (data, guide or process): no branch, no commit, no PR; plan and context files go in `~/.superfix/journal/<name>/`, as for Qik; budget commits count only in git. The work branch (SKILL.md's shared block) only when criteria.md section 9's three conditions all hold: `visibility` prints PRIVATE, the owner said yes to question (b) with no names or contact details in the files, and `scan` is clean on the diff; never in a repo inside a cloud mount.
+
+```
+criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through criteria.md's tool, in its sandbox
+→ change the branch file, or the copy from criteria.md's copy command
+→ criteria.md's attempt command on the change (--label try<n>; the tool runs every locked script itself, at most 5 per epoch), then the progress command; an approved amendment goes through criteria.md's amend
+→ repeat until every C passes, or STOP-NO-PROGRESS, STOP-CAP or a budget limit
+→ review: a general-purpose agent [sonnet/high] with the review header; it reads the criterion lines, the original and the change, and looks for a check met in a way that misses the problem (a row deleted instead of merged, a value blanked, a definition read another way)
+→ criteria.md's three runs (run 1 the original, run 2 the change, run 3 the negative control)
+→ verification-before-completion: does the owner's description in ## Done when still hold?
+→ comment check (CRITERIA-OK after LINES-OK), final comment; copy mode names the copy and the saved diff on the Mac
+→ finish (ORIGINAL-UNCHANGED, WORK-DELETED) when the job ends
+```
+
 ### Code review rules (all types)
 
 - Every review agent brief starts with this review header (the same text as in `references/diagnose.md`): "Report only. Do not edit, write or create files, and do not run commands that change anything. Return findings with confidence; the caller applies fixes." After the agent returns, `git status --porcelain` must show no change it made
@@ -128,3 +145,4 @@ superpowers:test-driven-development [sonnet/high]
 - Verification re-runs the failing check in ## Problems (solved check in SKILL.md) or the baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
 - After pictures: SKILL.md Solved check and references/evidence.md
 - Labels, diagrams, gap notes: SKILL.md, journal.md, diagrams.md, gaps.md
+- Criteria mode: SKILL.md, criteria.md, journal.md

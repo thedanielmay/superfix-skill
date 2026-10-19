@@ -33,6 +33,7 @@ notes in the checked private gap repo or ~/.superfix/gaps/ (references/gaps.md).
    skipped, misread, or missing? Fix it or downgrade to "suspected".
 
 A report with several problems: run the method for each one (P1, P2, ...). A problem in the "Everything else" coverage row usually has no check that can fail. Say so in place of step 1, run steps 2 to 7 from what can be read, and mark every finding low confidence (never "confirmed" without a filled row).
+Criteria mode (references/criteria.md): the baseline FAIL of each proposed C criterion, for the stated items, is the failing check for that problem.
 
 ### Stop rules
 
