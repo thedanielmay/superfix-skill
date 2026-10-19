@@ -85,7 +85,7 @@ Write the result in the Coverage, Trigger and Evidence lines at the top of the P
 Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
 "Everything else" are fixed only in criteria mode (below), never by the code path.
-Each criterion Superfix had no way to check (no tool or access), and each problem whose row's tools were missing (partial), gets one
+Each Everything else problem with no checkable criterion (it stops at diagnosis), each criterion with no tool or access to check it, and each partial problem (its row's tools missing) gets one
 gap note at the Stop gate: read references/gaps.md first. The note names the KIND of problem only;
 it goes to the private gap repo only when every gaps.md check passes, else to ~/.superfix/gaps/.
 Never the work repo or a public repo. Never edit this skill because of a gap note.
@@ -95,14 +95,14 @@ Several problems are "P1, P2"; "compound" still means one issue spanning two typ
 Data and document clean-ups are fixed only against criteria the owner approves; never against criteria Superfix invented alone.
 A process is never called solved: Superfix drafts the change and says "change drafted (or adopted), effect measured on <date>: <result>".
 - Take the owner's criteria, else draft them. Each is one line in ## Done when, in criteria.md's shape, with every definition stated (what counts as a duplicate, which row wins, how 03/04 is read). An unclear definition gets its own numbered question.
-- Above the `---`, each criterion in plain words with today's number, the pass line and up to 3 items the script counted: "Duplicate members. Today: 8 (rows 14, 15, 62). Must be 0." Scripts go in the AI detail.
-- A vague pass line ("clearer", "better"): propose a rewrite with a number, a yes/no fact or a checklist.
-- Measure scripts run on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. A crash or a missing MEASURE line is ERROR, never FAIL.
+- Above the `---`, each criterion in exactly this form, the bracket holding only row numbers (never a value): "Duplicate members. Today: 8 (rows 14, 15 and 62). Must be 0." Scripts go in the AI detail.
+- A pass line outside criteria.md's grammar ("clearer", "under 3", two conditions): propose a rewrite in it. No checkable criterion at all: stop at diagnosis.
+- Measure scripts run in criteria.md's sandbox on the original before the stop: each C must FAIL, naming the same items shown above; each K must PASS. The tool decides PASS or FAIL; a crash or a missing MEASURE line is ERROR, never FAIL.
 - Two numbered questions per problem, no recommended answer, never the Simple short form: "If every check above passes, would you consider this solved? (yes / no, and what is missing)" and "What must not get worse, for you or anyone affected? (my suggestions: ...; reply "those", add your own, or "none")".
 - Only "yes" to the first plus an answer to the second approves. "Keep executing" does not: say once, in chat and in the comment, "Keep executing does not approve the checks for problem <k>; I am waiting for your answers to questions <a> and <b>". Ask again once, then park it as "Waiting for you"; other problems go ahead.
-- At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: a change needs a new yes; ## Decision keeps old and new wording and the date. No lock, no fixing.
-- Work on a branch or a copy in the run folder, never the original. Never write into a cloud mount (`~/Library/CloudStorage`, `~/shared-drives`). On a PUBLIC repo never commit personal or financial data.
-- Nothing goes to another person: no send, reply, share, invite, post or task for anyone else, by any tool or by Bash. Messages are drafts.
+- At go, criteria.md's lock writes the `criteria-sha` line in ## Decision. Locked: only the locked scripts run, on the locked files or their copies; a change needs a new yes and a new epoch. No lock, no fixing.
+- Work on a branch or a copy in the run folder, never the original. Never write into a cloud folder (criteria.md's `where`). Never commit a data file, on any repo, without a yes to criteria.md's question.
+- Nothing leaves the repo, the run folder and the owner's Mac, by any route (criteria.md's list): no send, share, publish, upload or post. Messages are drafts.
 - An attempt has moved only when a failing C improved and no C or K got worse. Two attempts that do not move: stop and say why.
 - A copy the owner puts back into a live file is "ready, not verified on the real file" until re-measured on his export.
 - Checks met but the owner's description still seems to hold: say so; never call it solved.
@@ -362,7 +362,7 @@ These are in `references/execute.md`. Read it in full before implementing (see t
 
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
-Criteria mode with a `later` or `owner` criterion still waiting: the PR body says `Refs #<N>`, not `Closes`, and says the effect is not yet measured.
+Criteria mode: the PR body says `Refs #<N>`, not `Closes`, when any non-code problem has a `later` or `owner` criterion, is a process, or still matches the owner's description; it says what is not yet measured.
 If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
 The PR body and the final comment both end with `## Not tested`: one bullet per
