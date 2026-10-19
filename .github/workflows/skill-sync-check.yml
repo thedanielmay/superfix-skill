@@ -4,9 +4,12 @@ on:
     paths:
       - 'SKILL.md'
       - 'skills/superfix/SKILL.md'
+      - 'skills/superfix/references/**'
+      - 'references'
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: diff SKILL.md skills/superfix/SKILL.md && echo in-sync
+      - run: diff -r references skills/superfix/references && test -f references/execute.md && echo references-resolve
