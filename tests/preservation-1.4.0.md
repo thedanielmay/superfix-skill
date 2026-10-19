@@ -47,3 +47,14 @@ Disputed or unsure:
 ## Final-test fix (19 Oct 2026)
 
 - A final-text run on the pricing page never read evidence.md and took no picture. The trigger was conditional and optional. Fix: a required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo)` line in the AI detail of every decision comment and decision journal entry (journal.md template and rules; SKILL.md Stop gate item 1 gains one new line, so SKILL.md is 430 lines), with the rule that a web page, app screen, rendered document or UI is never `NONE (no screen)`. The SKILL.md pictures heading now says to take them when the problem can be seen on a screen. The final comment and the fix agent brief say a problem with a before picture has an after picture or a stated reason. All add-only against v1.3.1 (the changed heading and lines are 1.4.0 text).
+
+## Review 2 (19 Oct 2026)
+
+- Saved login holds pictures (`"held": true` in `evidence/<name>.json`, checked by the upload command); a credential you see goes on the list before any picture; a credential in the original report holds pictures.
+- Invisible characters (U+00AD, U+200B to U+200F, U+2060, U+FEFF, U+202A to U+202E) removed from page text and secrets before every comparison; reversed text blanked too; CSS animations frozen.
+- CSS images: chosen rule is that every `url(` or `image-set(` image in the picture area is `UNREACHABLE css-image`, same-origin files included (an image file can hold text, and `img` elements were already blocked the same way). Tested: data: background, data: `content` on `::after`, a same-origin file background (all UNREACHABLE) and a gradient (SAVED).
+- assets release: git tree listing (any depth, any case), the word list, flow-syntax `on:`, an `assets` tag with no release, no recommended answer; tested with a fake gh (push plus pull_request both branch-limited, flow syntax, nested directory, workflow_run, pull_request only, no workflows, empty repo, tag only, release exists) and read-only on three real repos.
+- `ERROR` lines: a code word plus at most 60 tidied characters (tested with `?token=abc123SECRETvalue` and `user:pw@`: printed `ERROR browser: Page.goto: net::ERR_UNSAFE_PORT at http://127.0.0.1:9`).
+- `retake` from another working folder works (absolute `--serve`, `--run`, `--storage`).
+- SKILL.md stays at 430 lines: two 1.4.0 bullets in the Evidence pictures block were joined to make room for the Go-rule line; no 1.3.1 line changed.
+- Not covered: `zw2.html` with an EMPTY list and the secret unblanked: OCR does not read 9px grey text, so OCR alone would miss it. With the secret on the list it is blanked, and the picture is held anyway.
