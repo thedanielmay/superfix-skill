@@ -2423,9 +2423,15 @@ def woc_verify(a):
         return 1
     rows = epoch_rows(at)
     row = next((x for x in rows if x["from"] == a.head), None)
+    flat = False
     if row is None:
-        print(f"VERIFY-NO-ATTEMPT {a.head} (no recorded attempt under that label: lockcheck, attempt --label {a.head}, progress)")
-        return 1
+        # ATTEMPT-SAME records nothing: carry the newest values forward so the
+        # flat return still counts (same values feed verdicts and progress).
+        if not rows:
+            print(f"VERIFY-NO-ATTEMPT {a.head} (no recorded attempt under that label: lockcheck, attempt --label {a.head}, progress)")
+            return 1
+        row = rows[-1]
+        flat = True
     bad = check_rows(sc, rows, lk)
     if bad:
         print("\n".join(bad))
@@ -2437,6 +2443,8 @@ def woc_verify(a):
         print(f"VERIFY-NO-RETURN {a.head} (the recorded attempt holds no check verdict)")
         return 1
     out, failing = [], []
+    if flat:
+        out.append(f"FLAT {a.head} (carried values from attempt {row['n']})")
     for i in sorted(ids):
         tg = target(cs[i]["pass"], base.get(i), cs[i]["ck"])
         w = "PASS" if tg is not None and distance(tg, row["v"][i]) == 0 else "FAIL"
@@ -2483,6 +2491,9 @@ def woc_verify(a):
             out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
         failing.append("findings")
     r["failing"] = len(failing)
+    r["values"] = {i: row["v"][i] for i in sorted(ids)}
+    r["lock"] = row["lock"]
+    r["flat"] = flat
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
     if not failing:
@@ -2566,6 +2577,17 @@ def woc_sendback(a):
         return 1
     if "PROGRESS-NONE" in out:
         print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
+        return 1
+    hist = [(r.get("values"), r.get("lock")) for r in rs
+            if "failing" in r and isinstance(r.get("values"), dict)]
+
+    def _same(x, y):
+        return x[1] == y[1] and x[0] is not None and x[0] == y[0]
+
+    flat_pairs = [_same(hist[k - 1], hist[k]) for k in range(1, len(hist))]
+    if len(flat_pairs) >= 2 and flat_pairs[-1] and flat_pairs[-2]:
+        print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        woc_cleanup_rounds(h["WORK-ORDER"])
         return 1
     dest = wo_dest(a.dest)
     if dest is None:
