@@ -2860,6 +2860,17 @@ def wo_attempts(a, D, B, H):
 
 def cmd_wo_return(a):
     """RETURN: the shared steps, then the code step: one resolved H, built on the last returned H, attempts counted."""
+    if getattr(a, "run", None) and woc_run_is_criteria(pathlib.Path(a.run)):
+        if getattr(a, "folder", None):
+            rf = pathlib.Path(real(a.folder)) / "workorder.md"
+            try:
+                kind = wo_head(rf.read_text()).get("CHECKS-KIND") if rf.is_file() else "criteria"
+            except OSError:
+                kind = "criteria"
+            if kind != "criteria":
+                print("RETURN-OURS-CHANGED (the returned workorder.md kind differs from our lock: stop)")
+                return 1
+        return woc_return(a)
     if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
         return woc_return(a)
     rc = woc_need_clone(a, "wo-return")
