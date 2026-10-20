@@ -2179,21 +2179,15 @@ def woc_run_measures(script_dir, done_name, copy_path, timeout=300, passes=None)
     return out
 
 
-def woc_measure_all(folder, timeout=300, passes=None):
-    """Each [script] tick measured on the folder copy with the bundled scripts: {id: (word, value)}."""
-    F = pathlib.Path(folder)
-    t = (F / "workorder.md").read_text()
-    cp = woc_copy_file(t, F)
-    return woc_run_measures(F / "checks", "done-when.md", cp if cp is not None and cp.is_file() else None, timeout, passes)
-
-
 def woc_baseline(a):
     """BASELINE for kind criteria: the bundled measures on the untouched copy give the BASELINE words."""
     F = real(a.folder)
     t = (F / "workorder.md").read_text()
     want = woc_baseline_want(t)
     text = woc_body(a)
-    got = woc_measure_all(F, passes=woc_body_passes(text) if text is not None else None)
+    cp = woc_copy_file(t, F)
+    got = woc_run_measures(F / "checks", "done-when.md", cp if cp is not None and cp.is_file() else None,
+                           passes=woc_body_passes(text) if text is not None else None)
     if any(w == "SANDBOX-MISSING" for w, _ in got.values()):
         print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
         return 1
