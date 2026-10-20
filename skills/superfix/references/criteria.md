@@ -2558,12 +2558,7 @@ def woc_verify(a):
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
     if not failing:
-        try:
-            wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
-            if wid:
-                woc_cleanup_rounds(wid)
-        except OSError:
-            pass
+        woc_cleanup_full(D)
         print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
         return 0
     print("\n".join(out + ["VERIFY-FAIL"]))
@@ -2583,6 +2578,43 @@ def woc_cleanup_rounds(work_id):
         shutil.rmtree(d / "work", ignore_errors=True)
 
 
+def woc_cleanup_full(D):
+    """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
+    data files. Records (.sf-orig, lock, returns.json, attempts) stay for audit."""
+    D = pathlib.Path(D)
+    try:
+        wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
+    except OSError:
+        wid = ""
+    if wid:
+        woc_cleanup_rounds(wid)
+    shutil.rmtree(D / "workorder" / "folder" / "work", ignore_errors=True)
+    w = D / "work"
+    if w.is_dir():
+        for p in sorted(w.iterdir()):
+            if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig"):
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
+    return wid
+
+
+def cmd_wo_cleanup(a):
+    """CLEANUP: the model runs this on a stop, a later, or finish (the pass, cap and
+    no-progress paths run the same cleanup themselves)."""
+    D = pathlib.Path(a.run)
+    if not woc_run_is_criteria(D):
+        print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/)")
+        return 1
+    wid = woc_cleanup_full(D)
+    if not wid:
+        print("CLEANUP-NO-WORKORDER (no stub workorder.md in the run folder)")
+        return 1
+    print(f"CLEANUP-OK {wid} (rounds, stub and run copies deleted; records kept)")
+    return 0
+
+
 def woc_sendback(a):
     """Send a criteria folder back: the same locked stub, the returned copy back in work/, Superfix's own FAIL lines."""
     D = pathlib.Path(a.run)
@@ -2596,7 +2628,7 @@ def woc_sendback(a):
         return 1
     last = rs[-1]
     if last["failing"] == 0:
-        woc_cleanup_rounds(h["WORK-ORDER"])
+        woc_cleanup_full(D)
         print("SENDBACK-NOTHING (the last return passed every check)")
         return 1
     want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
@@ -2634,11 +2666,11 @@ def woc_sendback(a):
     print(out, end="")
     if "STOP-NO-PROGRESS" in out:
         print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
-        woc_cleanup_rounds(h["WORK-ORDER"])
+        woc_cleanup_full(D)
         return 1
     if "STOP-CAP" in out:
         print("RETURN-CAP (no send-back left: offer 2 or 3)")
-        woc_cleanup_rounds(h["WORK-ORDER"])
+        woc_cleanup_full(D)
         return 1
     if "PROGRESS-NONE" in out:
         print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
@@ -2652,7 +2684,7 @@ def woc_sendback(a):
     flat_pairs = [_same(hist[k - 1], hist[k]) for k in range(1, len(hist))]
     if len(flat_pairs) >= 2 and flat_pairs[-1] and flat_pairs[-2]:
         print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
-        woc_cleanup_rounds(h["WORK-ORDER"])
+        woc_cleanup_full(D)
         return 1
     dest = wo_dest(a.dest)
     if dest is None:
@@ -3489,6 +3521,7 @@ def main():
         if name == "wo-verify":
             s.add_argument("--findings"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
+    s = p("wo-cleanup", cmd_wo_cleanup, "run")
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
