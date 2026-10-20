@@ -77,7 +77,7 @@ t wo-no-yes-gates-lock 'WORKORDER-LOCK-REFUSED' sh -c 'sed "/^## Decision/,$d" "
 # ---- RETURN (executor fixes all 8 dupes, then the half fix) ----
 retfix ret1 "$M_DEST" 8
 t wo-return-ok 'RETURN-CRITERIA-COPIED wo1 .* attempts 1' python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/ret1/folder" --body "$M_BODYDEC"
-t wo-return-original-moved 'RETURN-ORIGINAL-MOVED' sh -c 'echo "M9,X,x@x.org,2024-01-01,45" >> "$M_RD/work/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/ret1/folder" --body "$M_BODYDEC"; cp "$SEED/overlay/data/members-export.csv" "$M_RD/work/members-export.csv"'
+t wo-return-original-moved 'RETURN-ORIGINAL-MOVED' sh -c 'echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/ret1/folder" --body "$M_BODYDEC"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
 t wo-return-files-over 'RETURN-FILES-OVER .*work/extra.txt' sh -c 'rm -rf "$T/retx"; cp -r "$M_DEST" "$T/retx"; echo x > "$T/retx/work/extra.txt"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retx" --body "$M_BODYDEC"'
 t wo-return-no-copy 'RETURN-NO-COPY' sh -c 'rm -rf "$T/retn"; cp -r "$M_DEST" "$T/retn"; rm "$T/retn/work/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retn" --body "$M_BODYDEC"'
 t wo-return-checks-changed 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/retc"; cp -r "$M_DEST" "$T/retc"; echo "# x" >> "$T/retc/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retc" --body "$M_BODYDEC"'
@@ -173,6 +173,33 @@ with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
     w.writeheader(); w.writerows(rows)
 EOF
 t wo-kprog-no-progress-worse 'NO-PROGRESS .*worse' sh -c 'python3 -I "$W_RD/crit.py" attempt --run "$W_RD" --attempts "$W_RCRC/attempts" --scripts "$W_RCRC" --label k1 --body "$W_BODYDEC" --measure "P1-C1=$W_RD/work/kbad.csv" --measure "P1-K1=$W_RD/work/kbad.csv" >/dev/null 2>&1; python3 -I "$W_RD/crit.py" progress --attempts "$W_RCRC/attempts" --scripts "$W_RCRC" --run "$W_RD" --body "$W_BODYDEC"'
+
+# ---- CUT RIG (a cut copy all the way through check, lock and return) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cut-wo thedanielmay+superfix-testbed+cut-wo1 "$T/src/members-export.csv" work/cut.csv --cut U)"
+[ -n "$U_RD" ] || { echo "CANNOT RUN: cut rig build failed"; exit 2; }
+export U_RD U_RF U_RCRC U_DEST U_BODYDEC
+t wo-cut-check-ok '^WORKORDER-OK$' python3 -I "$U_RD/crit.py" wo-check --wo "$U_RF/workorder.md" --run "$U_RD" --body "$U_BODYDEC"
+t wo-cut-baseline-ok '^BASELINE-OK$' python3 -I "$U_RD/crit.py" wo-baseline --run "$U_RD" --folder "$U_RF" --body "$U_BODYDEC"
+t wo-cut-lock-ok 'WORKORDER-LOCKED' python3 -I "$U_RD/crit.py" wo-lock --run "$U_RD" --folder "$U_RF" --dest "$U_DEST" --body "$U_BODYDEC"
+rm -rf "$T/Uret"; mkdir -p "$T/Uret"; cp -r "$U_DEST" "$T/Uret/folder"
+python3 - "$T/Uret/folder/work/cut.csv" <<'EOF'
+import csv, sys
+rows = list(csv.DictReader(open(sys.argv[1], newline="", encoding="utf-8")))
+seen, out = set(), []
+for r in rows:
+    if r["email"].strip().lower() in seen:
+        continue
+    seen.add(r["email"].strip().lower()); out.append(r)
+with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
+    w = csv.DictWriter(f, fieldnames=["row", "email", "joined"])
+    w.writeheader(); w.writerows(out)
+print("cut fixed rows:", len(out))
+EOF
+t wo-cut-return-ok 'RETURN-CRITERIA-COPIED wo1' python3 -I "$U_RD/crit.py" wo-return --run "$U_RD" --folder "$T/Uret/folder" --body "$U_BODYDEC"
+doattempt "$U_RD" "$U_RCRC" "$U_BODYDEC" wo1 "$U_RD/work/wo1-cut.csv" >/dev/null 2>&1
+printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-cut.txt"
+t wo-cut-verify-pass 'VERIFY-PASS' python3 -I "$U_RD/crit.py" wo-verify --run "$U_RD" --head wo1 --attempts "$U_RCRC/attempts" --scripts "$U_RCRC" --body "$U_BODYDEC" --findings "$T/find-cut.txt"
+t wo-cut-base-is-placed-copy 'BASE-IS-PLACED-COPY' sh -c 'test "$(shasum -a 256 "$U_RF/work/cut.csv" | cut -d" " -f1)" = "$(sed -n "s/^BASE: //p" "$U_RF/workorder.md" | cut -d" " -f1)" && echo BASE-IS-PLACED-COPY'
 
 # ---- OLD LOCK (locked under the v1.5.0 tool, worked under the new one) ----
 O="$T/oldlock"; mkdir -p "$O/home"; export OHOME="$O/home"

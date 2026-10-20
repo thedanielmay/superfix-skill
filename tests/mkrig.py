@@ -81,14 +81,15 @@ body = (
 )
 (D / "body.md").write_text(body)
 sh(*C, "copy", "--run", str(D), "--src", str(ORIG))
+realname = pathlib.Path(ORIG).name
 base = pathlib.Path(STUBREL).name
 # real 1.5.0 job on the recorded copy
 sh(*C, "baseline", "--run", str(D), "--scripts", str(RC), "--body", str(D / "body.md"),
    "--attempts", str(RC / "attempts"), "--label", "base",
-   "--measure", f"P1-C1={D / 'work' / base}", "--measure", f"P1-K1={D / 'work' / base}")
+   "--measure", f"P1-C1={D / 'work' / realname}", "--measure", f"P1-K1={D / 'work' / realname}")
 r = sh(*C, "lock", "--scripts", str(RC), "--by", "the owner at the keyboard", "--run", str(D),
        "--attempts", str(RC / "attempts"), "--body", str(D / "body.md"),
-       "--data", str(D / "work" / base), "--approved", "P1")
+       "--data", str(D / "work" / realname), "--approved", "P1")
 m = re.search(r"Internal: criteria-sha ([0-9a-f]{64})", r.stdout)
 bodydec = body + ("\n## Decision\n"
                   f"Data yes: {base} ({'only the columns row, email, joined' if CUT else 'the whole file'}): yes\n"
@@ -98,7 +99,7 @@ bodydec = body + ("\n## Decision\n"
 (F / "key").write_text(WID + "\n")
 if CUT:
     import csv
-    rows = list(csv.DictReader(open(D / "work" / base, newline="", encoding="utf-8")))
+    rows = list(csv.DictReader(open(D / "work" / realname, newline="", encoding="utf-8")))
     with open(F / STUBREL, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["row", "email", "joined"])
         w.writeheader()

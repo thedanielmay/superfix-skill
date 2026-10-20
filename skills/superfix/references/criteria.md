@@ -2181,18 +2181,20 @@ def woc_baseline(a):
 
 
 def woc_lock_state(D):
-    """Parse D/workorder/lock: ({name: sha} for '  ' lines, origsha) or None."""
+    """Parse D/workorder/lock: ({name: sha} for '  ' lines, origsha, origpath) or None."""
     p = pathlib.Path(D) / "workorder" / "lock"
     if not p.is_file():
         return None
-    files, orig = {}, None
+    files, orig, opath = {}, None, None
     for l in p.read_text().splitlines():
         if l.startswith("origsha "):
             orig = l[len("origsha "):]
+        elif l.startswith("origpath "):
+            opath = l[len("origpath "):]
         elif "  " in l:
             s, n = l.split("  ", 1)
             files[n] = s
-    return files, orig
+    return files, orig, opath
 
 
 def woc_returns(D):
@@ -2207,19 +2209,41 @@ def woc_save_return(D, **kv):
     return len(rs)
 
 
+def woc_head(t):
+    """Header lines for kind criteria (wo_head only keeps the code kind's keys)."""
+    return {k: v for l in t.splitlines() for k, _, v in [l.partition(": ")] if k in WO_REQUIRED_CRITERIA}
+
+
+def woc_orig_record(t, D):
+    """(origsha, origpath) from the .sf-orig record matching SOURCE's basename, or None."""
+    src = (woc_head(t).get("SOURCE", "") or "").split()
+    if not src:
+        return None
+    cand = pathlib.Path(D) / "work" / (pathlib.Path(src[0]).name + ".sf-orig")
+    if not cand.is_file():
+        return None
+    try:
+        sha, sep, path = cand.read_text().strip().partition(" ")
+    except OSError:
+        return None
+    if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
+        return None
+    return sha, path
+
+
 def woc_ours(D):
-    """Our locked stub: (folder, headers, {name: sha}, origsha), or None after printing NO-LOCK/OURS-CHANGED."""
+    """Our locked stub: (folder, headers, {name: sha}, origsha, origpath), or None after NO-LOCK/OURS-CHANGED."""
     F = pathlib.Path(D) / "workorder" / "folder"
     st = woc_lock_state(D)
     if st is None:
         print("RETURN-NO-LOCK (the run folder is gone: say so, use the ## Decision shas, ask for any password again)")
         return None
-    files, origsha = st
+    files, origsha, origpath = st
     if any(not (F / n[len("folder/"):]).exists() or sha_file(F / n[len("folder/"):]) != s
            for n, s in files.items() if n.startswith("folder/")):
         print("RETURN-OURS-CHANGED (our locked copies and their lock do not agree: stop)")
         return None
-    return F, wo_head((F / "workorder.md").read_text()), files, origsha
+    return F, wo_head((F / "workorder.md").read_text()), files, origsha, origpath
 
 
 def woc_copy_folder(F, dest, t):
@@ -2249,13 +2273,14 @@ def woc_lock(a):
     if dest is None:
         return 1
     W = D / "workorder"
-    base = woc_copy_file(t, F).name
-    orig = D / "work" / base
-    if not orig.is_file():
-        print("WORKORDER-LOCK-REFUSED (the run folder's work/ holds no recorded original)")
+    rec = woc_orig_record(t, D)
+    if rec is None:
+        print("WORKORDER-LOCK-REFUSED (no .sf-orig record for the SOURCE file: copy the original with crit.py copy under its own name)")
         return 1
+    origsha, origpath = rec
     names = ["workorder.md"] + [f"checks/{n}" for n in sorted(woc_block_files(t))]
-    (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names) + f"origsha {sha_file(orig)}\n")
+    (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names)
+                            + f"origsha {origsha}\norigpath {origpath}\n")
     woc_copy_folder(F, dest, t)
     ws = sha_file(F / "workorder.md")
     if sha_file(dest / "workorder.md") != ws:
@@ -2279,15 +2304,14 @@ def woc_return(a):
     o = woc_ours(D)
     if o is None:
         return 1
-    F, h, files, origsha = o
+    F, h, files, origsha, origpath = o
     ours = (F / "workorder.md").read_text()
     links = woc_symlinks(RF)
     if links:
         print("RETURN-SYMLINK " + " ".join(links) + " (a link in the returned folder: nothing read or committed; ask for a plain copy)")
         return 1
     base = woc_copy_file(ours, F).name
-    orig = D / "work" / base
-    if not orig.is_file() or sha_file(orig) != origsha:
+    if origpath is None or not pathlib.Path(origpath).is_file() or sha_file(origpath) != origsha:
         print("RETURN-ORIGINAL-MOVED (the recorded original is gone or changed: a fresh baseline through amend)")
         return 1
     got = RF / "work" / base
@@ -2405,7 +2429,7 @@ def woc_sendback(a):
     o = woc_ours(D)
     if o is None:
         return 1
-    F, h, files, origsha = o
+    F, h, files, origsha, origpath = o
     W = D / "workorder"
     rs = woc_returns(D)
     if not rs or "failing" not in rs[-1]:
