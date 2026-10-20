@@ -236,7 +236,7 @@ Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (pu
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <ASKED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
-Work order: <NONE (normal run) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>>
+Work order: <NONE (normal run) | ASKED (written after go) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>>
 Criteria: <PROPOSED n (P1, P2)[; NONE (P3: why)] | APPROVED n (...) | NONE (no Everything else problem)>
 Criteria check: <criteria mode: plain name RESULT (value), ...; else NONE (no Everything else problem)>
 ```
@@ -270,7 +270,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<
 - 1.4.1, also required in the AI detail of every decision comment and decision journal entry, and of the final comment (a stop is not complete without them):
   - `Labels: <LABELS-NOW>`, copied from the read-back command, never typed from memory; or `not set (<word>); marker superfix-awaiting-decision` (or `superfix-approved`); or `none (no issue)`.
   - `Diagram: ASKED (<why>) | NONE (<why>)` at the stop; at the end `POSTED <n> | NO (owner said no) | HELD (<why>) | LOCAL (<why>) | NOT-POSTED (<why>) | NONE (<why>)` (references/diagrams.md).
-  - `Work order: NONE (normal run) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>` (1.6.0, references/workorder.md); every normal run writes `NONE (normal run)`.
+  - `Work order: NONE (normal run) | ASKED (written after go) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>` (1.6.0, references/workorder.md), its first word exactly as shown: every normal run writes `NONE (normal run)`; a work order run writes `ASKED (written after go)` at the stop and `WRITTEN <path>` once it is locked.
   - `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)` (references/gaps.md); the final comment adds "open notes in your gap list: <n>".
 - The diagram question (exact text in references/diagrams.md) goes after the problem and budget questions and before the `assets` and create-issue questions; the create-issue question stays last.
 - The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.

@@ -238,6 +238,7 @@ cp "$T/c-no-wo.md" "$T/c-wo.md"; echo 'Work order: NONE (normal run)' >> "$T/c-w
 lines() { local s="${LC//<run-key>/x}"; s="${s//\$HOME\/.superfix\/runs\/x\/comment-<N>.md/$1}"; s="${s//<decision or final>/decision}"; s="${s//<owner>\/<repo>/none}"; bash -c "$s"; }
 t lines-check-needs-work-order 'LINES-MISSING Work order' lines "$T/c-no-wo.md"
 t lines-check-ok-with-work-order '^LINES-OK$' lines "$T/c-wo.md"
+t journal-work-order-values '^2$' bash -c "grep -c 'NONE (normal run) | ASKED (written after go) | WRITTEN <path> | RETURNED <word> | VERIFIED' '$ROOT/skills/superfix/references/journal.md'"
 
 rm -f "$REALHOME/wo-sbx-write"; rm -rf "$T"
 echo "RESULT: $pass passed, $fail failed"
