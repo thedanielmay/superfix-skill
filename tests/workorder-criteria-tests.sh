@@ -43,7 +43,7 @@ eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-csv-wo thedanielmay+supe
 [ -n "$M_RD" ] || { echo "CANNOT RUN: main rig build failed"; exit 2; }
 export M_RD M_RF M_RCRC M_DEST M_BODYDEC M_PRISTINE
 M_PRISTINE="$T/pristine-main"; cp -r "$M_RF" "$M_PRISTINE"
-restore() { rm -rf "$M_RF"; mkdir -p "$(dirname "$M_RF")"; cp -r "$M_PRISTINE" "$M_RF"; echo yes > "$M_RD/workorder/data-yes"; }
+restore() { rm -rf "$M_RF"; mkdir -p "$(dirname "$M_RF")"; cp -r "$M_PRISTINE" "$M_RF"; }
 export -f restore 2>/dev/null || true
 t stub-lock-names-stub-only "data $M_RF/work/members-export.csv" cat "$M_RF/checks/lock"
 t stub-lock-no-original-path 'NO-SEED-PATH' sh -c '! grep -q "seed15" "$M_RF/checks/lock" && echo NO-SEED-PATH'
@@ -57,7 +57,9 @@ t wo-ticklist-body-pass 'WORKORDER-TICKLIST P1-C1 \(not the locked body' plant "
 t wo-crit-sha 'WORKORDER-CRIT-SHA' plant "echo '# x' >> \"$M_RF/checks/crit.py\""
 t wo-no-copy 'WORKORDER-NO-COPY' plant "echo 'M9,X,x@x.org,2024-01-01,45' >> \"$M_RF/work/members-export.csv\""
 t wo-data 'WORKORDER-DATA' plant "sed -i '' 's#^SOURCE:.*#SOURCE: data/members-export.csv (contact jane@example.org)#' \"$M_RF/workorder.md\""
-t wo-no-yes-gates-check 'WORKORDER-NO-YES' sh -c 'restore; rm "$M_RD/workorder/data-yes"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$M_BODYDEC"'
+t wo-no-yes-gates-check 'WORKORDER-NO-YES' sh -c 'restore; sed "/^## Decision/,$d" "$M_BODYDEC" > "$T/body-nodec.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-nodec.md"'
+t wo-no-yes-answer-no 'WORKORDER-NO-YES' sh -c 'restore; sed "s/: yes$/: no/" "$M_BODYDEC" > "$T/body-no.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-no.md"'
+t wo-data-yes-case-insensitive '^WORKORDER-OK$' sh -c 'restore; sed "s/: yes$/: YES/" "$M_BODYDEC" > "$T/body-YES.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-YES.md"'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
@@ -70,7 +72,7 @@ t wo-baseline-mismatch 'BASELINE-MISMATCH P1-C1' bash -c 'restore; python3 "$T/d
 t wo-lock-ok 'WORKORDER-LOCKED' python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"
 t wo-lock-file-count 'FILE-COUNT-9' sh -c 'test "$(find "$M_DEST" -type f | wc -l)" -eq 9 && echo FILE-COUNT-9'
 t wo-lock-no-runtime-files 'NO-RUNTIME' sh -c 'test -z "$(find "$M_DEST" -name VERIFY.txt -o -name records -o -name head)" && echo NO-RUNTIME'
-t wo-no-yes-gates-lock 'WORKORDER-LOCK-REFUSED' sh -c 'rm "$M_RD/workorder/data-yes"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST-r2" --body "$M_BODYDEC"; echo yes > "$M_RD/workorder/data-yes"'
+t wo-no-yes-gates-lock 'WORKORDER-LOCK-REFUSED' sh -c 'sed "/^## Decision/,$d" "$M_BODYDEC" > "$T/body-nodec.md"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST-r2" --body "$T/body-nodec.md"'
 
 # ---- RETURN (executor fixes all 8 dupes, then the half fix) ----
 retfix ret1 "$M_DEST" 8

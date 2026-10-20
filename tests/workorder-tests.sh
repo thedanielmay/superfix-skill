@@ -244,6 +244,8 @@ t doc-files-over-still-verifies 'RETURN-FILES-OVER. comes with .RETURN-CHECKED H
 t doc-handoff-written-line 'The comment posted with it ends with .Work order: WRITTEN <path>.' cat "$ROOT/skills/superfix/references/workorder.md"
 t doc-post-every-outcome 'Every outcome below is posted on the issue before the session ends' cat "$ROOT/skills/superfix/references/workorder.md"
 t skill-work-order-two-kinds 'or every problem is a criteria-mode file' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/SKILL.md"
 LC="$(awk '/the lines check: before posting/{f=1} f&&/^```bash$/{g=1;next} g&&/^```$/{exit} g' "$ROOT/skills/superfix/references/journal.md")"
 printf '%s\n' '> **In plain English:** x.' '' '1. a' '---' 'Pictures: NONE (no screen: cli)' 'Labels: none (no issue)' 'Diagram: NONE (Simple)' 'Gap note: NONE (supported)' > "$T/c-no-wo.md"
 cp "$T/c-no-wo.md" "$T/c-wo.md"; echo 'Work order: NONE (normal run)' >> "$T/c-wo.md"

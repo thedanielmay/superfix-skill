@@ -2049,6 +2049,27 @@ def woc_run_is_criteria(D):
     return p.is_file() and wo_head(p.read_text()).get("CHECKS-KIND") == "criteria"
 
 
+WOC_DATAYES_RX = re.compile(r"^Data yes:\s*(\S+)\s*\(.*?\)\s*:\s*(\S+)\s*$", re.IGNORECASE)
+
+
+def woc_data_yes(text, base):
+    """Last `Data yes:` line for this file in ## Decision: True only on an explicit yes."""
+    ans = None
+    for l in section(text, "Decision"):
+        m = WOC_DATAYES_RX.match(l.strip())
+        if m and m.group(1) == base:
+            ans = m.group(2).lower() == "yes"
+    return ans is True
+
+
+def woc_base_name(t):
+    """FILES basename for the data-yes record, or None."""
+    fs = [f.strip() for f in (wo_head(t).get("FILES", "") or "").split(",") if f.strip()]
+    if not fs or not fs[0].startswith("work/") or "/" in fs[0][len("work/"):]:
+        return None
+    return pathlib.Path(fs[0]).name
+
+
 def woc_check(a, t):
     """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
     lines, bad = t.splitlines(), []
@@ -2100,8 +2121,8 @@ def woc_check(a, t):
     hits = woc_scan_data(t)
     if hits:
         bad.append(f"WORKORDER-DATA ({hits[0]})")
-    D = pathlib.Path(a.run) if getattr(a, "run", None) else None
-    if D is None or not (D / "workorder" / "data-yes").is_file() or (D / "workorder" / "data-yes").read_text().splitlines()[:1] != ["yes"]:
+    text = woc_body(a)
+    if text is None or not woc_data_yes(text, woc_base_name(t) or ""):
         bad.append("WORKORDER-NO-YES (no recorded yes to the second data question)")
     try:
         rec = read_lock(F / "checks")

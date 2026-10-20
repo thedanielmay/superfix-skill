@@ -139,8 +139,6 @@ csha = hashlib.sha256(block.encode()).hexdigest()
     "- [ ] [script] Distinct members: must be 112 (today 112)\n"
     "- [ ] [Superfix verifies] for each duplicate, the row kept is the earliest joined date\n"
     "\n## CHECKS (do not edit; Step 0 checks them)\n```bash\n# BEGIN CHECKS\n" + block + "# END CHECKS\n```\n")
-(D / "workorder" / "data-yes").parent.mkdir(parents=True, exist_ok=True)
-(D / "workorder" / "data-yes").write_text("yes\n")
 print(f"{P}RD={D}")
 print(f"{P}RCRC={RC}")
 print(f"{P}RF={F}")
