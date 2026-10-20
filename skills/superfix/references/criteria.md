@@ -2291,6 +2291,26 @@ def woc_copy_folder(F, dest, t):
     shutil.copytree(F / "work", dest / "work", symlinks=False, dirs_exist_ok=True)
 
 
+def woc_lock_modes(dest):
+    """Owner-only modes: 700 on every directory, 600 on every file (copytree keeps the stub's 755/644)."""
+    dest = pathlib.Path(dest)
+    for r, ds, fs in os.walk(dest):
+        for d in ds:
+            try:
+                os.chmod(os.path.join(r, d), 0o700)
+            except OSError:
+                pass
+        for f in fs:
+            try:
+                os.chmod(os.path.join(r, f), 0o600)
+            except OSError:
+                pass
+    try:
+        os.chmod(dest, 0o700)
+    except OSError:
+        pass
+
+
 def woc_lock(a):
     """Lock a criteria folder: WORKORDER and BASELINE again, default path only, then copy the folder."""
     D, F = pathlib.Path(a.run), real(a.folder)
@@ -2322,6 +2342,7 @@ def woc_lock(a):
     (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names)
                             + f"origsha {origsha}\norigpath {origpath}\n")
     woc_copy_folder(F, dest, t)
+    woc_lock_modes(dest)
     ws = sha_file(F / "workorder.md")
     if sha_file(dest / "workorder.md") != ws:
         print("WORKORDER-COPY-FAILED")
@@ -2595,11 +2616,10 @@ def woc_sendback(a):
     base = woc_copy_file((F / "workorder.md").read_text(), F).name
     woc_copy_folder(F, dest, (F / "workorder.md").read_text())
     shutil.copy2(last["copy"], dest / "work" / base)
-    os.chmod(dest, 0o700)
-    os.chmod(dest / "work", 0o700)
     (dest / "sendback.md").write_text(f"# Sent back: round {len(rs) + 1}, {last['n']} of {WO_LIMIT} attempts used\n"
                                       "Superfix's own runs at your last copy:\n```\n"
                                       + "\n".join(last.get("lines", [])) + "\n```\n")
+    woc_lock_modes(dest)
     print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
     return 0
 

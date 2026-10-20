@@ -89,6 +89,20 @@ t wo-baseline-mismatch 'BASELINE-MISMATCH P1-C1' bash -c 'restore; python3 "$T/d
 t wo-lock-ok 'WORKORDER-LOCKED' python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"
 t wo-lock-file-count 'FILE-COUNT-9' sh -c 'test "$(find "$M_DEST" -type f | wc -l)" -eq 9 && echo FILE-COUNT-9'
 t wo-lock-no-runtime-files 'NO-RUNTIME' sh -c 'test -z "$(find "$M_DEST" -name VERIFY.txt -o -name records -o -name head)" && echo NO-RUNTIME'
+cat > "$T/modes.py" <<'EOF'
+import os, stat, sys
+d = sys.argv[1]
+bad = []
+for r, ds, fs in os.walk(d):
+    for x in ds:
+        if stat.S_IMODE(os.stat(os.path.join(r, x)).st_mode) != 0o700:
+            bad.append(os.path.join(r, x))
+    for x in fs:
+        if stat.S_IMODE(os.stat(os.path.join(r, x)).st_mode) != 0o600:
+            bad.append(os.path.join(r, x))
+print("MODES-OK" if not bad else "MODES-BAD " + " ".join(bad[:3]))
+EOF
+t wo-lock-modes 'MODES-OK' python3 "$T/modes.py" "$M_DEST"
 t wo-no-yes-gates-lock 'WORKORDER-LOCK-REFUSED' sh -c 'sed "/^## Decision/,\$d" "$M_BODYDEC" > "$T/body-nodec.md"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST-r2" --body "$T/body-nodec.md"'
 
 # ---- RETURN (executor fixes all 8 dupes, then the half fix) ----
@@ -177,6 +191,7 @@ python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret2/folder" --
 doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo2 "$P_RD/work/wo2-members-export.csv" >/dev/null 2>&1
 t wo-prog-verify2 'VERIFY-FAIL' python3 -I "$P_RD/crit.py" wo-verify --run "$P_RD" --head wo2 --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
 t wo-prog-sendback-ready 'SENDBACK-READY' python3 -I "$P_RD/crit.py" wo-sendback --run "$P_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3" --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
+t wo-sendback-modes 'MODES-OK' python3 "$T/modes.py" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3"
 rm -rf "$T/Pret3"; cp -r "$T/Pret2" "$T/Pret3"
 python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret3/folder" --body "$P_BODYDEC" >/dev/null 2>&1
 doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo3 "$P_RD/work/wo3-members-export.csv" >/dev/null 2>&1
