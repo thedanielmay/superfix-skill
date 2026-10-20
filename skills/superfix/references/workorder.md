@@ -25,7 +25,7 @@ Any other `CHECKS-KIND:` prints `WORKORDER-KIND <value>` when writing and `RETUR
 ### 3. Writing CHECKS (check.sh) and the held-back checks
 - One line per check: `o="$(...)"; <compare>; r <id> $? <expected> "$o"`. Ids C1, C2 ... for what must change and K1 ... for what must stay. The expected value (the third argument) appears word for word in a checklist step, and every id is in BASELINE (WORKORDER checks both).
 - A FAIL prints the expected and the actual value (the `r` function does it).
-- Only the repo's own runtime, named with its version in the first line; never through `npm test`, never the network.
+- Only the repo's own runtime, named with its version in the first line; never through `npm test`, never the network. check.sh and held.sh run in the sandbox, which starts only bash, node and `cat tr cut sed grep head tail sort wc awk env printf` (no `mktemp`, `cp`, `rm`, `git` or `timeout`; writes only under `$TMPDIR`); a script that needs anything else prints `sandbox refused <command>` in BASELINE.
 - Nothing passes on silence: each check compares exact output; the suite check needs a test count and names the tests that already fail at BASE.
 - No secret, no personal value, no path on this Mac.
 - **Held-back checks** (`held.sh`): one per C, the same `r` form with ids H1 ..., written by Superfix with other inputs (for a CSV export: a comma, a quote and a leading `=`), so output hard-coded to the CHECKS values fails. They are never in the folder; they live in the run folder and are locked.

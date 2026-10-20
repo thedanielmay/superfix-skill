@@ -59,6 +59,13 @@ SOL="$(mk sol 'attempt 1: failing 0' "git apply '$FX/e1-solution.patch'")"
 SON="$(mk son 'attempt 1: failing 1' "git apply '$FX/e1-solution.patch' && sed -i '' 's/\"unknown format: \" + fmt/\"unknown or missing format: \" + fmt/' cli.js")"
 D2="$HOME/.superfix/runs/round2"; mkdir -p "$D2/workorder"; echo k > "$D2/key"; cp "$D/workorder/"* "$D2/workorder/"; sed -i '' "s/$B/$SON/g" "$D2/workorder/workorder.md"
 t baseline-mismatch-round2-sonnet '^BASELINE-MISMATCH C1, C2, C4, C5' $C wo-baseline --run "$D2" --clone "$X"
+# (T4 run v1-3) bash 3.2 writes here-documents to /tmp whatever TMPDIR says; they now work in the sandbox, and a script needing a tool the sandbox lacks fails BASELINE loudly
+t sandbox-heredoc-works '^hello heredoc[|]herestring[|]SANDBOX-EXIT 0$' $C sandbox --cwd "$X" -- /bin/bash -c 'cat <<EOF
+hello heredoc
+EOF
+x="$(cat <<<herestring)"; echo "$x"'
+DT="$(runs toolless)"; echo 'd="$(mktemp -d)"; r H5 1 "a temp folder" "$d"' >> "$DT/workorder/held.sh"
+t baseline-sandbox-refused-tool 'BASELINE-MISMATCH .*sandbox refused mktemp' $C wo-baseline --run "$DT" --clone "$X"
 
 # ---- lock, hand-off ----
 DEST="$T/dest"; LOCKOUT="$($C wo-lock --run "$D" --dest "$DEST" --clone "$X")"

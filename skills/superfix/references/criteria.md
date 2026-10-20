@@ -974,13 +974,15 @@ def profile(tmp, reads, execs=(), read_dirs=()):
     return ("(version 1)(deny default)"
             f"(allow process-exec (literal {q(py)}) (subpath {q(fw)})" + "".join(f" (literal {q(real(e))})" for e in execs) + ")"
             + ("(allow process-fork)(allow sysctl-read)" if execs else "")
+            # /bin/bash 3.2 writes here-documents to /tmp/sh-thd-<n> whatever TMPDIR says (T4 run v1-3: held.sh's heredocs printed nothing)
+            + ("(allow file-read* file-write* (regex #\"^/private/tmp/sh-thd-[0-9]+$\"))(allow file-read-metadata (literal \"/tmp\") (literal \"/private/tmp\"))(allow file-write* (literal \"/private/tmp\"))" if execs else "")
             + "(allow file-read-metadata " + " ".join(f"(literal {q(x)})" for x in anc) + ")"
             "(allow file-read* (literal \"/\") " + " ".join(f"(subpath {q(r)})" for r in sysr)
             + " " + " ".join(f"(literal {q(r)})" for r in reads) + f" (subpath {q(tmp)}))"
             f"(allow file-write* (subpath {q(tmp)}) (literal \"/dev/null\"))")
 
 
-SANDBOX_TOOLS = ["/bin/bash", "/bin/sh", "/usr/bin/tr", "/usr/bin/cut", "/usr/bin/sed", "/usr/bin/grep", "/usr/bin/head",
+SANDBOX_TOOLS = ["/bin/bash", "/bin/sh", "/bin/cat", "/usr/bin/tr", "/usr/bin/cut", "/usr/bin/sed", "/usr/bin/grep", "/usr/bin/head",
                  "/usr/bin/tail", "/usr/bin/sort", "/usr/bin/wc", "/usr/bin/awk", "/usr/bin/env", "/usr/bin/printf"]
 
 
@@ -1995,6 +1997,8 @@ def check_words(run, ids):
     got, bad, raw = {}, [], []
     if why or rc != 0:
         bad.append(f"run {why or 'exit ' + str(rc)}")
+    for m in dict.fromkeys(re.findall(r"(?m)(\S+): command not found$|^(.*?): ?Operation not permitted$", out)):
+        bad.append(f"sandbox refused {m[0] or m[1][-60:]} (the script needs a tool or path the sandbox lacks: rewrite it)")
     for l in out.splitlines():
         m = re.fullmatch(r"CHECK (\S+) (?:(PASS)|(FAIL)(?: .*)?)", l)
         if not m:
