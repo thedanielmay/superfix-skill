@@ -82,6 +82,8 @@ t wo-return-original-moved 'RETURN-ORIGINAL-MOVED' sh -c 'echo "M9,X,x@x.org,202
 t wo-return-files-over 'RETURN-FILES-OVER .*work/extra.txt' sh -c 'rm -rf "$T/retx"; cp -r "$M_DEST" "$T/retx"; echo x > "$T/retx/work/extra.txt"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retx" --body "$M_BODYDEC"'
 t wo-return-no-copy 'RETURN-NO-COPY' sh -c 'rm -rf "$T/retn"; cp -r "$M_DEST" "$T/retn"; rm "$T/retn/work/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retn" --body "$M_BODYDEC"'
 t wo-return-checks-changed 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/retc"; cp -r "$M_DEST" "$T/retc"; echo "# x" >> "$T/retc/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retc" --body "$M_BODYDEC"'
+t wo-return-drafts-rejected-csv 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retd"; cp -r "$M_DEST" "$T/retd"; mkdir -p "$T/retd/work/drafts"; echo hi > "$T/retd/work/drafts/note.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retd" --body "$M_BODYDEC"'
+t wo-return-checks-sub-rejected 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/rets"; cp -r "$M_DEST" "$T/rets"; mkdir -p "$T/rets/checks/sub"; echo x > "$T/rets/checks/sub/evil.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/rets" --body "$M_BODYDEC"'
 
 # ---- VERIFY (verdicts from Superfix's own recorded attempt) ----
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-ok.txt"
@@ -218,6 +220,41 @@ doattempt "$U_RD" "$U_RCRC" "$U_BODYDEC" wo1 "$U_RD/work/wo1-cut.csv" >/dev/null
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-cut.txt"
 t wo-cut-verify-pass 'VERIFY-PASS' python3 -I "$U_RD/crit.py" wo-verify --run "$U_RD" --head wo1 --attempts "$U_RCRC/attempts" --scripts "$U_RCRC" --body "$U_BODYDEC" --findings "$T/find-cut.txt"
 t wo-cut-base-is-placed-copy 'BASE-IS-PLACED-COPY' sh -c 'test "$(shasum -a 256 "$U_RF/work/cut.csv" | cut -d" " -f1)" = "$(sed -n "s/^BASE: //p" "$U_RF/workorder.md" | cut -d" " -f1)" && echo BASE-IS-PLACED-COPY'
+
+# ---- I: process drafts allowed; dead locals scan ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-proc-wo thedanielmay+superfix-testbed+proc-wo1 "$T/src/members-export.csv" work/members-export.csv Q)"
+[ -n "$Q_RD" ] || { echo "CANNOT RUN: proc rig build failed"; exit 2; }
+export Q_RD Q_RF Q_RCRC Q_DEST Q_BODYDEC
+python3 - "$Q_RF/workorder.md" <<'EOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+t = p.read_text().replace("FILES: work/members-export.csv\n", "FILES: work/members-export.csv, work/drafts/\n")
+p.write_text(t)
+print("FILES now names drafts")
+EOF
+t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$Q_BODYDEC"
+t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC"'
+cat > "$T/deadlocals.py" <<'EOF'
+import ast, sys
+src = open(sys.argv[1]).read()
+i = src.index("# --- crit.py start ---")
+src = src[i:src.index("# --- crit.py end ---")]
+tree = ast.parse(src)
+bad = []
+for n in ast.walk(tree):
+    if isinstance(n, ast.FunctionDef) and (n.name.startswith("woc_") or n.name.startswith("cmd_wo_")):
+        loads, stores = set(), set()
+        for m in ast.walk(n):
+            if isinstance(m, ast.Name):
+                if isinstance(m.ctx, ast.Load):
+                    loads.add(m.id)
+                else:
+                    stores.add(m.id)
+        args = {a.arg for a in n.args.args}
+        bad += [f"{n.name}:{v}" for v in sorted(stores - loads - args) if not v.startswith("_")]
+print("NO-DEAD-LOCALS" if not bad else "DEAD " + " ".join(bad))
+EOF
+t wo-dead-locals 'NO-DEAD-LOCALS' python3 "$T/deadlocals.py" "$ROOT/skills/superfix/references/criteria.md"
 
 # ---- OLD LOCK (locked under the v1.5.0 tool, worked under the new one) ----
 O="$T/oldlock"; mkdir -p "$O/home"; export OHOME="$O/home"
