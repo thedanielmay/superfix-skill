@@ -117,8 +117,8 @@ For a sheet, a data file or a document, Superfix fixes only against checks you a
 ### Work orders: someone else makes the change (1.6.0)
 
 Say "work order", "someone else will do it" or "hand off" (in the request or the go reply) and Superfix diagnoses and plans as usual, but writes a work order folder instead of making the change. Code problems only.
-- The folder holds one file, `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). Anyone with git, Node and read access to the repo can carry it out: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately.
-- The work comes back as `return.bundle` inside the folder. Superfix trusts only its own locked copies and the shas in `## Decision`, runs the checks, held-back checks the executor never saw and the tests itself in a sandbox, and only then opens the PR. If something fails it asks: send it back, fix it myself, or stop.
+- The folder holds one file, `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). Anyone with git, Node and read access to the repo can carry it out: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately. The executor ticks and reports in `report.md` and never edits `workorder.md`. The default folder is `~/superfix-workorders/<id>/`, outside `~/.superfix`; an executor on the same Mac should run as another user, or sandboxed.
+- The work comes back as `return.bundle` inside the folder. Superfix trusts only its own locked copies and the shas in `## Decision`, runs the checks, held-back checks the executor never saw and the tests itself in a sandbox, and only then opens the PR. If something fails it asks: send it back (a fresh folder that carries on from the returned work), fix it myself, or stop.
 - It costs about the same as Superfix doing it, or more; the gain is handing the work off. Rules in `references/workorder.md`.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)

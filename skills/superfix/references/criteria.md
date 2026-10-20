@@ -376,7 +376,7 @@ The tool, exactly as the command in section 5 writes it:
 # a data value, a measure script's own output or a line of the measured file.
 # It is DETECTIVE, not preventive: it finds changed, missing or hand-made
 # records, but a determined writer with file access can still forge them.
-import argparse, collections, csv, datetime, fractions, hashlib, json, os, pathlib, re, secrets, shlex, shutil, signal, subprocess, sys, tempfile, time
+import argparse, collections, csv, datetime, fractions, hashlib, json, os, pathlib, re, resource, secrets, shlex, shutil, signal, stat, subprocess, sys, tempfile, threading, time
 
 LINE = re.compile(r"^- (P(\d+)-([CK])(\d+)) \[([a-z]+)\] (.*)$")
 FIELDS = re.compile(r"^(?P<name>[^:]*): (?P<defn>.*); pass: (?P<pass>.*?); how: (?P<how>.*?); who: (?P<who>.*)$")
@@ -984,40 +984,72 @@ SANDBOX_TOOLS = ["/bin/bash", "/bin/sh", "/usr/bin/tr", "/usr/bin/cut", "/usr/bi
                  "/usr/bin/tail", "/usr/bin/sort", "/usr/bin/wc", "/usr/bin/awk", "/usr/bin/env", "/usr/bin/printf"]
 
 
-def cmd_sandbox(a):
-    """1.6.0 work orders: run someone else's code (check.sh, the suite) in the widened profile:
-    no network, writes only in a temporary folder, reads of the worktree, system paths and node."""
-    cwd = real(a.cwd)
+OUT_CAP = 16 * 2**20                     # bytes read back from one run
+FSIZE_CAP = 256 * 2**20                  # the largest file the code may write (RLIMIT_FSIZE)
+
+
+def run_capped(cmd, cwd, env, timeout, stderr_out=True):
+    """Run cmd in its own process group. Its output comes back through a pipe, read up to OUT_CAP: a file the code
+    could reach (the old tmp/.o) could be rewritten after the checks printed (review of 1.6.0). Returns
+    (rc, why, text); why is None, "timeout", "overflow" or "held-open" (something kept the pipe open after the kill)."""
+    lim = lambda: resource.setrlimit(resource.RLIMIT_FSIZE, (FSIZE_CAP, FSIZE_CAP))
+    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT if stderr_out else subprocess.DEVNULL,
+                         stdin=subprocess.DEVNULL, start_new_session=True, preexec_fn=lim)
+    buf, over = bytearray(), []
+
+    def rd():
+        for chunk in iter(lambda: p.stdout.read1(65536), b""):
+            if len(buf) + len(chunk) > OUT_CAP:
+                over.append(1)
+            buf.extend(chunk[:max(0, OUT_CAP - len(buf))])
+    th = threading.Thread(target=rd, daemon=True)
+    th.start()
+    why = None
+    try:
+        p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        why = "timeout"
+    finally:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)       # the whole group: children too, after a timeout AND after a normal exit
+        except (ProcessLookupError, PermissionError):
+            pass
+        p.wait()
+    th.join(5)
+    why = why or ("held-open" if th.is_alive() else "overflow" if over else None)
+    return p.returncode, why, buf.decode(errors="replace")
+
+
+def sandbox_run(cwd, argv, timeout=300):
+    """1.6.0 work orders: run someone else's code (check.sh, the suite) in the widened profile: no network, writes
+    only in a temporary folder, reads of the worktree, system paths and node. Returns (rc, why, text); why
+    "missing" or "no-node" means nothing ran."""
+    cwd = real(cwd)
     node = shutil.which("node", path=os.environ.get("PATH"))
     if not os.path.exists(SBX) or os.environ.get("SUPERFIX_TEST_NO_SANDBOX") == "1":
-        print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
-        return 1
+        return None, "missing", ""
     if not node:
-        print("SANDBOX-NO-NODE (node is not on PATH)")
-        return 1
+        return None, "no-node", ""
     nreal = real(node)
     tmp = real(tempfile.mkdtemp(prefix="wo-", dir="/private/tmp" if os.path.isdir("/private/tmp") else None))
-    argv = a.argv[1:] if a.argv[:1] == ["--"] else a.argv
     prof = profile(tmp, [real(x) for x in argv if os.path.isfile(x)], SANDBOX_TOOLS + [nreal], [cwd, nreal.parent.parent])
     env = {"PATH": f"{nreal.parent}:/usr/bin:/bin", "HOME": str(tmp), "TMPDIR": str(tmp), "LANG": "en_US.UTF-8"}
     try:
-        with open(tmp / ".o", "w") as o:
-            p = subprocess.Popen([SBX, "-p", prof] + argv, cwd=cwd, env=env, stdout=o, stderr=subprocess.STDOUT,
-                                 stdin=subprocess.DEVNULL, start_new_session=True)
-            try:
-                p.wait(timeout=a.timeout)
-            except subprocess.TimeoutExpired:
-                pass
-            finally:
-                try:
-                    os.killpg(p.pid, signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
-                p.wait()
-        sys.stdout.write((tmp / ".o").read_text(errors="replace"))
+        return run_capped([SBX, "-p", prof] + list(argv), cwd, env, timeout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    print(f"SANDBOX-EXIT {p.returncode}")
+
+
+def cmd_sandbox(a):
+    rc, why, out = sandbox_run(a.cwd, a.argv[1:] if a.argv[:1] == ["--"] else a.argv, a.timeout)
+    if why == "missing":
+        print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
+        return 1
+    if why == "no-node":
+        print("SANDBOX-NO-NODE (node is not on PATH)")
+        return 1
+    sys.stdout.write(out if not out or out.endswith("\n") else out + "\n")
+    print(f"SANDBOX-EXIT {why or rc}")
     return 0
 
 
@@ -1037,24 +1069,13 @@ def run_script(c, script, data, baseline, timeout, unsandboxed_ok, own_verdict=T
         if sbx:
             cmd = [sbx, "-p", profile(tmp, [script, data])] + cmd
         env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp), "TMPDIR": str(tmp), "LANG": "en_US.UTF-8"}
-        with open(tmp / ".o", "w") as o, open(os.devnull, "w") as e:
-            p = subprocess.Popen(cmd, cwd=tmp, env=env, stdout=o, stderr=e, stdin=subprocess.DEVNULL, start_new_session=True)
-            try:
-                p.wait(timeout=timeout)
-                timed_out = False
-            except subprocess.TimeoutExpired:
-                timed_out = True
-            finally:
-                try:
-                    os.killpg(p.pid, signal.SIGKILL)       # the whole group: children too, after a timeout AND after a normal exit
-                except (ProcessLookupError, PermissionError):
-                    pass
-                p.wait()
-        if timed_out:
+        rc, why, stdout = run_capped(cmd, tmp, env, timeout, stderr_out=False)
+        if why == "timeout":
             return "ERROR", f"timeout after {timeout} s"
-        if p.returncode:
-            return "ERROR", f"exit {p.returncode}"
-        stdout = (tmp / ".o").read_text(errors="replace")
+        if why:
+            return "ERROR", f"output {why}"
+        if rc:
+            return "ERROR", f"exit {rc}"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     got, word = {}, None
@@ -1945,20 +1966,51 @@ def cmd_wo_check(a):
     return 1 if bad else 0
 
 
-def sandboxed(cwd, argv, timeout=300):
-    """Run argv in the widened profile through this tool's own sandbox command; returns its output."""
-    r = subprocess.run([sys.executable, "-I", __file__, "sandbox", "--cwd", str(cwd), "--timeout", str(timeout), "--", *argv],
-                       capture_output=True, text=True)
-    return r.stdout
+def wo_ids(D):
+    """The ids each locked script must print: check.sh's from the BASELINE line, held.sh's from its own r calls (never from output)."""
+    W = pathlib.Path(D) / "workorder"
+    base = re.findall(r"([CK]\d+) (?:PASS|FAIL)", wo_head((W / "workorder.md").read_text()).get("BASELINE", ""))
+    held = [m.group(1) for m in R_CALL.finditer((W / "held.sh").read_text())] if (W / "held.sh").exists() else []
+    return {"check.sh": base, "held.sh": held}
 
 
-def wo_run_checks(D, wt, which=("check.sh", "held.sh")):
-    out = ""
-    for f in which:
-        p = pathlib.Path(D) / "workorder" / f
-        if p.exists():
-            out += sandboxed(wt, ["/bin/bash", str(p)])
-    return out
+def wo_run_checks(D, wt, timeout=300):
+    """check.sh and held.sh in the sandbox, passed as text (bash -c), so no run-folder path is in argv and the code under
+    test cannot read held.sh. A missing held.sh, or a copy that differs from its lock, stops the run loudly."""
+    W, runs = pathlib.Path(D) / "workorder", {}
+    lock = {n: s for s, n in (l.split("  ", 1) for l in (W / "lock").read_text().splitlines() if "  " in l)} if (W / "lock").exists() else {}
+    for f in ("check.sh", "held.sh"):
+        if not (W / f).is_file():
+            raise Stop(f"VERIFY-FAIL {f} is missing from the run folder (nothing passes without it)")
+        if f in lock and sha_file(W / f) != lock[f]:
+            raise Stop(f"RETURN-OURS-CHANGED ({f} differs from its lock: stop)")
+        runs[f] = sandbox_run(wt, ["/bin/bash", "-c", (W / f).read_text()], timeout)
+    return runs
+
+
+def check_words(run, ids):
+    """One run of a locked script: exactly one CHECK line per expected id, no other id, exit 0.
+    Returns ({id: PASS or FAIL}, [problems], [raw CHECK lines])."""
+    rc, why, out = run
+    got, bad, raw = {}, [], []
+    if why or rc != 0:
+        bad.append(f"run {why or 'exit ' + str(rc)}")
+    for l in out.splitlines():
+        m = re.fullmatch(r"CHECK (\S+) (?:(PASS)|(FAIL)(?: .*)?)", l)
+        if not m:
+            continue
+        raw.append(l)
+        i = m.group(1)
+        if i not in ids:
+            bad.append(f"{i} (not expected)")
+        elif i in got:
+            bad.append(f"{i} (twice)")
+        else:
+            got[i] = m.group(2) or m.group(3)
+    bad += [f"{i} (missing)" for i in ids if i not in got]
+    if not ids:
+        bad.append("no ids to check")
+    return got, bad, raw
 
 
 def worktree(clone, sha):
@@ -1978,20 +2030,20 @@ def cmd_wo_baseline(a):
     """BASELINE: solved-check run 1 at the base: the locked check.sh in the sandbox gives exactly BASELINE, every held-back check FAILs."""
     D = pathlib.Path(a.run)
     h = wo_head((D / "workorder/workorder.md").read_text())
+    ids = wo_ids(D)
     wt = worktree(a.clone, h["BASE"])
     try:
-        out = wo_run_checks(D, wt)
+        runs = wo_run_checks(D, wt)
     finally:
         drop_worktree(a.clone, wt)
-    if "SANDBOX-MISSING" in out:
+    if any(r[1] == "missing" for r in runs.values()):
         print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
         return 1
-    got = dict(re.findall(r"(?m)^CHECK ([CKH]\d+) (PASS|FAIL)", out))
     want = dict(re.findall(r"([CK]\d+) (PASS|FAIL)", h["BASELINE"]))
-    bad = [i for i in sorted(set(want) | {k for k in got if k[0] in "CK"}) if got.get(i) != want.get(i)]
-    bad += [f"{i} (a held-back check passes at the base)" for i, v in got.items() if i[0] == "H" and v == "PASS"]
-    if not any(k[0] == "H" for k in got):
-        bad.append("held.sh (no held-back check ran)")
+    got, bad, _ = check_words(runs["check.sh"], ids["check.sh"])
+    bad = [i for i in want if i in got and got[i] != want[i]] + bad
+    hg, hb, _ = check_words(runs["held.sh"], ids["held.sh"])
+    bad += [f"held.sh {x}" for x in hb] + [f"{i} (a held-back check passes at the base)" for i, v in hg.items() if v == "PASS"]
     print("BASELINE-OK" if not bad else "BASELINE-MISMATCH " + ", ".join(bad))
     return 1 if bad else 0
 
@@ -2002,22 +2054,38 @@ def decision_shas(text):
     return (w[-1] if w else None, c[-1] if c else None)
 
 
+def wo_dest(dest):
+    """A work order folder is new or empty and outside ~/.superfix (the run folders, held.sh and crit.py live there)."""
+    d = real(dest)
+    sf = real(pathlib.Path.home() / ".superfix")
+    if d == sf or sf in d.parents:
+        print(f"WORKORDER-DEST-INSIDE-SUPERFIX {d} (an executor there sits beside held.sh and the lock; use ~/superfix-workorders/<id>/)")
+        return None
+    d.mkdir(parents=True, exist_ok=True)
+    if any(d.iterdir()):
+        print(f"WORKORDER-DEST-NOT-EMPTY {d} (use a new folder)")
+        return None
+    return d
+
+
 def cmd_wo_lock(a):
-    """Lock the run folder's copies (shasum format, one line per file), copy workorder.md to the destination, print the sha lines."""
+    """WORKORDER and BASELINE again, then lock the run folder's copies (shasum format), copy workorder.md to the destination, print the sha lines."""
     W = pathlib.Path(a.run) / "workorder"
     files = [f for f in ("workorder.md", "check.sh", "held.sh") if (W / f).exists()]
-    if files[:2] != ["workorder.md", "check.sh"] or "held.sh" not in files:
+    if files != ["workorder.md", "check.sh", "held.sh"]:
         print("WORKORDER-LOCK-REFUSED (the run folder's workorder/ needs workorder.md, check.sh and held.sh)")
         return 1
     if in_cloud(a.dest) and not a.asked:
         print(f"PATH-CLOUD {a.dest} (a synced folder needs the owner's explicit yes, then add --asked)")
         return 1
-    (W / "lock").write_text("".join(f"{sha_file(W / f)}  {f}\n" for f in files))
-    dest = real(a.dest)
-    dest.mkdir(parents=True, exist_ok=True)
-    if (dest / "workorder.md").exists() or any(dest.iterdir()):
-        print(f"WORKORDER-DEST-NOT-EMPTY {dest} (a work order folder holds only workorder.md; use a new folder)")
+    if cmd_wo_check(argparse.Namespace(wo=str(W / "workorder.md"), check=str(W / "check.sh"), clone=a.clone)) \
+            or cmd_wo_baseline(argparse.Namespace(run=a.run, clone=a.clone)):
+        print("WORKORDER-LOCK-REFUSED (WORKORDER and BASELINE must both be OK)")
         return 1
+    dest = wo_dest(a.dest)
+    if dest is None:
+        return 1
+    (W / "lock").write_text("".join(f"{sha_file(W / f)}  {f}\n" for f in files))
     shutil.copy2(W / "workorder.md", dest / "workorder.md")
     ws, cs = sha_file(W / "workorder.md"), sha_file(W / "check.sh")
     if sha_file(dest / "workorder.md") != ws:
@@ -2030,24 +2098,67 @@ def cmd_wo_lock(a):
     return 0
 
 
-def cmd_wo_return(a):
-    """RETURN: the shared steps (our own copies against the newest ## Decision shas), then the code step: one resolved H."""
+def rounds(D):
+    p = pathlib.Path(D) / "workorder" / "rounds.json"
+    return json.loads(p.read_text()) if p.exists() else []
+
+
+def save_round(D, H, **kv):
+    """One entry per returned H, in order: its attempts (wo-return, wo-files) and Superfix's own failing count (wo-verify)."""
+    rs = rounds(D)
+    r = next((r for r in rs if r["H"] == H), None)
+    if r is None:
+        rs.append(r := {"H": H})
+    r.update(kv)
+    (pathlib.Path(D) / "workorder" / "rounds.json").write_text(json.dumps(rs, indent=1) + "\n")
+
+
+def wo_shared(a):
+    """The shared return steps: our locked copies, their lock and the newest ## Decision shas agree; the kind has a row;
+    the returned folder holds no symlink or hard link (a link to ~/.config would be committed and echoed). None on a stop."""
     D, F = pathlib.Path(a.run), real(a.folder)
     ws, cs = decision_shas(body_text(a))
     W = D / "workorder"
     if not (W / "lock").exists():
         print("RETURN-NO-LOCK (the run folder is gone: say so, use the ## Decision shas, ask for any password again)")
-        return 1
+        return None
     lock = {n: s for s, n in (l.split("  ", 1) for l in (W / "lock").read_text().splitlines() if "  " in l)}
     if not ws or not cs or lock.get("workorder.md") != ws or lock.get("check.sh") != cs \
             or any(not (W / n).exists() or sha_file(W / n) != s for n, s in lock.items()):
         print("RETURN-OURS-CHANGED (our locked copies, their lock and the newest ## Decision shas do not agree: stop)")
-        return 1
+        return None
     t = (W / "workorder.md").read_text()
     h = wo_head(t)
     if h.get("CHECKS-KIND") not in WO_KINDS:
         print(f"RETURN-KIND-UNKNOWN {h.get('CHECKS-KIND')}")
+        return None
+    links = sorted(os.path.relpath(os.path.join(r, n), F) for r, ds, fs in os.walk(F) for n in ds + fs
+                   if stat.S_ISLNK((s := os.lstat(os.path.join(r, n))).st_mode) or (stat.S_ISREG(s.st_mode) and s.st_nlink > 1))
+    if links:
+        print("RETURN-SYMLINK " + " ".join(links) + " (a link in the returned folder: nothing read or committed; ask for a plain copy)")
+        return None
+    return D, F, t, h
+
+
+def wo_attempts(a, D, B, H):
+    """Attempts = the larger of the git count and the last recorded return's attempts plus one; the next H must build on
+    the last recorded H (a squash or a restart at BASE resets the git count). Returns (n, words, stop)."""
+    rs = [r for r in rounds(D) if r["H"] != H]
+    if rs and git(a.clone, "merge-base", "--is-ancestor", rs[-1]["H"], H)[0]:
+        return 0, [f"RETURN-NOT-BUILT-ON {rs[-1]['H']} (round {len(rs) + 1} must carry on from the last returned work; a squash or a restart is refused)"], True
+    rc, n = git(a.clone, "rev-list", "--count", f"{B}..{H}")
+    n = max(int(n or 0), rs[-1].get("attempts", len(rs)) + 1 if rs else 1)
+    if n > WO_LIMIT:
+        return n, [f"RETURN-CAP {n} of {WO_LIMIT} attempts used (over the limit: stop)"], True
+    return n, [f"RETURN-CAP {n} of {WO_LIMIT} attempts used (no send-back left)"] if n == WO_LIMIT else [], False
+
+
+def cmd_wo_return(a):
+    """RETURN: the shared steps, then the code step: one resolved H, built on the last returned H, attempts counted."""
+    s = wo_shared(a)
+    if s is None:
         return 1
+    D, F, t, h = s
     B, BR = h["BASE"], h["BRANCH"]
     if a.patch:
         wt = worktree(a.clone, B)
@@ -2077,69 +2188,180 @@ def cmd_wo_return(a):
     if mb != B:
         print("RETURN-WRONG-BASE (the work does not start at BASE)")
         return 1
-    allowed = {f for f, _ in wo_files(t)}
-    rc, ch = git(a.clone, "diff", "--name-only", f"{B}...{H}")
-    over = sorted(set(ch.split()) - allowed)
-    rc, n = git(a.clone, "rev-list", "--count", f"{B}..{H}")
     words = []
+    if not a.remote_branch:
+        try:
+            r = subprocess.run(["git", "-C", str(a.clone), "ls-remote", "origin", f"refs/heads/{BR}"], capture_output=True, text=True,
+                               timeout=60, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+            words.append(f"RETURN-PUSHED {BR} {r.stdout.split()[0]} (DELIVER said do not push: tell the owner)" if r.returncode == 0 and r.stdout.strip()
+                         else "RETURN-REMOTE-UNCHECKED (git ls-remote origin failed: say so)" if r.returncode else None)
+        except subprocess.TimeoutExpired:
+            words.append("RETURN-REMOTE-UNCHECKED (git ls-remote origin timed out: say so)")
+    n, aw, stop = wo_attempts(a, D, B, H)
+    words = [w for w in words if w] + aw
+    if stop:
+        print("\n".join(words))
+        return 1
+    save_round(D, H, attempts=n)
+    rc, ch = git(a.clone, "diff", "--name-only", f"{B}...{H}")
+    over = sorted(set(ch.split()) - {f for f, _ in wo_files(t)})
     if over:
         words.append("RETURN-FILES-OVER " + " ".join(over))
-    if int(n or 0) >= WO_LIMIT:
-        words.append(f"RETURN-CAP {n} of {WO_LIMIT} attempts used (counted from git; no send-back left)")
     print("\n".join(words + [f"RETURN-{'OK' if not over else 'CHECKED'} H {H} attempts {n}"]))
     return 1 if over else 0
 
 
-def tap_names(wt):
-    out = sandboxed(wt, ["/bin/bash", "-c", "node --test --test-reporter=tap"])
-    return {m.group(2): bool(m.group(3)) for m in re.finditer(r"(?m)^(not )?ok \d+ - (.+?)( # (?:SKIP|TODO)\b.*)?$", out)}
+def tap_names(wt, timeout=300):
+    """node --test in the sandbox: {name: (skipped or todo, failed)}, indented subtests included; None if the run broke."""
+    rc, why, out = sandbox_run(wt, ["/bin/bash", "-c", "node --test --test-reporter=tap"], timeout)
+    if why or not re.search(r"(?m)^# tests \d+$", out):
+        return None
+    return {m.group(2): (bool(m.group(3)), bool(m.group(1)))
+            for m in re.finditer(r"(?m)^\s*(not )?ok \d+ - (.+?)( # (?:SKIP|TODO)\b.*)?$", out)}
 
 
 def cmd_wo_verify(a):
-    """Superfix's own runs at H: the locked check.sh, the held-back checks and the test-name check, in the sandbox."""
+    """Superfix's own runs at H: the locked check.sh, the held-back checks, the test names and the suite, in the sandbox.
+    Records Superfix's failing count for H (the send-back and NO-PROGRESS read it)."""
     D = pathlib.Path(a.run)
     h = wo_head((D / "workorder/workorder.md").read_text())
+    ids = wo_ids(D)
     base = worktree(a.clone, h["BASE"])
     try:
-        names_base = tap_names(base)
+        names_base = tap_names(base, a.timeout)
     finally:
         drop_worktree(a.clone, base)
     wt = worktree(a.clone, a.head)
     try:
-        out = wo_run_checks(D, wt)
-        names_h = tap_names(wt)
+        runs = wo_run_checks(D, wt, a.timeout)
+        names_h = tap_names(wt, a.timeout)
     finally:
         drop_worktree(a.clone, wt)
-    print("\n".join(l for l in out.splitlines() if l.startswith("CHECK ") or l.startswith("SANDBOX-MISSING")))
-    gone = sorted(n for n in names_base if n not in names_h or names_h[n])
-    print("TESTNAMES-OK" if not gone else "RETURN-TESTS-DROPPED " + ", ".join(gone))
-    ok = "CHECK " in out and "FAIL" not in out and "SANDBOX-MISSING" not in out and not gone
-    print("VERIFY-PASS (then the suite and SKILL.md's solved check runs 1 and 3)" if ok else "VERIFY-FAIL")
+    if any(r[1] == "missing" for r in runs.values()):
+        print("SANDBOX-MISSING (nothing ran)\nVERIFY-FAIL")
+        return 1
+    cg, cb, craw = check_words(runs["check.sh"], ids["check.sh"])
+    hg, hb, hraw = check_words(runs["held.sh"], ids["held.sh"])
+    out = craw + hraw + [f"VERIFY-PROBLEM {f}: " + ", ".join(b) for f, b in (("check.sh", cb), ("held.sh", hb)) if b]
+    failing = [i for k in ("check.sh", "held.sh") for i in ids[k] if {**cg, **hg}.get(i) != "PASS"]
+    if names_base is None or names_h is None:
+        out.append("VERIFY-PROBLEM node --test did not finish (no test names to compare)")
+        failing.append("suite")
+    else:
+        gone = sorted(n for n in names_base if n not in names_h or names_h[n][0])
+        new = sorted(n for n, (sk, bad) in names_h.items() if bad and not sk and not names_base.get(n, (0, 0))[1])
+        out.append("TESTNAMES-OK" if not gone else "RETURN-TESTS-DROPPED " + ", ".join(gone))
+        out.append("SUITE-OK (no test fails at H that passed at BASE)" if not new else "SUITE-NEW-FAILURES " + ", ".join(new))
+        failing += gone + new
+    ok = not cb and not hb and not failing
+    keep = [l if not l.startswith("CHECK H") or l.endswith(" PASS") else " ".join(l.split()[:3]) + " (held back)" for l in out]
+    save_round(D, a.head, failing=len(failing), lines=[l for l in keep if " FAIL" in l or l.startswith(("VERIFY-PROBLEM", "RETURN-", "SUITE-NEW"))])
+    print("\n".join(out + ["VERIFY-PASS (then wo-solved: runs 1 and 3)" if ok else "VERIFY-FAIL"]))
     return 0 if ok else 1
 
 
+def cmd_wo_solved(a):
+    """SKILL.md's solved check runs 1 and 3 at H, in the sandbox: run 1 is BASE with H's test files, run 3 is H with its
+    non-test changes reverted (outside the sandbox). Each must give exactly one CHECK FAIL per C, PASS per K, exit 0:
+    a crash or a timeout is never 'failed as expected'."""
+    D = pathlib.Path(a.run)
+    h = wo_head((D / "workorder/workorder.md").read_text())
+    B, ids, bad = h["BASE"], wo_ids(D), []
+    tests = ["--", "test", "tests", ":(glob)**/*.test.*"]
+    for run, sha in (("RUN1", B), ("RUN3", a.head)):
+        wt = worktree(a.clone, sha)
+        try:
+            if run == "RUN1":
+                rc, names = git(a.clone, "diff", "--name-only", "--diff-filter=d", f"{B}..{a.head}", *tests)
+                if names:
+                    git(wt, "checkout", a.head, "--", *names.split())
+            else:
+                d = subprocess.run(["git", "-C", str(wt), "diff", f"{B}..{a.head}", "--", ".", ":!test", ":!tests", ":!*.test.*"], capture_output=True)
+                if d.stdout and subprocess.run(["git", "-C", str(wt), "apply", "-R"], input=d.stdout, capture_output=True).returncode:
+                    raise Stop(f"SOLVED-{run}-BROKEN (the revert did not apply)")
+            got, probs, _ = check_words(wo_run_checks(D, wt, a.timeout)["check.sh"], ids["check.sh"])
+        finally:
+            drop_worktree(a.clone, wt)
+        wrong = [i for i in ids["check.sh"] if i in got and got[i] != ("FAIL" if i[0] == "C" else "PASS")]
+        if probs:
+            bad.append(f"SOLVED-{run}-BROKEN " + ", ".join(probs))
+        if wrong:
+            bad.append(f"SOLVED-{run}-PASSES " + ", ".join(wrong) + " (a check that passes here does not detect the problem: fix the check)")
+    print("\n".join(bad) if bad else "SOLVED-OK (run 1 and run 3 fail as they should)")
+    return 1 if bad else 0
+
+
+def cmd_wo_sendback(a):
+    """Send it back: a fresh folder with the same locked workorder.md (its sha stays valid), the last returned work as
+    return.bundle (Step 0 carries on from it) and Superfix's own failure lines (held-back ones by id only). Refused at the
+    cap, with no progress, or before Superfix's own runs."""
+    D = pathlib.Path(a.run)
+    W, rs = D / "workorder", rounds(D)
+    if not rs or "failing" not in rs[-1] or "attempts" not in rs[-1]:
+        print("SENDBACK-NOT-VERIFIED (run wo-return and wo-verify on the returned work first)")
+        return 1
+    last = rs[-1]
+    f = [r["failing"] for r in rs if "failing" in r]
+    if last["failing"] == 0:
+        print("SENDBACK-NOTHING (the last return passed every check)")
+        return 1
+    if last["attempts"] >= WO_LIMIT:
+        print(f"RETURN-CAP {last['attempts']} of {WO_LIMIT} attempts used (no send-back left: offer 2 or 3)")
+        return 1
+    if len(f) >= 2 and f[-1] >= f[-2]:
+        print(f"NO-PROGRESS (failing {f[-2]} then {f[-1]}, from Superfix's own runs: offer 2 or 3)")
+        return 1
+    lock = {n: s for s, n in (l.split("  ", 1) for l in (W / "lock").read_text().splitlines() if "  " in l)}
+    if sha_file(W / "workorder.md") != lock.get("workorder.md"):
+        print("RETURN-OURS-CHANGED (workorder.md differs from its lock: stop)")
+        return 1
+    dest = wo_dest(a.dest)
+    if dest is None:
+        return 1
+    h = wo_head((W / "workorder.md").read_text())
+    shutil.copy2(W / "workorder.md", dest / "workorder.md")
+    git(a.clone, "update-ref", f"refs/heads/{h['BRANCH']}", last["H"])
+    rc, _ = git(a.clone, "bundle", "create", str(dest / "return.bundle"), f"{h['BASE']}..{h['BRANCH']}")
+    if rc:
+        print("SENDBACK-BUNDLE-FAILED")
+        return 1
+    (dest / "sendback.md").write_text(f"# Sent back: round {len(rs) + 1}, {last['attempts']} of {WO_LIMIT} attempts used\n"
+                                      "Superfix's own runs at your last commit (held-back checks by id only):\n```\n"
+                                      + "\n".join(last.get("lines", [])) + "\n```\n")
+    print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['attempts']} of {WO_LIMIT} attempts used)")
+    return 0
+
+
 def cmd_wo_files(a):
-    """The files row: changed FILES that came back as plain files are committed at BASE as one attempt; anything else is named and ignored."""
-    D, F = pathlib.Path(a.run), real(a.folder)
-    t = (D / "workorder/workorder.md").read_text()
-    h = wo_head(t)
+    """The files row: after the shared steps, changed FILES that came back as plain files are committed as one attempt on
+    the last returned H (BASE in round 1); anything else is named and ignored."""
+    s = wo_shared(a)
+    if s is None:
+        return 1
+    D, F, t, h = s
     files = [f for f, _ in wo_files(t)]
     got = [f for f in files if (F / f).is_file()]
     other = sorted(str(p.relative_to(F)) for p in F.rglob("*") if p.is_file() and str(p.relative_to(F)) not in files
-                   and p.name not in ("workorder.md", "check.sh", "return.bundle"))
+                   and p.name not in ("workorder.md", "check.sh", "return.bundle", "report.md", "sendback.md"))
     if not got:
         print("RETURN-NO-WORK (no FILES came back)")
         return 1
-    wt = worktree(a.clone, h["BASE"])
+    rs = rounds(D)
+    wt = worktree(a.clone, rs[-1]["H"] if rs else h["BASE"])
     for f in got:
         (wt / f).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(F / f, wt / f)
+        shutil.copy2(F / f, wt / f, follow_symlinks=False)
     git(wt, "add", "--", *got)
-    rc, _ = git(wt, "-c", "user.name=superfix", "-c", "user.email=superfix@localhost", "commit", "-q", "-m", "attempt 1: returned as files")
+    git(wt, "-c", "user.name=superfix", "-c", "user.email=superfix@localhost", "commit", "-q", "--allow-empty", "-m", f"round {len(rs) + 1}: returned as files")
     rc2, H = git(wt, "rev-parse", "HEAD")
-    git(a.clone, "update-ref", f"refs/wo/{h['BRANCH']}", H)
     drop_worktree(a.clone, wt)
-    print((f"RETURN-IGNORED {' '.join(other)}\n" if other else "") + f"RETURN-FILES {len(got)} H {H} attempts 1")
+    n, words, stop = wo_attempts(a, D, h["BASE"], H)
+    if stop:
+        print("\n".join(words))
+        return 1
+    save_round(D, H, attempts=n)
+    git(a.clone, "update-ref", f"refs/wo/{h['BRANCH']}", H)
+    print("\n".join(([f"RETURN-IGNORED {' '.join(other)}"] if other else []) + words + [f"RETURN-FILES {len(got)} H {H} attempts {n}"]))
     return 0
 
 
@@ -2453,10 +2675,12 @@ def main():
     s = p("remind", cmd_remind, "name", "where", "date"); s.add_argument("--dry-run", action="store_true")
     s = p("wo-check", cmd_wo_check, "wo"); s.add_argument("--check"); s.add_argument("--clone")
     p("wo-baseline", cmd_wo_baseline, "run", "clone")
-    s = p("wo-lock", cmd_wo_lock, "run", "dest"); s.add_argument("--asked", action="store_true")
+    s = p("wo-lock", cmd_wo_lock, "run", "dest", "clone"); s.add_argument("--asked", action="store_true")
     s = p("wo-return", cmd_wo_return, "run", "folder", "clone", body=True); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true")
-    p("wo-verify", cmd_wo_verify, "run", "clone", "head")
-    p("wo-files", cmd_wo_files, "run", "folder", "clone")
+    for name, f in (("wo-verify", cmd_wo_verify), ("wo-solved", cmd_wo_solved)):
+        s = p(name, f, "run", "clone", "head"); s.add_argument("--timeout", type=int, default=300)
+    p("wo-files", cmd_wo_files, "run", "folder", "clone", body=True)
+    p("wo-sendback", cmd_wo_sendback, "run", "clone", "dest")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
     s.add_argument("--scripts")
