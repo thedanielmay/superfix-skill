@@ -372,7 +372,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 - The copy goes in only after the owner's explicit yes to the second of the two data questions there, with no recommended answer; `workorder.md` holds counts and row numbers only.
 - The folder is a stub run folder with its own lock on the stub path; the column cut keeps every column a script reads and maps back by `row`; the stub's `checks/VERIFY.txt` is never bundled.
 - On return the copy is untrusted data: Superfix's own locked tool measures it in the sandbox, never the folder's copies.
-- Each `[Superfix verifies]` line gets "met (lines ...)" or "not met (lines ...)", every quoted number checked against the copy, else `FINDING-LINE-MISSING`.
+- Each `[Superfix verifies]` line gets one finding "`<tick text>: met (lines 3, 4)`" or "`<tick text>: not met (lines 3, 4)`": a whole-word `met` (not `metadata`, not `met?`/`met-ish`/`met =`), line numbers in a closing `(lines ...)` shape and checked against the copy, else `FINDING-NOT-MET`, `FINDING-MISSING` or `FINDING-LINE-MISSING`; a finding for an unknown tick is `FINDING-UNKNOWN-TICK`.
 - Dedupe jobs always carry the earliest-wins line; `owner` items still need "signed off".
 - Return order: original unchanged, only FILES, own-measure, the three runs, the findings, then `CRITERIA-OK`.
 - Success says "the counts meet your checks"; a process ends at "ready for your review", never "solved".
@@ -1931,19 +1931,19 @@ def git(clone, *args):
 
 
 def woc_split_finding(line):
-    """Split a findings line on the LAST ': met' / ': not met' -> (name, verdict, rest) or None.
+    """Split a findings line on the LAST whole-word ': met' / ': not met' verdict
+    -> (name, verdict, rest) or None.
 
-    Splitting on the last match lets a tick text contain a colon: only the final
-    ': met' / ': not met' is the verdict.
+    The verdict is a whole word (": metadata" and ": methodology" do not match)
+    followed by something other than ?, - or = (": met?", ": met-ish" and
+    ": met = false" do not match). Splitting on the last match lets a tick text
+    contain a colon: only the final verdict counts.
     """
-    low = line.lower()
-    i = low.rfind(": not met")
-    if i >= 0:
-        return line[:i].strip(), "not met", line[i + len(": not met"):]
-    i = low.rfind(": met")
-    if i >= 0:
-        return line[:i].strip(), "met", line[i + len(": met"):]
-    return None
+    ms = list(WOC_VERDICT_RX.finditer(line))
+    if not ms:
+        return None
+    m = ms[-1]
+    return line[:m.start()].strip(), ("not met" if m.group(1) else "met"), line[m.end():]
 
 
 def woc_tick(text):
@@ -1964,6 +1964,7 @@ def woc_split_must(rest):
 
 
 WOC_APPROVED_RX = re.compile(r"^- (?:(P\d+-[CK]\d+) )?\[([^\]]+)\] (.+)$")
+WOC_VERDICT_RX = re.compile(r":\s*(not\s+)?met\b(?!\?|-|\s*=)", re.IGNORECASE)
 
 
 def woc_approved(folder, name="checks/done-when.md"):
@@ -2543,9 +2544,15 @@ def woc_verify(a):
                 out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
                 failing.append("findings")
                 continue
-            nums = [int(x) for x in re.findall(r"\d+", rest.lower().split("line", 1)[1])] if "line" in rest.lower() else []
+            g = re.search(r"\(\s*lines?\b([^)]*)\)", rest, re.IGNORECASE)
+            nums = [int(x) for x in re.findall(r"\d+", g.group(1))] if g else []
             if not nums or any(x < 1 or x > nrec for x in nums):
                 out.append(f"FINDING-LINE-MISSING {nums} (the copy has {nrec} records or lines)")
+                failing.append("findings")
+        for l in flines:
+            sp = woc_split_finding(l)
+            if sp is not None and sp[0] not in sv:
+                out.append(f"FINDING-UNKNOWN-TICK {sp[0]} (no such [Superfix verifies] line)")
                 failing.append("findings")
     elif sv:
         for name in sv:

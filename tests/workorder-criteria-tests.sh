@@ -146,6 +146,20 @@ printf 'for each duplicate, the row kept is the earliest joined date: met? no, f
 t wo-verify-unmet 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-unmet.txt"
 t wo-verify-isnt-met 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-isnt.txt"
 t wo-verify-met-no-failed 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-nofailed.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: metadata looks wrong (lines 14)\n' > "$T/find-metadata.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: methodology broken\n' > "$T/find-methodology.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met? nope, wrong\n' > "$T/find-nope.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met = false\n' > "$T/find-equals.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met-ish, wrong\n' > "$T/find-ish.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met (see guideline 3)\n' > "$T/find-guideline.txt"
+t wo-verify-metadata 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-metadata.txt"
+t wo-verify-methodology 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-methodology.txt"
+t wo-verify-met-nope 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-nope.txt"
+t wo-verify-met-equals 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-equals.txt"
+t wo-verify-met-ish 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ish.txt"
+t wo-verify-guideline 'FINDING-LINE-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-guideline.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\nSome other thing: met (lines 3)\n' > "$T/find-unknown.txt"
+t wo-verify-unknown-tick 'FINDING-UNKNOWN-TICK' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-unknown.txt"
 cat > "$T/splitfinding.py" <<'EOF'
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("c", sys.argv[1])
@@ -158,6 +172,13 @@ cases = [
     ("Duplicate members: unmet (lines 3)", None),
     ("Duplicate members: isn't met (lines 3)", None),
     ("Duplicate members: looks fine", None),
+    ("Duplicate members: metadata looks wrong (lines 14)", None),
+    ("Duplicate members: methodology broken", None),
+    ("Duplicate members: met? nope, wrong", None),
+    ("Duplicate members: met = false", None),
+    ("Duplicate members: met-ish, wrong", None),
+    ("Duplicate members: met (see guideline 3)", ("Duplicate members", "met", " (see guideline 3)")),
+    ("Duplicate members: NOT MET (lines 3)", ("Duplicate members", "not met", " (lines 3)")),
 ]
 bad = [c for c, want in cases if m.woc_split_finding(c) != want]
 print("SPLIT-OK" if not bad else "SPLIT-BAD " + " | ".join(bad))
