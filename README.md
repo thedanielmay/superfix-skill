@@ -120,6 +120,8 @@ Say "work order", "someone else will do it" or "hand off" (in the request or the
 - The folder holds one file, `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). Anyone with git, Node and read access to the repo can carry it out: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately. The executor ticks and reports in `report.md` and never edits `workorder.md`. The default folder is `~/superfix-workorders/<id>/`, outside `~/.superfix`; an executor on the same Mac should run as another user, or sandboxed.
 - The work comes back as `return.bundle` inside the folder. Superfix trusts only its own locked copies and the shas in `## Decision`, runs the checks, held-back checks the executor never saw and the tests itself in a sandbox, and only then opens the PR. If something fails it asks: send it back (a fresh folder that carries on from the returned work), fix it myself, or stop.
 - It costs about the same as Superfix doing it, or more; the gain is handing the work off. Rules in `references/workorder.md`.
+- Since 1.6.1 the same trigger also works for criteria-mode files: the folder carries a copy (never the original, only after your explicit yes to the data question), the approved checks as a tick list, and the locked scripts with their shas.
+- On return Superfix measures the copy with its own locked tool in the sandbox; a failed check is sent back while attempts remain. Success says "the counts meet your checks"; a process ends at "ready for your review", never "solved".
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
