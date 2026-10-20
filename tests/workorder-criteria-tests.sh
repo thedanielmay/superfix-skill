@@ -125,6 +125,7 @@ t wo-verify-no-return 'VERIFY-NO-RETURN wo9' python3 -I "$M_RD/crit.py" wo-verif
 doattempt "$M_RD" "$M_RCRC" "$M_BODYDEC" wo1 "$M_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 mkdir -p "$M_DEST-r9/work"; echo stale > "$M_DEST-r9/work/stale.csv"
 t wo-verify-pass 'VERIFY-PASS' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"
+t wo-verify-sha-mismatch 'VERIFY-SHA-MISMATCH wo1' sh -c 'cp "$M_RD/work/wo1-members-export.csv" "$T/wo1bak.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$M_RD/work/wo1-members-export.csv"; python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"; cp "$T/wo1bak.csv" "$M_RD/work/wo1-members-export.csv"'
 t wo-verify-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r9/work" && test ! -e "$M_DEST/work" && echo ROUND-CLEANED'
 t wo-verify-findings 'FINDING-LINE-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-bad.txt"
 t wo-verify-no-findings 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"

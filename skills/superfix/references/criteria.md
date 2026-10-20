@@ -2457,6 +2457,13 @@ def woc_verify(a):
     if bad:
         print("\n".join(bad))
         return 1
+    try:
+        csha = sha_file(r["copy"])
+    except OSError:
+        csha = None
+    if csha != row["sha"]:
+        print(f"VERIFY-SHA-MISMATCH {a.head} (the recorded attempt measured a different file: re-run attempt --label {a.head} on the returned copy)")
+        return 1
     cs = {c["id"]: c for c in criteria(text) if c.get("name") and c.get("kind") == "check"}
     base = rows[0]["raw"] if rows else {}
     ids = [i for i in row["v"] if i in cs]
