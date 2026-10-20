@@ -1933,11 +1933,21 @@ def git(clone, *args):
 def woc_tick(text):
     """Tick lines under ## Done when: [(marker, name, must)] for '- [ ] [marker] name: must be value'."""
     m = re.search(r"(?ms)^## Done when.*?(?=^## )", text)
-    return [m2.group(1, 2, 3) for l in (m.group(0) if m else text).splitlines()
-            for m2 in [re.fullmatch(r"- \[ \] \[([^\]]+)\] ([^:]+): must be (.+)", l.strip())] if m2]
+    out = []
+    for l in (m.group(0) if m else text).splitlines():
+        m2 = re.fullmatch(r"- \[ \] \[([^\]]+)\] (.+)", l.strip())
+        if m2:
+            out.append((m2.group(1),) + woc_split_must(m2.group(2)))
+    return out
 
 
-WOC_APPROVED_RX = re.compile(r"^- (P\d+-[CK]\d+) \[([^\]]+)\] ([^:]+): must be (.+)$")
+def woc_split_must(rest):
+    """'name: must be value' or bare judgment text (a [Superfix verifies] line has no must-be)."""
+    m = re.fullmatch(r"([^:]+): must be (.+)", rest.strip())
+    return (m.group(1), m.group(2)) if m else (rest.strip(), "")
+
+
+WOC_APPROVED_RX = re.compile(r"^- (?:(P\d+-[CK]\d+) )?\[([^\]]+)\] (.+)$")
 
 
 def woc_approved(folder, name="checks/done-when.md"):
@@ -1948,8 +1958,8 @@ def woc_approved(folder, name="checks/done-when.md"):
     out = {}
     for l in d.read_text().splitlines():
         m = WOC_APPROVED_RX.match(l.strip())
-        if m:
-            out[(m.group(2), m.group(3), m.group(4))] = m.group(1)
+        if m and m.group(1):
+            out[(m.group(2),) + woc_split_must(m.group(3))] = m.group(1)
     return out
 
 
@@ -2329,19 +2339,38 @@ def woc_verify(a):
         if w != "PASS":
             failing.append(i)
     copy = pathlib.Path(r["copy"])
+    ours = (D / "workorder" / "folder" / "workorder.md").read_text()
+    sv = sorted({k[1] for k in woc_tick(ours) if k[0].lower().startswith("superfix verifies")})
     if a.findings:
         try:
             nrec = len(records(copy))
         except OSError:
             nrec = 0
-        for l in pathlib.Path(a.findings).read_text().splitlines():
-            if ("met" not in l and "not met" not in l) or "line" not in l:
+        flines = pathlib.Path(a.findings).read_text().splitlines()
+
+        def owner(l):
+            nm, sep, _ = l.partition(":")
+            return nm.strip() if sep else None
+
+        for name in sv:
+            mine = [l for l in flines if owner(l) == name]
+            if len(mine) != 1:
+                out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
+                failing.append("findings")
                 continue
-            nums = [int(x) for x in re.findall(r"\d+", l.split("line", 1)[1])]
-            if any(x < 1 or x > nrec for x in nums):
+            low = mine[0].lower()
+            if "not met" in low or "met" not in low:
+                out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
+                failing.append("findings")
+                continue
+            nums = [int(x) for x in re.findall(r"\d+", low.split("line", 1)[1])] if "line" in low else []
+            if not nums or any(x < 1 or x > nrec for x in nums):
                 out.append(f"FINDING-LINE-MISSING {nums} (the copy has {nrec} records or lines)")
                 failing.append("findings")
-                break
+    elif sv:
+        for name in sv:
+            out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
+        failing.append("findings")
     r["failing"] = len(failing)
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
