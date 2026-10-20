@@ -19,3 +19,5 @@ jobs:
       - run: diff -r references skills/superfix/references && test -f references/execute.md && echo references-resolve
       - run: python3 tests/preservation-check.py .
       - run: n=$(wc -l < skills/superfix/references/workorder.md); if [ "$n" -gt 250 ]; then echo "WORKORDER-TOO-LONG $n"; exit 1; fi; echo "workorder.md $n lines"
+      - run: n=$(wc -l < skills/superfix/references/criteria.md); if [ "$n" -gt 3130 ]; then echo "CRITERIA-TOO-LONG $n"; exit 1; fi; echo "criteria.md $n lines"
+      - run: python3 tests/crit-15-check.py skills/superfix/references/criteria.md

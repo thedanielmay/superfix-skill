@@ -15,10 +15,11 @@ New in 1.6.0 ([superfix-skill#57](https://github.com/thedanielmay/superfix-skill
 - After go: Phase 2 as for the tier, with the plan and context files in `~/.superfix/journal/<name>/`; then the work order in place of Phase 3. No branch, no tracked edit, no PR before the return.
 - `<id>` is `<run-key>-wo<k>` (k = 1, then 2 for a fresh work order after STALE or an extension; the newest counts).
 
-### 2. Kinds (1.6.0 has one row; 1.6.1 adds `criteria`)
+### 2. Kinds (1.6.1 has two rows)
 | Kind | Header lines | CHECKS block | Loop command | Progress | RETURN step | End word |
 |---|---|---|---|---|---|---|
 | code | WORK-ORDER, CHECKS-KIND, REPO, BASE, BRANCH, FILES, LIMITS, CHECKS-SHA, BASELINE, DELIVER | check.sh | `bash check.sh` in the clone | the failing count falls | section 6, the code step | DONE, or RETURNED <word> |
+| criteria | WORK-ORDER, CHECKS-KIND, SOURCE, BASE, FILES, LIMITS, CHECKS-SHA, BASELINE, DELIVER | files.sha256, one line per bundled file | the CHECKS command for your machine | a failing check closer, none further | section 6, the criteria step | "the counts meet your checks", or RETURNED <word> |
 
 Any other `CHECKS-KIND:` prints `WORKORDER-KIND <value>` when writing and `RETURN-KIND-UNKNOWN` on return.
 
@@ -110,6 +111,27 @@ NOTED: <each report-only mismatch and anything you guessed, or none>
 EXECUTOR: <model or person>, turns <n if known>, cost <if known>
 ~~~~
 
+### 4b. The criteria template (kind `criteria`, CSV example with real numbers; Superfix fills every value)
+~~~~
+# Work order: dedupe members-export.csv (testbed seed-1.5)
+WORK-ORDER: thedanielmay+superfix-testbed+csv-wo1
+CHECKS-KIND: criteria
+SOURCE: data/members-export.csv (a copy is in work/; you never get the original)
+BASE: <sha256 of the original> (sha256)
+FILES: work/members-export.csv
+LIMITS: 5 attempts
+CHECKS-SHA: <sha256 of checks/files.sha256> (sha256)
+BASELINE: P1-C1 FAIL, P1-K1 PASS
+DELIVER: hand the folder back, with the changed copy in work/
+
+## Done when (tick each line when it passes)
+- [ ] [script] Duplicate members: must be 0 (today 8, rows 14, 15 and 62)
+- [ ] [script] Distinct members: must be 112 (today 112)
+- [ ] [Superfix verifies] for each duplicate, the row kept is the earliest joined date
+~~~~
+The folder (`F` below): `key` (the work order id); `workorder.md` (above); `work/<file>` (the copy you change; a process adds `work/drafts/` for messages to other people); `checks/crit.py` (the locked tool); `checks/measure-<id>.py`, `checks/lock`, `checks/attempts` (the stub's own baseline and lock); `checks/done-when.md` (the approved lines plus the two Internal lines). Never VERIFY.txt: its path is stale after the move.
+Rules 2 and 4 for this kind: change only the FILES; never send, email, share or post anything; a step that needs the original, or a judgment you cannot make, is NEEDS-OWNER. Rule 0 holds: `shasum -a 256 workorder.md` must equal the WORKORDER-SHA line given separately. Step 0 extracts the CHECKS block to `checks/files.sha256`, compares its sha256 with CHECKS-SHA (else RETURNED CHECKS-CHANGED), runs `shasum -a 256 -c checks/files.sha256` (else RETURNED CHECKS-CHANGED), and prints START-OK. The loop, step 1: run each bundled script as `python3 -I checks/measure-<id>.py work/<file>` and compare the MEASURE number with the tick list's must-be value (the scripts read one file and write nothing, so the bundled files never change under you); with no Python, tick by eye and write `NOTED: checks not run (no Python)`. Then one ATTEMPT line per try with each id, value and the failing count. Progress is the 1.5.0 moved rule: an attempt moved when a failing check got closer and none got further; two in a row that did not move is RETURNED NO-PROGRESS. RESULT: DONE when every `[script]` line passes; `[Superfix verifies]` and `[later]` lines are left for Superfix. DELIVER is always hand the folder back.
+
 ### 5. Before the hand-off (each prints one word; `D` = `$HOME/.superfix/runs/<run-key>`, `X` = Superfix's own clone of the repo, outside `~/.superfix`)
 Superfix writes `workorder.md`, `check.sh` (the CHECKS block exactly) and `held.sh` into `D/workorder/`, then:
 1. `python3 -I "D/crit.py" wo-baseline --run "D" --clone "X"`: solved-check run 1 at BASE, in the sandbox: `BASELINE-OK` when the C and K words equal the BASELINE line and every held-back check FAILs, else `BASELINE-MISMATCH <ids>` (a C that passes at BASE detects nothing: rewrite it). `SANDBOX-MISSING`: ask the criteria-mode sandbox question first.
@@ -117,6 +139,7 @@ Superfix writes `workorder.md`, `check.sh` (the CHECKS block exactly) and `held.
 3. `python3 -I "D/crit.py" wo-check --wo "D/workorder/workorder.md" --check "D/workorder/check.sh" --clone "X"`: `WORKORDER-OK`, or `WORKORDER-MISSING <line>`, `WORKORDER-KIND <value>`, `WORKORDER-NOT-FRESH <line>` (a placeholder outside the Report, a ticked box, or no unticked step), `WORKORDER-CHECKS-SHA`, `WORKORDER-EXPECTED-NOT-IN-STEPS <id>`, `WORKORDER-NOT-IN-BASELINE <id>`, `WORKORDER-STEP0`, `WORKORDER-FILE-NOT-AT-BASE <file>`, `WORKORDER-NEW-EXISTS <file>`.
 4. `python3 -I "D/crit.py" wo-lock --run "D" --dest "<destination folder>" --clone "X"`: runs 3 and 1 again itself (`WORKORDER-LOCK-REFUSED` unless both are OK), then writes `D/workorder/lock` (shasum -a 256 format, one line per locked file; 1.6.1 adds lines) and copies workorder.md, and only it, to the destination. It prints `Internal: workorder-sha ...` and `Internal: checks-sha ...` for ## Decision (before `Internal: approval-sha`), the hand-off line `Give this line to the executor separately: WORKORDER-SHA <64 hex> (sha256)`, and `WORKORDER-LOCKED <path>`; or `PATH-CLOUD` (after his yes add `--asked`), `WORKORDER-DEST-NOT-EMPTY`, `WORKORDER-DEST-INSIDE-SUPERFIX`, `WORKORDER-LOCK-REFUSED`.
 - Then Status `Waiting for you: hand the work order to someone (<where>)`, the label rule, and the hand-off message, which prints the WORKORDER-SHA line last. The comment posted with it ends with `Work order: WRITTEN <path>`. It never goes inside the folder. The run folder keeps the locked copies until Phase 4 ends.
+- For kind `criteria`, `F` is `D/workorder/folder/` (the stub from 4b). The copy goes into `F/work/` only after an explicit yes to the second of these two numbered questions, neither with a recommended answer (anything but an explicit yes to the second is no; the yes is recorded in `D/workorder/data-yes`): `<n>. Does <file> hold names or contact details of customers or staff? (yes / no)` and `<n+1>. The work order folder would hold a copy of <file> (only the columns <list>, or the whole file). Anyone you give the folder to can read all of it. May I put the copy in the folder? (yes / no; I write nothing unless you say yes)`. They go after the budget and destination questions and before the reminder, `assets` and create-issue questions. Then: 1. `wo-check --wo "F/workorder.md" --run "D"`: `WORKORDER-OK`, or `WORKORDER-TICKLIST <id>`, `WORKORDER-CRIT-SHA`, `WORKORDER-NO-COPY`, `WORKORDER-DATA`, `WORKORDER-NO-YES`, `WORKORDER-PATH` (not the default path), `WORKORDER-LOCK-PATH` (the folder lock names a path outside the stub), plus the shared words. 2. `wo-baseline --run "D" --folder "F"`: `measure --expect` from the folder on the untouched copy gives the epoch's line 0 values, else `BASELINE-MISMATCH <ids>`. 3. `wo-lock --run "D" --folder "F" --dest "<destination>"`: refuses unless both are OK, and refuses a named path in one line (default `~/superfix-workorders/<id>/` only, mode 700; criteria mode never writes into a cloud folder). `scan` must print `SCAN-CLEAN` on `workorder.md` (checked without the CHECKS block and the `BASE:` and `CHECKS-SHA:` lines) before it is written. On every ending except a send-back, `finish` runs on the run folder first, then the folder's `work/` is deleted, and the stop message says: "Any copy of the folder you gave someone holds the data; deleting it is yours to do."
 
 ### 6. On return ("continue superfix on issue <N>", or "continue superfix on work order <id>")
 1. `python3 -I "D/crit.py" wo-return --run "D" --folder "<returned folder>" --clone "X" --issue '<owner>/<repo>#<N>'` (or `--body "<journal file>"`).
@@ -139,6 +162,7 @@ Superfix writes `workorder.md`, `check.sh` (the CHECKS block exactly) and `held.
 | NEEDS-OWNER | The question, numbered, in Stop gate form |
 
 - "Send it back" is `python3 -I "D/crit.py" wo-sendback --run "D" --clone "X" --dest "<new folder>"`: a fresh folder (`~/superfix-workorders/<id>-r<round>/`) with the same locked workorder.md (Rule 0's sha still holds), the last returned work as `return.bundle` (Step 0 carries on from it) and `sendback.md` (Superfix's own FAIL lines; held-back ones by id only). It refuses with `RETURN-CAP` (no attempt left), `NO-PROGRESS` (Superfix's failing count did not fall since the last round) or `SENDBACK-NOT-VERIFIED`; then offer 2 or 3. Status `Waiting for you: hand the work order back (<where>)`. Superfix itself never sends anything to anyone and never runs an executor.
+- For kind `criteria`, after the shared steps: 1. the original's sha256 equals `BASE`, else `RETURN-ORIGINAL-MOVED`. 2. only FILES touched, else `RETURN-FILES-OVER <files>`; a changed bundled file is CHECKS-CHANGED (Superfix never runs the folder's copies). 3. a plain `cp` of the returned `work/<file>` to `$RUN/work/wo<n>-<file>`, then Superfix's own locked `crit.py` runs `lockcheck`, `attempt --label wo<n>` and `progress` in the sandbox (one recorded attempt; at most 5). 4. the three runs of criteria.md section 15. 5. each `[Superfix verifies]` line read against the copy ("met" or "not met", line numbers checked, else `FINDING-LINE-MISSING`). 6. `CRITERIA-OK` and the redaction checks before any post. A failed check or "not met" with attempts left is sent back (`RETURNED-<n>.md` in the folder, plain words and row numbers only, `SCAN-CLEAN` first). All `[script]` lines pass and every `[Superfix verifies]` line met: "The counts meet your checks" with the findings, never "solved" alone; a process ends at "Ready for your review". `wo-verify --run "D" --head wo<n>` re-runs Superfix's own measures on the returned copy (`VERIFY-PASS` or `VERIFY-FAIL`); `wo-sendback --run "D" --dest` writes the fresh folder with the same locked stub, the returned copy back in `work/`, and `sendback.md`.
 
 ### 7. Carrying the folder there and back
 Copy the whole folder by any route you choose (a zip, a USB stick, a shared drive). The executor works inside it and returns the whole folder, with `return.bundle` (or the patch) inside. Superfix reads only the returned folder, never the executor's machine.
