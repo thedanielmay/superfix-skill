@@ -107,6 +107,12 @@ t wo-verify-clean-again 'VERIFY-PASS' python3 -I "$M_RD/crit.py" wo-verify --run
 t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$M_DEST-r2"; mkdir -p "$M_DEST-r8/work"; echo stale > "$M_DEST-r8/work/stale.csv"; python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"'
 t wo-sendback-nothing-cleans 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r8/work" && echo ROUND-CLEANED'
 
+# ---- G: .sf-orig edge cases (the lock binds the real original, not just the run copy) ----
+t wo-sforig-missing-refuses 'WORKORDER-LOCK-REFUSED' sh -c 'rm -rf "$M_DEST"; mv "$M_RD/work/members-export.csv.sf-orig" "$T/sf.bak"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"; cp "$T/sf.bak" "$M_RD/work/members-export.csv.sf-orig"; rm -rf "$M_DEST"'
+t wo-sforig-garbage-refuses 'WORKORDER-LOCK-REFUSED' sh -c 'rm -rf "$M_DEST"; cp "$M_RD/work/members-export.csv.sf-orig" "$T/sf.bak"; echo "garbage" > "$M_RD/work/members-export.csv.sf-orig"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"; cp "$T/sf.bak" "$M_RD/work/members-export.csv.sf-orig"; rm -rf "$M_DEST"'
+t wo-sforig-disambiguates 'ORIGSHA-RIGHT' sh -c 'rm -rf "$M_DEST"; mkdir -p "$T/src2"; cp "$SEED/overlay/data/refunds-log.csv" "$T/src2/refunds-log.csv"; python3 -I "$M_RD/crit.py" copy --run "$M_RD" --src "$T/src2/refunds-log.csv" >/dev/null 2>&1; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC" >/dev/null 2>&1; test "$(sed -n "s/^origsha //p" "$M_RD/workorder/lock")" = "$(shasum -a 256 "$T/src/members-export.csv" | cut -d" " -f1)" && echo ORIGSHA-RIGHT; rm -rf "$M_DEST" "$M_RD/work/refunds-log.csv" "$M_RD/work/refunds-log.csv.sf-orig"'
+t wo-src-deleted-moved 'RETURN-ORIGINAL-MOVED' sh -c 'mv "$T/src/members-export.csv" "$T/src-hidden.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/ret1/folder" --body "$M_BODYDEC"; mv "$T/src-hidden.csv" "$T/src/members-export.csv"'
+
 # ---- PROGRESS RIG (8 then 3 then 1: every return moved, send-back goes) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-prog-wo thedanielmay+superfix-testbed+prog-wo1 "$T/src/members-export.csv" work/members-export.csv P)"
 [ -n "$P_RD" ] || { echo "CANNOT RUN: prog rig build failed"; exit 2; }
