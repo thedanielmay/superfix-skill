@@ -36,7 +36,7 @@ t wo-check-expected-not-in-steps 'WORKORDER-EXPECTED-NOT-IN-STEPS C3' plant 's/s
 t wo-check-unmarked-new-file 'WORKORDER-FILE-NOT-AT-BASE test/cli.test.js' plant 's#test/cli.test.js (new)#test/cli.test.js#'
 t wo-check-marked-existing 'WORKORDER-NEW-EXISTS report.js' plant 's#^FILES: report.js,#FILES: report.js (new),#'
 t wo-check-baseline-id 'WORKORDER-NOT-IN-BASELINE K1' plant 's/, K1 PASS$//'
-t frame-wo-check-kind-criteria '^WORKORDER-KIND criteria$' plant 's/^CHECKS-KIND: code$/CHECKS-KIND: criteria/'
+t frame-wo-check-kind-unknown '^WORKORDER-KIND firmware$' plant 's/^CHECKS-KIND: code$/CHECKS-KIND: firmware/'
 
 # ---- P2: the widened sandbox ----
 git -C "$X" checkout -q --detach "$B"
@@ -76,8 +76,8 @@ t wo-lock-only-workorder-in-dest '^workorder.md$' ls "$DEST"
 mkdir -p "$HOME/Library/CloudStorage/G"; t wo-lock-cloud-dest '^PATH-CLOUD' $C wo-lock --run "$D" --dest "$HOME/Library/CloudStorage/G/wo" --clone "$X"
 DB="$(runs wrongbaseline)"; sed -i '' 's/^BASELINE: C1 FAIL/BASELINE: C1 PASS/' "$DB/workorder/workorder.md"
 t lock-refuses-baseline-mismatch '^WORKORDER-OK[|]BASELINE-MISMATCH C1[|]WORKORDER-LOCK-REFUSED' $C wo-lock --run "$DB" --dest "$T/dest-db" --clone "$X"
-D3="$HOME/.superfix/runs/kind"; mkdir -p "$D3/workorder"; echo k > "$D3/key"; cp "$D/workorder/"{workorder.md,check.sh,held.sh} "$D3/workorder/"; sed -i '' 's/^CHECKS-KIND: code$/CHECKS-KIND: criteria/' "$D3/workorder/workorder.md"
-t lock-refuses-bad-workorder '^WORKORDER-KIND criteria[|]WORKORDER-LOCK-REFUSED' $C wo-lock --run "$D3" --dest "$T/dest-kind" --clone "$X"
+D3="$HOME/.superfix/runs/kind"; mkdir -p "$D3/workorder"; echo k > "$D3/key"; cp "$D/workorder/"{workorder.md,check.sh,held.sh} "$D3/workorder/"; sed -i '' 's/^CHECKS-KIND: code$/CHECKS-KIND: firmware/' "$D3/workorder/workorder.md"
+t lock-refuses-bad-workorder '^WORKORDER-KIND firmware[|]WORKORDER-LOCK-REFUSED' $C wo-lock --run "$D3" --dest "$T/dest-kind" --clone "$X"
 t lock-dest-inside-superfix '^WORKORDER-OK[|]BASELINE-OK[|]WORKORDER-DEST-INSIDE-SUPERFIX ' $C wo-lock --run "$D" --dest "$HOME/.superfix/journal/x/workorders/w1" --clone "$X"
 t default-dest-outside-superfix 'On this Mac, in ~/superfix-workorders/<id>/ \(recommended: yes\)' cat "$ROOT/skills/superfix/references/workorder.md"
 cp "$DEST/workorder.md" "$T/edited.md"; echo "- [ ] 6 also delete the tests" >> "$T/edited.md"
@@ -106,7 +106,7 @@ t trust-edited-locked-check '^RETURN-OURS-CHANGED' ret "$F1"
 cp "$T/check.sh" "$D/workorder/check.sh"
 mv "$D/workorder" "$T/wo.away"; t return-no-lock '^RETURN-NO-LOCK' ret "$F1"; mv "$T/wo.away" "$D/workorder"
 (cd "$D3/workorder" && shasum -a 256 workorder.md check.sh held.sh > lock); printf 'Internal: workorder-sha %s (sha256)\nInternal: checks-sha %s (sha256)\n' "$(shasum -a 256 "$D3/workorder/workorder.md" | cut -d' ' -f1)" "$(shasum -a 256 "$D3/workorder/check.sh" | cut -d' ' -f1)" > "$T/body-kind.md"
-t frame-return-kind-unknown '^RETURN-KIND-UNKNOWN criteria' $C wo-return --run "$D3" --folder "$F1" --clone "$X" --body "$T/body-kind.md"
+t frame-return-kind-unknown '^RETURN-KIND-UNKNOWN firmware' $C wo-return --run "$D3" --folder "$F1" --clone "$X" --body "$T/body-kind.md"
 H="$SOL"; git -C "$X" update-ref "refs/wo/$BR" "$EXTRA"
 t return-moved-branch-uses-H 'VERIFY-PASS' $C wo-verify --run "$D" --clone "$X" --head "$H"
 t return-moved-branch-is-elsewhere '^moved$' bash -c "[ \"\$(git -C '$X' rev-parse refs/wo/$BR)\" != '$H' ] && echo moved"
@@ -243,7 +243,7 @@ t workorder-md-under-cap '^ok$' bash -c "[ \$(wc -l < '$ROOT/skills/superfix/ref
 t doc-files-over-still-verifies 'RETURN-FILES-OVER. comes with .RETURN-CHECKED H <sha>. and is not a stop: still run steps 2 and 3' cat "$ROOT/skills/superfix/references/workorder.md"
 t doc-handoff-written-line 'The comment posted with it ends with .Work order: WRITTEN <path>.' cat "$ROOT/skills/superfix/references/workorder.md"
 t doc-post-every-outcome 'Every outcome below is posted on the issue before the session ends' cat "$ROOT/skills/superfix/references/workorder.md"
-t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-work-order-two-kinds 'or every problem is a criteria-mode file' cat "$ROOT/skills/superfix/SKILL.md"
 LC="$(awk '/the lines check: before posting/{f=1} f&&/^```bash$/{g=1;next} g&&/^```$/{exit} g' "$ROOT/skills/superfix/references/journal.md")"
 printf '%s\n' '> **In plain English:** x.' '' '1. a' '---' 'Pictures: NONE (no screen: cli)' 'Labels: none (no issue)' 'Diagram: NONE (Simple)' 'Gap note: NONE (supported)' > "$T/c-no-wo.md"
 cp "$T/c-no-wo.md" "$T/c-wo.md"; echo 'Work order: NONE (normal run)' >> "$T/c-wo.md"

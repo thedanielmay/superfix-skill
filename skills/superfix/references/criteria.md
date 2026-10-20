@@ -2042,7 +2042,7 @@ def woc_check(a, t):
     hits = woc_scan_data(t)
     if hits:
         bad.append(f"WORKORDER-DATA ({hits[0]})")
-    D = pathlib.Path(a.run) if a.run else None
+    D = pathlib.Path(a.run) if getattr(a, "run", None) else None
     if D is None or not (D / "workorder" / "data-yes").is_file() or (D / "workorder" / "data-yes").read_text().splitlines()[:1] != ["yes"]:
         bad.append("WORKORDER-NO-YES (no recorded yes to the second data question)")
     try:
@@ -2484,7 +2484,7 @@ def cmd_wo_lock(a):
     if in_cloud(a.dest) and not a.asked:
         print(f"PATH-CLOUD {a.dest} (a synced folder needs the owner's explicit yes, then add --asked)")
         return 1
-    if cmd_wo_check(argparse.Namespace(wo=str(W / "workorder.md"), check=str(W / "check.sh"), clone=a.clone)) \
+    if cmd_wo_check(argparse.Namespace(wo=str(W / "workorder.md"), check=str(W / "check.sh"), clone=a.clone, run=a.run)) \
             or cmd_wo_baseline(argparse.Namespace(run=a.run, clone=a.clone)):
         print("WORKORDER-LOCK-REFUSED (WORKORDER and BASELINE must both be OK)")
         return 1
