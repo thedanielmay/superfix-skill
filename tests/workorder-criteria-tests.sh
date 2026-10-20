@@ -66,17 +66,19 @@ t wo-data-yes-case-insensitive '^WORKORDER-OK$' sh -c 'restore; sed "s/: yes$/: 
 # ---- DOC COMMANDS (workorder.md criteria commands run exactly as documented) ----
 cat > "$T/docrun.py" <<'EOF'
 import re, sys
-md, k1, k2, rd, rf, dest, body = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7]
+md, k1, k2, rd, rf, dest, body, head, findings, cf = (sys.argv + [""] * 11)[1:11]
 md = open(md).read()
 line = next(l for l in md.splitlines() if k1 in l and k2 in l)
 cmd = next(m.group(1) for m in re.finditer(r"`([^`]*)`", line) if k1 in m.group(1))
 cmd = cmd.replace('"F/workorder.md"', f'"{rf}/workorder.md"').replace('"D"', f'"{rd}"').replace('"F"', f'"{rf}"')
-cmd = cmd.replace("<destination>", dest).replace("<journal file>", body)
+cmd = cmd.replace("<destination>", dest).replace("<new folder>", dest).replace("<journal file>", body)
+cmd = cmd.replace('"<criteria folder>/attempts"', f'"{cf}/attempts"').replace('"<criteria folder>"', f'"{cf}"')
+cmd = cmd.replace("wo<n>", f"wo{head}").replace("<findings file>", findings)
 print(f"python3 -I \"{rd}/crit.py\" {cmd}")
 EOF
-t wo-doc-check-ok '^WORKORDER-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-check F/workorder.md "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC")"'
-t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-baseline --folder "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC")"'
-t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
+t wo-doc-check-ok '^WORKORDER-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-check F/workorder.md "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"'
+t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-baseline --folder "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"'
+t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
@@ -125,6 +127,7 @@ t wo-verify-no-return 'VERIFY-NO-RETURN wo9' python3 -I "$M_RD/crit.py" wo-verif
 doattempt "$M_RD" "$M_RCRC" "$M_BODYDEC" wo1 "$M_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 mkdir -p "$M_DEST-r9/work"; echo stale > "$M_DEST-r9/work/stale.csv"
 t wo-verify-pass 'VERIFY-PASS' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"
+t wo-doc-verify-ok 'VERIFY-PASS' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-verify "--head wo" "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"'
 t wo-verify-sha-mismatch 'VERIFY-SHA-MISMATCH wo1' sh -c 'cp "$M_RD/work/wo1-members-export.csv" "$T/wo1bak.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$M_RD/work/wo1-members-export.csv"; python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"; cp "$T/wo1bak.csv" "$M_RD/work/wo1-members-export.csv"'
 t wo-verify-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r9/work" && test ! -e "$M_DEST/work" && echo ROUND-CLEANED'
 t wo-verify-findings 'FINDING-LINE-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-bad.txt"
@@ -191,7 +194,7 @@ retfix Pret2 "$P_DEST" 7
 python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret2/folder" --body "$P_BODYDEC" >/dev/null 2>&1
 doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo2 "$P_RD/work/wo2-members-export.csv" >/dev/null 2>&1
 t wo-prog-verify2 'VERIFY-FAIL' python3 -I "$P_RD/crit.py" wo-verify --run "$P_RD" --head wo2 --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
-t wo-prog-sendback-ready 'SENDBACK-READY' python3 -I "$P_RD/crit.py" wo-sendback --run "$P_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3" --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
+t wo-doc-sendback-ready 'SENDBACK-READY' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-sendback --attempts "$P_RD" "$P_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3" "$P_BODYDEC" 1 "$T/find-ok.txt" "$P_RCRC")"'
 t wo-sendback-modes 'MODES-OK' python3 "$T/modes.py" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3"
 rm -rf "$T/Pret3"; cp -r "$T/Pret2" "$T/Pret3"
 python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret3/folder" --body "$P_BODYDEC" >/dev/null 2>&1
