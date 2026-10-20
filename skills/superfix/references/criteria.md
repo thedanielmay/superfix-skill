@@ -2306,6 +2306,9 @@ def woc_lock(a):
     if real(a.dest) != want:
         print(f"WORKORDER-PATH {a.dest} (criteria work orders go only to the default path)")
         return 1
+    if in_cloud(real(a.dest)):
+        print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
+        return 1
     dest = wo_dest(a.dest)
     if dest is None:
         return 1
@@ -2526,6 +2529,9 @@ def woc_sendback(a):
     want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
     if real(a.dest) != want:
         print(f"WORKORDER-PATH {a.dest} (criteria send-backs go only to the default path)")
+        return 1
+    if in_cloud(real(a.dest)):
+        print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
         return 1
     text = woc_body(a)
     base = woc_base_name((F / "workorder.md").read_text()) or "the file"
