@@ -1930,6 +1930,22 @@ def git(clone, *args):
     return r.returncode, r.stdout.strip()
 
 
+def woc_split_finding(line):
+    """Split a findings line on the LAST ': met' / ': not met' -> (name, verdict, rest) or None.
+
+    Splitting on the last match lets a tick text contain a colon: only the final
+    ': met' / ': not met' is the verdict.
+    """
+    low = line.lower()
+    i = low.rfind(": not met")
+    if i >= 0:
+        return line[:i].strip(), "not met", line[i + len(": not met"):]
+    i = low.rfind(": met")
+    if i >= 0:
+        return line[:i].strip(), "met", line[i + len(": met"):]
+    return None
+
+
 def woc_tick(text):
     """Tick lines under ## Done when: [(marker, name, must)] for '- [ ] [marker] name: must be value'."""
     m = re.search(r"(?ms)^## Done when.*?(?=^## )", text)
@@ -2430,23 +2446,29 @@ def woc_verify(a):
         except OSError:
             nrec = 0
         flines = pathlib.Path(a.findings).read_text().splitlines()
-
-        def owner(l):
-            nm, sep, _ = l.partition(":")
-            return nm.strip() if sep else None
-
         for name in sv:
-            mine = [l for l in flines if owner(l) == name]
-            if len(mine) != 1:
-                out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
+            parsed = []
+            named = []
+            for l in flines:
+                sp = woc_split_finding(l)
+                if sp is not None and sp[0] == name:
+                    parsed.append((l,) + sp[1:])
+                elif l.startswith(name + ":"):
+                    named.append(l)
+            if len(parsed) != 1:
+                # a whole-word "met" anywhere else, or any negation, refuses the finding
+                if any(re.search(r"\b(unmet|isn'?t|not|no|never|fail(?:ed)?|n't)\b", l, re.IGNORECASE) for l in named):
+                    out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
+                else:
+                    out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
                 failing.append("findings")
                 continue
-            low = mine[0].lower()
-            if "not met" in low or "met" not in low:
+            _line, verdict, rest = parsed[0]
+            if verdict == "not met" or re.search(r"\b(unmet|isn'?t|not|no|never|fail(?:ed)?|n't)\b", rest, re.IGNORECASE):
                 out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
                 failing.append("findings")
                 continue
-            nums = [int(x) for x in re.findall(r"\d+", low.split("line", 1)[1])] if "line" in low else []
+            nums = [int(x) for x in re.findall(r"\d+", rest.lower().split("line", 1)[1])] if "line" in rest.lower() else []
             if not nums or any(x < 1 or x > nrec for x in nums):
                 out.append(f"FINDING-LINE-MISSING {nums} (the copy has {nrec} records or lines)")
                 failing.append("findings")

@@ -98,6 +98,29 @@ t wo-verify-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r9/work" && 
 t wo-verify-findings 'FINDING-LINE-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-bad.txt"
 t wo-verify-no-findings 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 t wo-verify-not-met 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-notmet.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: unmet (lines 14, 15)\n' > "$T/find-unmet.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: isn'"'"'t met (lines 14, 15)\n' > "$T/find-isnt.txt"
+printf 'for each duplicate, the row kept is the earliest joined date: met? no, failed (lines 3)\n' > "$T/find-nofailed.txt"
+t wo-verify-unmet 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-unmet.txt"
+t wo-verify-isnt-met 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-isnt.txt"
+t wo-verify-met-no-failed 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-nofailed.txt"
+cat > "$T/splitfinding.py" <<'EOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("c", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+cases = [
+    ("Duplicate members: met (lines 3, 4)", ("Duplicate members", "met", " (lines 3, 4)")),
+    ("Duplicate members: not met (lines 3, 4)", ("Duplicate members", "not met", " (lines 3, 4)")),
+    ("Step 2: follow the guide: met (lines 3)", ("Step 2: follow the guide", "met", " (lines 3)")),
+    ("Step 2: follow the guide: not met (lines 3)", ("Step 2: follow the guide", "not met", " (lines 3)")),
+    ("Duplicate members: unmet (lines 3)", None),
+    ("Duplicate members: isn't met (lines 3)", None),
+    ("Duplicate members: looks fine", None),
+]
+bad = [c for c, want in cases if m.woc_split_finding(c) != want]
+print("SPLIT-OK" if not bad else "SPLIT-BAD " + " | ".join(bad))
+EOF
+t wo-split-finding-parser 'SPLIT-OK' python3 "$T/splitfinding.py" "$M_RD/crit.py"
 t wo-sendback-after-notmet 'SENDBACK-READY' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 t wo-sendback-cloud-refused 'WORKORDER-PATH' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$HOME/Library/CloudStorage/X/$ID-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 t wo-sendback-elsewhere-refused 'WORKORDER-PATH' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest /private/tmp/elsewhere-wo --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
