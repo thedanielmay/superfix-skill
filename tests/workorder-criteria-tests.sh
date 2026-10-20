@@ -110,7 +110,7 @@ t wo-verify-no-return 'VERIFY-NO-RETURN wo9' python3 -I "$M_RD/crit.py" wo-verif
 doattempt "$M_RD" "$M_RCRC" "$M_BODYDEC" wo1 "$M_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 mkdir -p "$M_DEST-r9/work"; echo stale > "$M_DEST-r9/work/stale.csv"
 t wo-verify-pass 'VERIFY-PASS' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"
-t wo-verify-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r9/work" && echo ROUND-CLEANED'
+t wo-verify-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r9/work" && test ! -e "$M_DEST/work" && echo ROUND-CLEANED'
 t wo-verify-findings 'FINDING-LINE-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-bad.txt"
 t wo-verify-no-findings 'FINDING-MISSING' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 t wo-verify-not-met 'FINDING-NOT-MET' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-notmet.txt"
@@ -146,8 +146,8 @@ t wo-sendback-keeps-copy 'work/members-export.csv' sh -c 'test -f "$M_DEST-r2/wo
 t wo-verify-clean-again 'VERIFY-PASS' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"
 
 # ---- SENDBACK (nothing left after the clean re-verify) ----
-t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$M_DEST-r2"; mkdir -p "$M_DEST-r8/work"; echo stale > "$M_DEST-r8/work/stale.csv"; python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"'
-t wo-sendback-nothing-cleans 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r8/work" && echo ROUND-CLEANED'
+t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$M_DEST-r2"; mkdir -p "$M_DEST-r8/work"; echo stale > "$M_DEST-r8/work/stale.csv"; mkdir -p "$M_DEST/work"; echo rebuilt > "$M_DEST/work/rebuilt.csv"; python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"'
+t wo-sendback-nothing-cleans 'ROUND-CLEANED' sh -c 'test ! -e "$M_DEST-r8/work" && test ! -e "$M_DEST/work" && echo ROUND-CLEANED'
 
 # ---- G: .sf-orig edge cases (the lock binds the real original, not just the run copy) ----
 t wo-sforig-missing-refuses 'WORKORDER-LOCK-REFUSED' sh -c 'rm -rf "$M_DEST"; mv "$M_RD/work/members-export.csv.sf-orig" "$T/sf.bak"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"; cp "$T/sf.bak" "$M_RD/work/members-export.csv.sf-orig"; rm -rf "$M_DEST"'
@@ -207,7 +207,7 @@ doattempt "$S_RD" "$S_RCRC" "$S_BODYDEC" wo3 "$S_RD/work/wo3-members-export.csv"
 python3 -I "$S_RD/crit.py" wo-verify --run "$S_RD" --head wo3 --attempts "$S_RCRC/attempts" --scripts "$S_RCRC" --body "$S_BODYDEC" >/dev/null 2>&1
 mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work/stale.csv"
 t wo-stop-sendback-refused 'NO-PROGRESS' python3 -I "$S_RD/crit.py" wo-sendback --run "$S_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r4" --attempts "$S_RCRC/attempts" --scripts "$S_RCRC" --body "$S_BODYDEC"
-t wo-stop-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work" && echo ROUND-CLEANED'
+t wo-stop-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work" && test ! -e "$S_DEST/work" && echo ROUND-CLEANED'
 
 # ---- CAP RIG (five moving returns, then the cap) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cap-wo thedanielmay+superfix-testbed+cap-wo1 "$T/src/members-export.csv" work/members-export.csv K)"
@@ -222,8 +222,8 @@ for n in 1 2 3 4 5; do
   python3 -I "$K_RD/crit.py" wo-verify --run "$K_RD" --head "wo$n" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC" >/dev/null 2>&1
 done
 t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work/stale.csv"; python3 -I "$K_RD/crit.py" wo-sendback --run "$K_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r6" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC"'
-t wo-cap-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work" && echo ROUND-CLEANED'
-t wo-cap-sixth-return-refused 'RETURN-CAP 6 of 5' sh -c 'rm -rf "$T/Kret6"; cp -r "$K_DEST" "$T/Kret6"; python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret6" --body "$K_BODYDEC"'
+t wo-cap-cleans-rounds 'ROUND-CLEANED' sh -c 'test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work" && test ! -e "$K_DEST/work" && echo ROUND-CLEANED'
+t wo-cap-sixth-return-refused 'RETURN-CAP 6 of 5' sh -c 'rm -rf "$T/Kret6"; cp -r "$K_DEST" "$T/Kret6"; mkdir -p "$T/Kret6/work"; cp "$K_RD/work/wo5-members-export.csv" "$T/Kret6/work/members-export.csv"; python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret6" --body "$K_BODYDEC"'
 
 # ---- KPROG RIG (distinct members fall: NO-PROGRESS worse) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-kprog-wo thedanielmay+superfix-testbed+kprog-wo1 "$T/src/members-export.csv" work/members-export.csv W)"

@@ -2499,9 +2499,10 @@ def woc_verify(a):
 
 
 def woc_round_dirs(work_id):
-    """~/superfix-workorders/<id>-r<n>/ send-back round folders, oldest first."""
+    """The round-1 <id>/ folder plus the ~/superfix-workorders/<id>-r<n>/ send-back rounds."""
     base = pathlib.Path.home() / "superfix-workorders"
-    return sorted(d for d in base.glob(work_id + "-r[0-9]*") if d.is_dir())
+    ds = [base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))
+    return [d for d in ds if d.is_dir()]
 
 
 def woc_cleanup_rounds(work_id):
