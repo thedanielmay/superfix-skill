@@ -371,15 +371,17 @@ t cut-mapback-keeps-columns '^KEPT-COLUMNS$' python3 "$T/keepcols.py" "$CD/work/
 
 # ---- CRIT-1.5-CHANGED (a one-byte edit to a 1.5.0 command fails it) ----
 t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/criteria.md"
-cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
-python3 - "$T/crit-tampered.md" <<'EOF'
+for _fn in run_script profile cmd_progress cmd_lockcheck cmd_measure; do
+  cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
+  python3 - "$T/crit-tampered.md" "$_fn" <<'EOF'
 import sys
-p = sys.argv[1]
+p, fn = sys.argv[1], sys.argv[2]
 s = open(p).read()
-s = s.replace("def cmd_measure(a):\n", "def cmd_measure(a):  # x\n", 1)
+s = s.replace(f"def {fn}(", f"def {fn}(  # x", 1)
 open(p, "w").write(s)
 EOF
-t crit-15-changed-fails 'CRIT-1.5-CHANGED cmd_measure' sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+  t "crit-15-changed-fails-$_fn" "CRIT-1.5-CHANGED $_fn" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+done
 
 echo "RESULT: $pass passed, $fail failed"
 export HOME="$REALHOME"
