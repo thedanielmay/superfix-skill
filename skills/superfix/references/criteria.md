@@ -2975,6 +2975,9 @@ def cmd_wo_return(a):
                 return 1
         return woc_return(a)
     if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
+        if getattr(a, "run", None) and not woc_run_is_criteria(pathlib.Path(a.run)):
+            print("RETURN-OURS-CHANGED (the returned folder says criteria but our run is not a criteria run: stop)")
+            return 1
         return woc_return(a)
     rc = woc_need_clone(a, "wo-return")
     if rc:

@@ -127,6 +127,7 @@ t wo-return-checks-changed 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$
 t wo-return-drafts-rejected-csv 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retd"; cp -r "$M_DEST" "$T/retd"; mkdir -p "$T/retd/work/drafts"; echo hi > "$T/retd/work/drafts/note.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retd" --body "$M_BODYDEC"'
 t wo-return-checks-sub-rejected 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/rets"; cp -r "$M_DEST" "$T/rets"; mkdir -p "$T/rets/checks/sub"; echo x > "$T/rets/checks/sub/evil.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/rets" --body "$M_BODYDEC"'
 t wo-return-kind-flip 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retk"; cp -r "$M_DEST" "$T/retk"; sed -i "" "s/^CHECKS-KIND: criteria$/CHECKS-KIND: code/" "$T/retk/workorder.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retk" --body "$M_BODYDEC"'
+t wo-return-code-run-criteria-folder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/fakerun"; mkdir -p "$T/fakerun/workorder"; echo "abc  workorder.md" > "$T/fakerun/workorder/lock"; python3 -I "$M_RD/crit.py" wo-return --run "$T/fakerun" --folder "$T/ret1/folder" --body "$M_BODYDEC"'
 
 # ---- VERIFY (verdicts from Superfix's own recorded attempt) ----
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-ok.txt"
