@@ -389,7 +389,7 @@ The tool, exactly as the command in section 5 writes it:
 # a data value, a measure script's own output or a line of the measured file.
 # It is DETECTIVE, not preventive: it finds changed, missing or hand-made
 # records, but a determined writer with file access can still forge them.
-import argparse, collections, csv, datetime, fractions, hashlib, json, os, pathlib, re, resource, secrets, shlex, shutil, signal, stat, subprocess, sys, tempfile, threading, time
+import argparse, collections, contextlib, csv, datetime, fractions, hashlib, io, json, os, pathlib, re, resource, secrets, shlex, shutil, signal, stat, subprocess, sys, tempfile, threading, time
 
 LINE = re.compile(r"^- (P(\d+)-([CK])(\d+)) \[([a-z]+)\] (.*)$")
 FIELDS = re.compile(r"^(?P<name>[^:]*): (?P<defn>.*); pass: (?P<pass>.*?); how: (?P<how>.*?); who: (?P<who>.*)$")
@@ -1953,6 +1953,51 @@ def woc_approved(folder, name="checks/done-when.md"):
     return out
 
 
+def woc_body(a):
+    """The locked body (--body file, else --issue fetched by the tool itself), or None."""
+    b = getattr(a, "body", None)
+    if b and pathlib.Path(b).is_file():
+        try:
+            return pathlib.Path(b).read_text()
+        except OSError:
+            return None
+    if getattr(a, "issue", None):
+        try:
+            return body_text(a)
+        except (Stop, OSError, ValueError):
+            return None
+    return None
+
+
+def woc_norm_pass(p):
+    """A pass line without its trailing today-note, for comparing tick must-bes with body pass lines."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", p).strip()
+
+
+def woc_body_passes(text):
+    """{criterion id: normalized pass line} from the locked body's check and later criteria."""
+    out = {}
+    for c in criteria(text):
+        if c.get("name") and c.get("kind") in ("check", "later") and c.get("pass"):
+            out[c["id"]] = woc_norm_pass(c["pass"])
+    return out
+
+
+def woc_fidelity(appr, body_passes):
+    """Every done-when script/later line carries its locked body's pass line, and covers it."""
+    bad = []
+    ids = sorted(i for i in appr.values() if i)
+    for (marker, name, must), i in sorted(appr.items(), key=lambda kv: (kv[1] or "")):
+        if i is None or (marker != "script" and not marker.startswith("later")):
+            continue
+        if body_passes.get(i) is None or woc_norm_pass(must) != body_passes[i]:
+            bad.append(f"WORKORDER-TICKLIST {i} (not the locked body's pass line)")
+    for i in sorted(body_passes):
+        if i not in ids:
+            bad.append(f"WORKORDER-TICKLIST {i} (an approved criterion is missing from the tick list)")
+    return bad
+
+
 def woc_block_files(text):
     """The CHECKS block as {name: sha} for '<sha>  checks/<name>' lines, or None."""
     blk = wo_block(text)
@@ -2016,15 +2061,18 @@ def woc_check(a, t):
     if appr is None:
         bad.append("WORKORDER-CHECKS-SHA (checks/done-when.md is missing from the folder)")
     else:
-        have = sorted(appr.get(k, "?") for k in ticks)
-        want = sorted(appr.values())
+        have = sorted(appr.get(k, "?") or "?" for k in ticks)
+        want = sorted(i for i in appr.values() if i)
         for i in sorted(set(want) - set(have)):
             bad.append(f"WORKORDER-TICKLIST {i} (an approved criterion is missing from the tick list)")
         for k in ticks:
             if ticks.count(k) > 1:
-                bad.append(f"WORKORDER-TICKLIST {appr.get(k, k[1])} (a ticked line is doubled)")
+                bad.append(f"WORKORDER-TICKLIST {appr.get(k) or k[1]} (a ticked line is doubled)")
             elif k not in appr and k[0] == "script":
                 bad.append(f"WORKORDER-TICKLIST {k[1]} (no approved line matches this tick word for word)")
+        text = woc_body(a)
+        if text is not None:
+            bad.extend(woc_fidelity(appr, woc_body_passes(text)))
     files = woc_block_files(t)
     if files is None or sha_text(wo_block(t) + ("" if wo_block(t).endswith("\n") else "\n")) != h.get("CHECKS-SHA", "").split()[0]:
         bad.append("WORKORDER-CHECKS-SHA (the CHECKS block and CHECKS-SHA differ)")
@@ -2058,29 +2106,30 @@ def woc_check(a, t):
     return 1 if bad else 0
 
 
-def woc_run_measures(script_dir, done_name, copy_path, timeout=300):
+def woc_run_measures(script_dir, done_name, copy_path, timeout=300, passes=None):
     """Each [script] approval measured on the copy with the bundled scripts: {id: (word, value)}."""
     appr = woc_approved(script_dir, done_name) or {}
     out = {}
-    for (marker, name, must), i in sorted(((k, v) for k, v in appr.items()), key=lambda kv: kv[1]):
+    for (marker, name, must), i in sorted(((k, v) for k, v in appr.items()), key=lambda kv: kv[1] or ""):
         if not marker.startswith("script"):
             continue
         sc = pathlib.Path(script_dir) / f"measure-{i}.py"
         if copy_path is None or not sc.is_file():
             out[i] = ("ERROR", "?")
             continue
-        w, info = run_script({"id": i, "pass": re.sub(r"\s*\([^)]*\)\s*$", "", must), "ck": i.split("-")[1][0]},
+        p = passes.get(i, woc_norm_pass(must)) if passes else woc_norm_pass(must)
+        w, info = run_script({"id": i, "pass": p, "ck": i.split("-")[1][0]},
                              sc, copy_path, None, timeout, False)
         out[i] = (w, info.get("MEASURE", "?") if isinstance(info, dict) else "?")
     return out
 
 
-def woc_measure_all(folder, timeout=300):
+def woc_measure_all(folder, timeout=300, passes=None):
     """Each [script] tick measured on the folder copy with the bundled scripts: {id: (word, value)}."""
     F = pathlib.Path(folder)
     t = (F / "workorder.md").read_text()
     cp = woc_copy_file(t, F)
-    return woc_run_measures(F / "checks", "done-when.md", cp if cp is not None and cp.is_file() else None, timeout)
+    return woc_run_measures(F / "checks", "done-when.md", cp if cp is not None and cp.is_file() else None, timeout, passes)
 
 
 def woc_baseline(a):
@@ -2088,7 +2137,8 @@ def woc_baseline(a):
     F = real(a.folder)
     t = (F / "workorder.md").read_text()
     want = woc_baseline_want(t)
-    got = woc_measure_all(F)
+    text = woc_body(a)
+    got = woc_measure_all(F, passes=woc_body_passes(text) if text is not None else None)
     if any(w == "SANDBOX-MISSING" for w, _ in got.values()):
         print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
         return 1
@@ -2154,8 +2204,10 @@ def woc_lock(a):
     D, F = pathlib.Path(a.run), real(a.folder)
     t = (F / "workorder.md").read_text()
     h = wo_head(t)
-    if woc_check(argparse.Namespace(wo=str(F / "workorder.md"), run=a.run), t) \
-            or woc_baseline(argparse.Namespace(folder=str(F))):
+    if woc_check(argparse.Namespace(wo=str(F / "workorder.md"), run=a.run, body=getattr(a, "body", None),
+                                    issue=getattr(a, "issue", None)), t) \
+            or woc_baseline(argparse.Namespace(folder=str(F), body=getattr(a, "body", None),
+                                               issue=getattr(a, "issue", None))):
         print("WORKORDER-LOCK-REFUSED (WORKORDER and BASELINE must both be OK)")
         return 1
     want = real(pathlib.Path.home() / "superfix-workorders" / h["WORK-ORDER"])
@@ -2173,12 +2225,6 @@ def woc_lock(a):
         return 1
     names = ["workorder.md"] + [f"checks/{n}" for n in sorted(woc_block_files(t))]
     (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names) + f"origsha {sha_file(orig)}\n")
-    own = W / "own"
-    own.mkdir(exist_ok=True)
-    for n in sorted(woc_block_files(t)):
-        if n.startswith("measure-"):
-            shutil.copy2(F / "checks" / n, own / n)
-    shutil.copy2(F / "checks" / "done-when.md", own / "done-when.md")
     woc_copy_folder(F, dest, t)
     ws = sha_file(F / "workorder.md")
     if sha_file(dest / "workorder.md") != ws:
@@ -2243,18 +2289,46 @@ def woc_return(a):
 
 
 def woc_verify(a):
-    """VERIFY for kind criteria: Superfix's own measures on the returned copy, then the findings line numbers."""
+    """VERIFY for kind criteria: verdicts from Superfix's own recorded attempt, then the findings line numbers."""
     D = pathlib.Path(a.run)
     rs = woc_returns(D)
     r = next((r for r in rs if f"wo{r['n']}" == a.head), None)
     if r is None:
-        print(f"VERIFY-NO-RETURN {a.head} (no recorded return under that label: run wo-return first)")
+        print(f"VERIFY-NO-RETURN {a.head} (no recorded return or attempt under that label)")
         return 1
+    text = woc_body(a)
+    at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+    if not at or not sc or text is None:
+        print(f"VERIFY-NO-ATTEMPT {a.head} (Superfix's own attempt must be recorded first: lockcheck, attempt --label {a.head}, progress)")
+        return 1
+    try:
+        _, lk = lock_state(text, sc)
+    except Stop as e:
+        print(str(e))
+        return 1
+    rows = epoch_rows(at)
+    row = next((x for x in rows if x["from"] == a.head), None)
+    if row is None:
+        print(f"VERIFY-NO-ATTEMPT {a.head} (no recorded attempt under that label: lockcheck, attempt --label {a.head}, progress)")
+        return 1
+    bad = check_rows(sc, rows, lk)
+    if bad:
+        print("\n".join(bad))
+        return 1
+    cs = {c["id"]: c for c in criteria(text) if c.get("name") and c.get("kind") == "check"}
+    base = rows[0]["raw"] if rows else {}
+    ids = [i for i in row["v"] if i in cs]
+    if not ids:
+        print(f"VERIFY-NO-RETURN {a.head} (the recorded attempt holds no check verdict)")
+        return 1
+    out, failing = [], []
+    for i in sorted(ids):
+        tg = target(cs[i]["pass"], base.get(i), cs[i]["ck"])
+        w = "PASS" if tg is not None and distance(tg, row["v"][i]) == 0 else "FAIL"
+        out.append(f"{i} {w} {fmt(row['v'][i])}")
+        if w != "PASS":
+            failing.append(i)
     copy = pathlib.Path(r["copy"])
-    own = D / "workorder" / "own"
-    got = woc_run_measures(own, "done-when.md", copy if copy.is_file() else None, a.timeout or 300)
-    out = [f"{i} {w} {v}" for i, (w, v) in sorted(got.items())]
-    failing = [i for i, (w, v) in got.items() if w != "PASS"]
     if a.findings:
         try:
             nrec = len(records(copy))
@@ -2291,12 +2365,28 @@ def woc_sendback(a):
     if last["failing"] == 0:
         print("SENDBACK-NOTHING (the last return passed every check)")
         return 1
-    if last["n"] >= WO_LIMIT:
-        print(f"RETURN-CAP {last['n']} of {WO_LIMIT} attempts used (no send-back left: offer 2 or 3)")
+    at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+    if not at or not sc or woc_body(a) is None:
+        print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
         return 1
-    f = [r["failing"] for r in rs if "failing" in r]
-    if len(f) >= 2 and f[-1] >= f[-2]:
-        print(f"NO-PROGRESS (failing {f[-2]} then {f[-1]}, from Superfix's own runs: offer 2 or 3)")
+    ns = argparse.Namespace(attempts=at, scripts=sc, body=getattr(a, "body", None), issue=getattr(a, "issue", None))
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            cmd_progress(ns)
+    except Stop as e:
+        print(str(e))
+        return 1
+    out = buf.getvalue()
+    print(out, end="")
+    if "STOP-NO-PROGRESS" in out:
+        print(f"NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        return 1
+    if "STOP-CAP" in out:
+        print(f"RETURN-CAP (no send-back left: offer 2 or 3)")
+        return 1
+    if "PROGRESS-NONE" in out:
+        print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
         return 1
     dest = wo_dest(a.dest)
     if dest is None:
@@ -3091,16 +3181,16 @@ def main():
     s = sp.add_parser("index"); s.add_argument("op", choices=["add", "remove"]); s.add_argument("--job", required=True)
     s.add_argument("--waits", default=""); s.set_defaults(f=cmd_index)
     s = p("remind", cmd_remind, "name", "where", "date"); s.add_argument("--dry-run", action="store_true")
-    s = p("wo-check", cmd_wo_check, "wo"); s.add_argument("--check"); s.add_argument("--clone"); s.add_argument("--run")
-    s = p("wo-baseline", cmd_wo_baseline, "run"); s.add_argument("--clone"); s.add_argument("--folder")
-    s = p("wo-lock", cmd_wo_lock, "run", "dest"); s.add_argument("--clone"); s.add_argument("--folder"); s.add_argument("--asked", action="store_true")
+    s = p("wo-check", cmd_wo_check, "wo", body=True); s.add_argument("--check"); s.add_argument("--clone"); s.add_argument("--run")
+    s = p("wo-baseline", cmd_wo_baseline, "run", body=True); s.add_argument("--clone"); s.add_argument("--folder")
+    s = p("wo-lock", cmd_wo_lock, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--folder"); s.add_argument("--asked", action="store_true")
     s = p("wo-return", cmd_wo_return, "run", "folder", body=True); s.add_argument("--clone"); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true")
     for name, f in (("wo-verify", cmd_wo_verify), ("wo-solved", cmd_wo_solved)):
-        s = p(name, f, "run", "head"); s.add_argument("--clone"); s.add_argument("--timeout", type=int, default=300)
+        s = p(name, f, "run", "head", body=True); s.add_argument("--clone"); s.add_argument("--timeout", type=int, default=300)
         if name == "wo-verify":
-            s.add_argument("--findings")
+            s.add_argument("--findings"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
-    s = p("wo-sendback", cmd_wo_sendback, "run", "dest"); s.add_argument("--clone")
+    s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
     s.add_argument("--scripts")
