@@ -2121,6 +2121,11 @@ def woc_check(a, t):
     hits = woc_scan_data(t)
     if hits:
         bad.append(f"WORKORDER-DATA ({hits[0]})")
+    dw = F / "checks" / "done-when.md"
+    if dw.is_file():
+        hits = pii([l for l in dw.read_text(errors="replace").splitlines() if not l.startswith("Internal: ")])
+        if hits:
+            bad.append(f"WORKORDER-DATA ({hits[0]})")
     text = woc_body(a)
     if text is None or not woc_data_yes(text, woc_base_name(t) or ""):
         bad.append("WORKORDER-NO-YES (no recorded yes to the second data question)")
