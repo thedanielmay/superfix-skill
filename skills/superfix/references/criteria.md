@@ -2419,8 +2419,29 @@ def woc_verify(a):
     r["failing"] = len(failing)
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
-    print("\n".join(out + (["VERIFY-PASS (then the section 15 three runs)"] if not failing else ["VERIFY-FAIL"])))
-    return 0 if not failing else 1
+    if not failing:
+        try:
+            wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
+            if wid:
+                woc_cleanup_rounds(wid)
+        except OSError:
+            pass
+        print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
+        return 0
+    print("\n".join(out + ["VERIFY-FAIL"]))
+    return 1
+
+
+def woc_round_dirs(work_id):
+    """~/superfix-workorders/<id>-r<n>/ send-back round folders, oldest first."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    return sorted(d for d in base.glob(work_id + "-r[0-9]*") if d.is_dir())
+
+
+def woc_cleanup_rounds(work_id):
+    """Delete work/ inside every send-back round folder: personal data must not linger past an ending."""
+    for d in woc_round_dirs(work_id):
+        shutil.rmtree(d / "work", ignore_errors=True)
 
 
 def woc_sendback(a):
@@ -2437,7 +2458,16 @@ def woc_sendback(a):
         return 1
     last = rs[-1]
     if last["failing"] == 0:
+        woc_cleanup_rounds(h["WORK-ORDER"])
         print("SENDBACK-NOTHING (the last return passed every check)")
+        return 1
+    want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
+    if real(a.dest) != want:
+        print(f"WORKORDER-PATH {a.dest} (criteria send-backs go only to the default path)")
+        return 1
+    text = woc_body(a)
+    if text is None or not woc_data_yes(text, woc_base_name((F / "workorder.md").read_text()) or ""):
+        print("WORKORDER-NO-YES (no recorded yes to the second data question)")
         return 1
     at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
     if not at or not sc or woc_body(a) is None:
@@ -2454,10 +2484,12 @@ def woc_sendback(a):
     out = buf.getvalue()
     print(out, end="")
     if "STOP-NO-PROGRESS" in out:
-        print(f"NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        woc_cleanup_rounds(h["WORK-ORDER"])
         return 1
     if "STOP-CAP" in out:
-        print(f"RETURN-CAP (no send-back left: offer 2 or 3)")
+        print("RETURN-CAP (no send-back left: offer 2 or 3)")
+        woc_cleanup_rounds(h["WORK-ORDER"])
         return 1
     if "PROGRESS-NONE" in out:
         print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
@@ -2468,6 +2500,8 @@ def woc_sendback(a):
     base = woc_copy_file((F / "workorder.md").read_text(), F).name
     woc_copy_folder(F, dest, (F / "workorder.md").read_text())
     shutil.copy2(last["copy"], dest / "work" / base)
+    os.chmod(dest, 0o700)
+    os.chmod(dest / "work", 0o700)
     (dest / "sendback.md").write_text(f"# Sent back: round {len(rs) + 1}, {last['n']} of {WO_LIMIT} attempts used\n"
                                       "Superfix's own runs at your last copy:\n```\n"
                                       + "\n".join(last.get("lines", [])) + "\n```\n")
