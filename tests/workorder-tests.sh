@@ -240,6 +240,7 @@ t redaction-example-only-sha-lines '^PATTERN-HITS [^|]*[|][^|]*example.md:(9|35)
 t workorder-md-under-cap '^ok$' bash -c "[ \$(wc -l < '$ROOT/skills/superfix/references/workorder.md') -le 250 ] && echo ok"
 t doc-files-over-still-verifies 'RETURN-FILES-OVER. comes with .RETURN-CHECKED H <sha>. and is not a stop: still run steps 2 and 3' cat "$ROOT/skills/superfix/references/workorder.md"
 t doc-handoff-written-line 'The comment posted with it ends with .Work order: WRITTEN <path>.' cat "$ROOT/skills/superfix/references/workorder.md"
+t doc-post-every-outcome 'Every outcome below is posted on the issue before the session ends' cat "$ROOT/skills/superfix/references/workorder.md"
 t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
 LC="$(awk '/the lines check: before posting/{f=1} f&&/^```bash$/{g=1;next} g&&/^```$/{exit} g' "$ROOT/skills/superfix/references/journal.md")"
 printf '%s\n' '> **In plain English:** x.' '' '1. a' '---' 'Pictures: NONE (no screen: cli)' 'Labels: none (no issue)' 'Diagram: NONE (Simple)' 'Gap note: NONE (supported)' > "$T/c-no-wo.md"
