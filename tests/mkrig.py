@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build one criteria work-order rig: a real 1.5.0 criteria job plus a stub folder work order.
-Usage: mkrig.py <home> <run-key> <work-id> <orig-csv> <stub-rel> [--cut] [prefix]
+Usage: mkrig.py <home> <run-key> <work-id> <orig-csv> <stub-rel> [--cut] [--owner] [prefix]
   [prefix]    variable prefix for the printed assignments (RD=... becomes P_RD=...)
   <home>      throwaway HOME
   <run-key>   run folder name under $home/.superfix/runs
@@ -9,6 +9,7 @@ Usage: mkrig.py <home> <run-key> <work-id> <orig-csv> <stub-rel> [--cut] [prefix
               its basename must equal the stub file's basename)
   <stub-rel   FILES name inside the folder, e.g. work/members-export.csv
   --cut       the stub copy holds only row,email,joined (BASE is the cut sha)
+  --owner     the body also holds a P2 owner criterion (a process/guide job: drafts allowed)
 Prints shell assignments: RD= RCRC= RF= DEST= BODYDEC= (eval them).
 Needs: ROOT env (checkout whose crit.py to extract), SEED env (seed15 dir), CRITBIN env (python3 crit path? no: uses RD/crit.py).
 """
@@ -24,12 +25,11 @@ RUN = sys.argv[2]
 WID = sys.argv[3]
 ORIG = pathlib.Path(sys.argv[4])
 STUBREL = sys.argv[5]
-if len(sys.argv) > 6 and sys.argv[6] == "--cut":
-    CUT = True
-    P = (sys.argv[7] + "_") if len(sys.argv) > 7 else ""
-else:
-    CUT = False
-    P = (sys.argv[6] + "_") if len(sys.argv) > 6 else ""
+_rest = sys.argv[6:]
+CUT = "--cut" in _rest
+OWNER = "--owner" in _rest
+_others = [x for x in _rest if not x.startswith("--")]
+P = (_others[0] + "_") if _others else ""
 ROOT = os.environ["ROOT"]
 SEED = pathlib.Path(os.environ["SEED"])
 
@@ -72,12 +72,18 @@ for m in ("measure-P1-C1.py", "measure-P1-K1.py"):
     (RC / m).write_bytes((SEED / "measures" / m).read_bytes())
 body = (
     "# Journal file mode\n\n## Problems\n### P1 duplicate members (members sheet)\n"
-    "Coverage: Everything else\n\n## Done when\n"
+    "Coverage: Everything else\n"
+    + ("### P2 refund process (staff guide)\nCoverage: Everything else\n" if OWNER else "")
+    + "\n## Done when\n"
     "- P1-C1 [check] duplicate members: rows whose email, with spaces trimmed and case ignored, "
     "matches an earlier row; the earliest joined date wins and keeps its own fee; pass: 0; "
     "how: measure-P1-C1.py; who: Superfix\n"
     "- P1-K1 [check] distinct members: by email with spaces trimmed and case ignored; "
     "pass: 112 (today's count); how: measure-P1-K1.py; who: Superfix\n"
+    + ("- P2-C1 [owner] refund process: the guide says how a refund is paid; pass: you tick all 2 items below; "
+       "how: checklist; who: owner sign-off\n"
+       "  - [ ] the guide gives the refund timeframe in days\n"
+       "  - [ ] every see step points at a step that exists\n" if OWNER else "")
 )
 (D / "body.md").write_text(body)
 sh(*C, "copy", "--run", str(D), "--src", str(ORIG))
@@ -89,11 +95,12 @@ sh(*C, "baseline", "--run", str(D), "--scripts", str(RC), "--body", str(D / "bod
    "--measure", f"P1-C1={D / 'work' / realname}", "--measure", f"P1-K1={D / 'work' / realname}")
 r = sh(*C, "lock", "--scripts", str(RC), "--by", "the owner at the keyboard", "--run", str(D),
        "--attempts", str(RC / "attempts"), "--body", str(D / "body.md"),
-       "--data", str(D / "work" / realname), "--approved", "P1")
+       "--data", str(D / "work" / realname), "--approved", "P1,P2" if OWNER else "P1")
 m = re.search(r"Internal: criteria-sha ([0-9a-f]{64})", r.stdout)
 bodydec = body + ("\n## Decision\n"
                   f"Data yes: {base} ({'only the columns row, email, joined' if CUT else 'the whole file'}): yes\n"
-                  f"Internal: criteria-sha {m.group(1)} (sha256), locked 2026-10-21 00:00, approved by the owner at the keyboard\n")
+                  + ("P2: You chose no 'must not get worse' check, so a fix could break something unnoticed.\n" if OWNER else "")
+                  + f"Internal: criteria-sha {m.group(1)} (sha256), locked 2026-10-21 00:00, approved by the owner at the keyboard\n")
 (D / "body-dec.md").write_text(bodydec)
 # stub folder
 (F / "key").write_text(WID + "\n")
@@ -115,7 +122,7 @@ sh(*C, "baseline", "--run", str(F), "--scripts", str(F / "checks"), "--body", st
    "--measure", f"P1-C1={F / STUBREL}", "--measure", f"P1-K1={F / STUBREL}")
 r = sh(*C, "lock", "--scripts", str(F / "checks"), "--by", "the owner at the keyboard", "--run", str(F),
        "--attempts", str(F / "checks" / "attempts"), "--body", str(D / "body.md"),
-       "--data", str(F / STUBREL), "--approved", "P1")
+       "--data", str(F / STUBREL), "--approved", "P1,P2" if OWNER else "P1")
 m1 = re.search(r"Internal: criteria-sha ([0-9a-f]{64})", r.stdout)
 m2 = re.search(r"Internal: crit-sha ([0-9a-f]{64})", r.stdout)
 (F / "checks" / "done-when.md").write_text(

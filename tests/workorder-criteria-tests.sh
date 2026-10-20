@@ -305,7 +305,20 @@ p.write_text(t)
 print("FILES now names drafts")
 EOF
 t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$Q_BODYDEC"
-t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC"'
+t wo-drafts-refused-nonprocess 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC"'
+# ---- J: process drafts allowed (owner criterion in the body) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
+[ -n "$J_RD" ] || { echo "CANNOT RUN: process rig build failed"; exit 2; }
+export J_RD J_RF J_RCRC J_DEST J_BODYDEC
+python3 - "$J_RF/workorder.md" <<'EOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+t = p.read_text().replace("FILES: work/members-export.csv\n", "FILES: work/members-export.csv, work/drafts/\n")
+p.write_text(t)
+print("FILES now names drafts")
+EOF
+t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$J_RD/crit.py" wo-lock --run "$J_RD" --folder "$J_RF" --dest "$J_DEST" --body "$J_BODYDEC"
+t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retj"; cp -r "$J_DEST" "$T/retj"; mkdir -p "$T/retj/work/drafts"; echo "please approve" > "$T/retj/work/drafts/note.md"; python3 -I "$J_RD/crit.py" wo-return --run "$J_RD" --folder "$T/retj" --body "$J_BODYDEC"'
 cat > "$T/deadlocals.py" <<'EOF'
 import ast, sys
 src = open(sys.argv[1]).read()

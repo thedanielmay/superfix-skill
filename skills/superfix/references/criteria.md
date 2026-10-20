@@ -2056,6 +2056,15 @@ def woc_drafts_ok(t):
     return any(f.rstrip("/") == "work/drafts" for f in woc_files_entries(t))
 
 
+def woc_proc_job(text):
+    """A process or guide job: its criteria include an owner or later kind (processes set a
+    later criterion, section 1 Scope). Pure check jobs are data clean-ups: no drafts."""
+    try:
+        return any(c.get("kind") in ("owner", "later") for c in criteria(text))
+    except (AttributeError, TypeError):
+        return False
+
+
 def woc_copy_file(t, folder):
     """The FILES data file: exactly one work/<file> entry (plus optional work/drafts/); its folder-side path or None."""
     fs = woc_files_entries(t)
@@ -2383,7 +2392,8 @@ def woc_return(a):
     if not got.is_file():
         print("RETURN-NO-COPY (work/<file> is missing from the returned folder)")
         return 1
-    drafts = woc_drafts_ok(ours)
+    text = woc_body(a)
+    drafts = woc_drafts_ok(ours) and text is not None and woc_proc_job(text)
 
     def allowed(rel):
         if rel in ("workorder.md", "report.md", "sendback.md", "key", f"work/{base}"):
