@@ -109,6 +109,7 @@ Values: Diagnosing | Waiting for you: N questions | Fixing problem K of N |
 Stopped: <plain reason> | Ready for review: PR <link> | Waiting for you to
 publish | Done
 1.5.0, criteria mode (references/criteria.md): Waiting for you: re-check on <date> | Waiting for you: sign-off on <name> | Waiting for you: put it back and give me an export
+1.6.0, work order mode (references/workorder.md): Waiting for you: hand the work order to someone (<where>) | Waiting for you: hand the work order back (<where>)
 
 **Progress comments = timestamped changelog**
 Each significant phase transition gets a progress comment, not an edit to the body, except the Status line and ## Decision, which are body updates by design. Comments accumulate as a readable audit trail of what happened and when.
@@ -176,6 +177,7 @@ New in 1.4.1. The labels follow the Status line, so the owner can list everythin
 | Budget stop, blocker | Stopped: <reason> | awaiting-decision |
 | Qik waiting for "published", held pictures | Waiting for you to publish / post the pictures? | awaiting-decision |
 | PR ready | Ready for review: PR <link> | awaiting-decision |
+| Work order handed off, or sent back | Waiting for you: hand the work order to someone (<where>) / back (<where>) | awaiting-decision |
 | Re-diagnose after reply 1 | Diagnosing | none |
 | Merged and closed | Done | none |
 
@@ -234,6 +236,7 @@ Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (pu
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <ASKED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>
+Work order: <NONE (normal run) | ASKED (written after go) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>>
 Criteria: <PROPOSED n (P1, P2)[; NONE (P3: why)] | APPROVED n (...) | NONE (no Everything else problem)>
 Criteria check: <criteria mode: plain name RESULT (value), ...; else NONE (no Everything else problem)>
 ```
@@ -253,10 +256,10 @@ Criteria check: <criteria mode: plain name RESULT (value), ...; else NONE (no Ev
 F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; Q="$(awk '/^---$/{exit} {print}' "$F" | grep -cE '^[0-9]+\. ')"; C="$(head -1 "$F" | grep -oE '[0-9]+ answers?' | grep -oE '[0-9]+')"; if [ -n "$C" ] && [ "$Q" = "$C" ]; then echo COUNT-OK; else echo "COUNT-MISMATCH: $Q numbered questions, callout says ${C:-no number}"; fi
 ```
 
-- 1.4.1, the lines check: before posting a decision comment or a final comment, check the required lines mechanically, after the count check. `K` is `decision` (only the AI detail below the LAST `---` counts) or `final` (the whole comment); lines inside code fences never count. Each of `Pictures:`, `Labels:`, `Diagram:` and `Gap note:` must start a line exactly once, and the `Labels:` value must equal a fresh read-back of the issue's labels (or that value plus ` (ready for your review)`; `not set (...)` only while the issue has no superfix label; `none (no issue)` in file mode, written `R='none'`). It prints `LINES-OK`, `LINES-MISSING <which>`, `LABELS-MISMATCH line: <value>; issue: <labels>` or `LABELS-READ-FAILED`; post only after `LINES-OK`:
+- 1.4.1, the lines check: before posting a decision comment or a final comment, check the required lines mechanically, after the count check. `K` is `decision` (only the AI detail below the LAST `---` counts) or `final` (the whole comment); lines inside code fences never count. Each of `Pictures:`, `Labels:`, `Diagram:`, `Gap note:` and `Work order:` must start a line exactly once, and the `Labels:` value must equal a fresh read-back of the issue's labels (or that value plus ` (ready for your review)`; `not set (...)` only while the issue has no superfix label; `none (no issue)` in file mode, written `R='none'`). It prints `LINES-OK`, `LINES-MISSING <which>`, `LABELS-MISMATCH line: <value>; issue: <labels>` or `LABELS-READ-FAILED`; post only after `LINES-OK`:
 
 ```bash
-F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<owner>/<repo>'; if [ "$K" = decision ]; then A="$(awk '/^[`][`][`]/{f=!f; next} f{next} /^---$/{b=""; next} {b=b $0 "\n"} END{printf "%s", b}' "$F")"; else A="$(awk '/^[`][`][`]/{f=!f; next} !f' "$F")"; fi; M=""; for k in Pictures Labels Diagram 'Gap note'; do [ "$(printf '%s\n' "$A" | grep -c "^$k: ")" = 1 ] || M="$M $k"; done; if [ -n "$M" ]; then echo "LINES-MISSING$M"; else V="$(printf '%s\n' "$A" | sed -n 's/^Labels: //p')"; if [ "$R" = none ]; then if [ "$V" = 'none (no issue)' ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: none (no issue)"; fi; elif S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then S="${S:-none}"; case "$V" in "$S"|"$S (ready for your review)") echo LINES-OK;; "not set ("*) if [ "$S" = none ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: $S"; fi;; *) echo "LABELS-MISMATCH line: $V; issue: $S";; esac; else echo LABELS-READ-FAILED; fi; fi
+F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<owner>/<repo>'; if [ "$K" = decision ]; then A="$(awk '/^[`][`][`]/{f=!f; next} f{next} /^---$/{b=""; next} {b=b $0 "\n"} END{printf "%s", b}' "$F")"; else A="$(awk '/^[`][`][`]/{f=!f; next} !f' "$F")"; fi; M=""; for k in Pictures Labels Diagram 'Gap note' 'Work order'; do [ "$(printf '%s\n' "$A" | grep -c "^$k: ")" = 1 ] || M="$M $k"; done; if [ -n "$M" ]; then echo "LINES-MISSING$M"; else V="$(printf '%s\n' "$A" | sed -n 's/^Labels: //p')"; if [ "$R" = none ]; then if [ "$V" = 'none (no issue)' ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: none (no issue)"; fi; elif S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then S="${S:-none}"; case "$V" in "$S"|"$S (ready for your review)") echo LINES-OK;; "not set ("*) if [ "$S" = none ]; then echo LINES-OK; else echo "LABELS-MISMATCH line: $V; issue: $S"; fi;; *) echo "LABELS-MISMATCH line: $V; issue: $S";; esac; else echo LABELS-READ-FAILED; fi; fi
 ```
 
 - 1.5.0, criteria mode: right after `LINES-OK`, criteria.md's comment check also fails with `LINES-GAP-WITH-CRITERIA` when `Gap note:` counts a note, or a gap-list sentence names a problem, whose checks are proposed (only a problem marked `NONE` on the `Criteria:` line, or one with an `owner` criterion, may have a note).
@@ -267,6 +270,7 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<
 - 1.4.1, also required in the AI detail of every decision comment and decision journal entry, and of the final comment (a stop is not complete without them):
   - `Labels: <LABELS-NOW>`, copied from the read-back command, never typed from memory; or `not set (<word>); marker superfix-awaiting-decision` (or `superfix-approved`); or `none (no issue)`.
   - `Diagram: ASKED (<why>) | NONE (<why>)` at the stop; at the end `POSTED <n> | NO (owner said no) | HELD (<why>) | LOCAL (<why>) | NOT-POSTED (<why>) | NONE (<why>)` (references/diagrams.md).
+  - `Work order: NONE (normal run) | ASKED (written after go) | WRITTEN <path> | RETURNED <word> | VERIFIED <PASS or FAIL>` (1.6.0, references/workorder.md), its first word exactly as shown: every normal run writes `NONE (normal run)`; a work order run writes `ASKED (written after go)` at the stop and `WRITTEN <path>` once it is locked.
   - `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)` (references/gaps.md); the final comment adds "open notes in your gap list: <n>".
 - The diagram question (exact text in references/diagrams.md) goes after the problem and budget questions and before the `assets` and create-issue questions; the create-issue question stays last.
 - The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.
@@ -332,6 +336,8 @@ Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <POSTED n | NO (owner said no) | HELD (why) | LOCAL (why) | NOT-POSTED (why) | NONE (why)>
 Gap note: <FILED n | SEEN-AGAIN n | LOCAL n | NONE (supported)>; open notes in your gap list: <n>
 Criteria check: <criteria mode: plain name RESULT (before -> after), ...; else NONE (no Everything else problem)>
+Work order: <NONE (normal run) | VERIFIED <PASS or FAIL>>
+Executor: <work order mode only: the Report's EXECUTOR line, quoted in a code block after the redaction checks>
 | check | before | after | must be | result |  (criteria mode only: one row per criterion, references/criteria.md)
 ## Not tested
 - <item, and why>
