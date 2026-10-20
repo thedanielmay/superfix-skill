@@ -2053,8 +2053,9 @@ def cmd_wo_baseline(a):
 
 
 def decision_shas(text):
-    w = re.findall(r"(?m)^Internal: workorder-sha ([0-9a-f]{64}) \(sha256\)", text)
-    c = re.findall(r"(?m)^Internal: checks-sha ([0-9a-f]{64}) \(sha256\)", text)
+    # the " (sha256)" suffix is optional: T4 run v1-16 copied the lines without it and got RETURN-OURS-CHANGED
+    w = re.findall(r"(?m)^Internal: workorder-sha ([0-9a-f]{64})\b", text)
+    c = re.findall(r"(?m)^Internal: checks-sha ([0-9a-f]{64})\b", text)
     return (w[-1] if w else None, c[-1] if c else None)
 
 

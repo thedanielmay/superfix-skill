@@ -89,6 +89,8 @@ ret2() { $C wo-return --run "${RUN:-$D}" --folder "$1" --clone "$X" --body "$T/b
 ret() { rm -f "${RUN:-$D}/workorder/rounds.json"; ret2 "$1"; }                               # a first round
 F1="$(folder sol)"
 t return-ok "^RETURN-OK H $SOL attempts 1$" ret "$F1"
+sed 's/ (sha256)$//' "$T/body.md" > "$T/body-nosuffix.md"
+t return-ok-without-sha256-suffix "^RETURN-OK H $SOL attempts 1$" bash -c "rm -f '$D/workorder/rounds.json'; $C wo-return --run '$D' --folder '$F1' --clone '$X' --body '$T/body-nosuffix.md'"
 t verify-pass 'CHECK C1 PASS.*CHECK K1 PASS.*CHECK H1 PASS.*CHECK H4 PASS.*TESTNAMES-OK.*SUITE-OK.*VERIFY-PASS' $C wo-verify --run "$D" --clone "$X" --head "$SOL"
 EXTRA="$(mk extra 'attempt 1: failing 0' "git apply '$FX/e1-solution.patch' && echo x >> README.md && echo '{}' > package-lock.json")"
 t return-files-over 'RETURN-FILES-OVER README.md package-lock.json' ret "$(folder extra)"
