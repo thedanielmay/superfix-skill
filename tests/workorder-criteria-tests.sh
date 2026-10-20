@@ -462,11 +462,32 @@ t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" 
 cat > "$T/tamper.py" <<'EOF'
 import sys
 p, which = sys.argv[1], sys.argv[2]
+arg = sys.argv[3] if len(sys.argv) > 3 else ""
 lines = open(p).read().splitlines()
 if which.startswith("append:"):
     anchor = which.split(":", 1)[1]
     i = next(k for k, l in enumerate(lines) if l.startswith(anchor))
     lines.insert(i, 'SANDBOX_TOOLS.append("/usr/bin/curl")')
+elif which == "insert":
+    anchor, code = arg.split(":::", 1)
+    i = next(k for k, l in enumerate(lines) if l.startswith(anchor))
+    lines.insert(i + 1, code)
+elif which == "defarg":
+    i = next(k for k, l in enumerate(lines) if l.startswith(f"def {arg}("))
+    assert lines[i].endswith("):"), lines[i][-20:]
+    lines[i] = lines[i][:-2] + ', _x=globals().__setitem__("WO_LIMIT", 99)' + lines[i][-2:]
+elif which == "wokinds":
+    i = next(k for k, l in enumerate(lines) if l.startswith("WO_KINDS = "))
+    lines[i] = 'WO_KINDS = {"code"}'
+elif which == "woreqcrit-or":
+    i = next(k for k, l in enumerate(lines) if l.startswith("WO_REQUIRED_CRITERIA = "))
+    lines[i] = lines[i] + ' or [SANDBOX_TOOLS.append("/usr/bin/curl")]'
+elif which == "wocx":
+    i = next(k for k, l in enumerate(lines) if l.startswith("WOC_APPROVED_RX"))
+    lines.insert(i, 'WOC_X = SANDBOX_TOOLS.append("/usr/bin/curl")')
+elif which == "wolimit6":
+    i = next(k for k, l in enumerate(lines) if l.startswith("WO_LIMIT = "))
+    lines[i] = "WO_LIMIT = 6"
 elif which == "woreq":
     i = next(k for k, l in enumerate(lines) if l.startswith("WO_REQUIRED = ["))
     assert not lines[i].startswith("WO_REQUIRED_CRITERIA"), lines[i][:40]
@@ -480,17 +501,19 @@ else:
     lines[i] = lines[i] + "  # x"
 open(p, "w").write("\n".join(lines) + "\n")
 EOF
+tamperrun() { cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"; python3 "$T/tamper.py" "$T/crit-tampered.md" "$1" "$2"; _nm="$(printf '%s %s' "$1" "$2" | tr -c 'A-Za-z0-9' '_' | sed 's/_*$//')"; t "crit-15-changed-fails-$_nm" "$3" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'; }
 for _fn in run_script profile cmd_progress cmd_lockcheck cmd_measure; do
-  cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
-  python3 "$T/tamper.py" "$T/crit-tampered.md" "$_fn"
-  t "crit-15-changed-fails-$_fn" "CRIT-1.5-CHANGED .*$_fn" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+  tamperrun "$_fn" "" "CRIT-1.5-CHANGED .*$_fn"
 done
-for _fn in "append:def woc_approved(" "line:WO_LIMIT = 5:WO_LIMIT = 5" woreq "line:R_CALL = re.compile:R_CALL = re.compile"; do
-  cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
-  python3 "$T/tamper.py" "$T/crit-tampered.md" "$_fn"
-  _nm="$(printf '%s' "$_fn" | tr -c 'A-Za-z0-9' '_')"
-  t "crit-15-changed-fails-$_nm" "CRIT-1.5-CHANGED" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+for _fn in "append:def woc_approved(" wolimit6 woreq "line:R_CALL = re.compile:R_CALL = re.compile"; do
+  tamperrun "$_fn" "" "CRIT-1.5-CHANGED"
 done
+tamperrun insert '    s = p("wo-lock":::    sp.choices["lockcheck"].set_defaults(f=cmd_wo_lock)' "CRIT-1.5-CHANGED .*parsers"
+tamperrun insert '    s = p("wo-lock":::    SANDBOX_TOOLS.append("/usr/bin/curl")' "CRIT-1.5-CHANGED .*parsers"
+tamperrun woreqcrit-or "" "CRIT-1.5-CHANGED .*WO_REQUIRED_CRITERIA"
+tamperrun wocx "" "CRIT-1.5-CHANGED .*WOC_X"
+tamperrun defarg woc_tick "CRIT-1.5-CHANGED .*woc_tick"
+tamperrun wokinds "" "CRIT-1.5-CHANGED .*WO_KINDS"
 
 echo "RESULT: $pass passed, $fail failed"
 export HOME="$REALHOME"
