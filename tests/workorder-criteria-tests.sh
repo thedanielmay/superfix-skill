@@ -181,6 +181,18 @@ python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo1 --attempts "$M_RCR
 t wo-sendback-cloud-symlink-refused 'PATH-CLOUD' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r2" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 rm "$HOME/superfix-workorders"; mv "$T/swo-real" "$HOME/superfix-workorders"
 
+# ---- PLAIN SYMLINK (a symlinked default tree refuses even off-cloud) ----
+mv "$HOME/superfix-workorders" "$T/swo-plain"; mkdir -p "$T/plain"; ln -s "$T/plain" "$HOME/superfix-workorders"
+t wo-lock-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"
+rm "$HOME/superfix-workorders"; mv "$T/swo-plain" "$HOME/superfix-workorders"
+rm -rf "$T/retO"; cp -r "$T/ret1" "$T/retO"; cp "$T/src/members-export.csv" "$T/retO/folder/work/members-export.csv"
+python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retO/folder" --body "$M_BODYDEC" >/dev/null 2>&1
+doattempt "$M_RD" "$M_RCRC" "$M_BODYDEC" wo2 "$M_RD/work/wo2-members-export.csv" >/dev/null 2>&1
+t wo-verify-wo2-fail 'VERIFY-FAIL' python3 -I "$M_RD/crit.py" wo-verify --run "$M_RD" --head wo2 --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC" --findings "$T/find-ok.txt"
+mv "$HOME/superfix-workorders" "$T/swo-plain2"; ln -s "$T/plain" "$HOME/superfix-workorders"
+t wo-sendback-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r3" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
+rm "$HOME/superfix-workorders"; mv "$T/swo-plain2" "$HOME/superfix-workorders"
+
 # ---- PROGRESS RIG (8 then 3 then 1: every return moved, send-back goes) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-prog-wo thedanielmay+superfix-testbed+prog-wo1 "$T/src/members-export.csv" work/members-export.csv P)"
 [ -n "$P_RD" ] || { echo "CANNOT RUN: prog rig build failed"; exit 2; }

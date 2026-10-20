@@ -2320,6 +2320,25 @@ def woc_lock_modes(dest):
         pass
 
 
+def woc_symlink_hit(dest):
+    """A link on ~/superfix-workorders, the destination, or any parent between: the path or None.
+    Only the tree at and below the base is walked: parents above it (macOS /private/tmp) are not ours."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    if os.path.islink(base):
+        return str(base)
+    d = pathlib.Path(dest)
+    try:
+        d.relative_to(base)
+    except ValueError:
+        return None
+    p = d
+    while p != base:
+        if os.path.islink(p):
+            return str(p)
+        p = p.parent
+    return None
+
+
 def woc_lock(a):
     """Lock a criteria folder: WORKORDER and BASELINE again, default path only, then copy the folder."""
     D, F = pathlib.Path(a.run), real(a.folder)
@@ -2337,6 +2356,10 @@ def woc_lock(a):
         return 1
     if in_cloud(real(a.dest)):
         print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
+        return 1
+    hit = woc_symlink_hit(a.dest)
+    if hit is not None:
+        print(f"WORKORDER-SYMLINK {hit} (a link in the work-order path: use a plain local folder)")
         return 1
     dest = wo_dest(a.dest)
     if dest is None:
@@ -2582,6 +2605,10 @@ def woc_sendback(a):
         return 1
     if in_cloud(real(a.dest)):
         print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
+        return 1
+    hit = woc_symlink_hit(a.dest)
+    if hit is not None:
+        print(f"WORKORDER-SYMLINK {hit} (a link in the work-order path: use a plain local folder)")
         return 1
     text = woc_body(a)
     base = woc_base_name((F / "workorder.md").read_text()) or "the file"
