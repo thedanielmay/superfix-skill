@@ -424,18 +424,39 @@ print("KEPT-COLUMNS" if all(m in full for m in mapped) and len(mapped) == 112 el
 EOF
 t cut-mapback-keeps-columns '^KEPT-COLUMNS$' python3 "$T/keepcols.py" "$CD/work/full.csv" "$CD/work/mapped.csv"
 
-# ---- CRIT-1.5-CHANGED (a one-byte edit to a 1.5.0 command fails it) ----
+# ---- CRIT-1.5-CHANGED (a one-byte edit to 1.5.0 code fails it) ----
 t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/criteria.md"
+cat > "$T/tamper.py" <<'EOF'
+import sys
+p, which = sys.argv[1], sys.argv[2]
+lines = open(p).read().splitlines()
+if which.startswith("append:"):
+    anchor = which.split(":", 1)[1]
+    i = next(k for k, l in enumerate(lines) if l.startswith(anchor))
+    lines.insert(i, 'SANDBOX_TOOLS.append("/usr/bin/curl")')
+elif which == "woreq":
+    i = next(k for k, l in enumerate(lines) if l.startswith("WO_REQUIRED = ["))
+    assert not lines[i].startswith("WO_REQUIRED_CRITERIA"), lines[i][:40]
+    lines[i] = lines[i].replace('"DELIVER"]', '"DELIVER", "X"]', 1)
+elif which.startswith("line:"):
+    _, pre, post = which.split(":", 2)
+    i = next(k for k, l in enumerate(lines) if l.startswith(pre))
+    lines[i] = lines[i].replace(post, post + "  # x", 1)
+else:
+    i = next(k for k, l in enumerate(lines) if l.startswith(f"def {which}("))
+    lines[i] = lines[i] + "  # x"
+open(p, "w").write("\n".join(lines) + "\n")
+EOF
 for _fn in run_script profile cmd_progress cmd_lockcheck cmd_measure; do
   cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
-  python3 - "$T/crit-tampered.md" "$_fn" <<'EOF'
-import sys
-p, fn = sys.argv[1], sys.argv[2]
-s = open(p).read()
-s = s.replace(f"def {fn}(", f"def {fn}(  # x", 1)
-open(p, "w").write(s)
-EOF
-  t "crit-15-changed-fails-$_fn" "CRIT-1.5-CHANGED $_fn" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+  python3 "$T/tamper.py" "$T/crit-tampered.md" "$_fn"
+  t "crit-15-changed-fails-$_fn" "CRIT-1.5-CHANGED .*$_fn" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
+done
+for _fn in "append:def woc_approved(" "line:WO_LIMIT = 5:WO_LIMIT = 5" woreq "line:R_CALL = re.compile:R_CALL = re.compile"; do
+  cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"
+  python3 "$T/tamper.py" "$T/crit-tampered.md" "$_fn"
+  _nm="$(printf '%s' "$_fn" | tr -c 'A-Za-z0-9' '_')"
+  t "crit-15-changed-fails-$_nm" "CRIT-1.5-CHANGED" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'
 done
 
 echo "RESULT: $pass passed, $fail failed"

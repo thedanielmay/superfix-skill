@@ -3,23 +3,28 @@
 must stay byte for byte identical to v1.6.0.
 
 Compared: every top-level function except cmd_wo_* and woc_* helpers (cmd_remind
-stops at the work-orders comment: the WO constants below it are checked
-separately), the module lines except WO_KINDS / WO_REQUIRED_CRITERIA / the
-import delta below, and main() except the contiguous wo-parser block (wo-check
-through wo-sendback).
+stops at the work-orders comment: the WO constants below it are checked with
+the module lines), main() except the contiguous wo-parser block (wo-check
+through wo-sendback), and every other line of the block except WO_KINDS,
+WO_REQUIRED_CRITERIA, WOC_* module constants and the `, contextlib` / `, io`
+import delta.
+Skipped regions use exact AST boundaries, so a line smuggled between two
+functions (even between two skipped ones) is still compared.
 Allowed 1.6.1 differences, and nothing else:
 - WO_KINDS = {"code", "criteria"} (was {"code"});
 - the WO_REQUIRED_CRITERIA line (new);
 - `, contextlib` and `, io` inside the single stdlib import line (for capturing
   the 1.5.0 progress output inside wo-sendback);
-- the wo-parser block in main() (optional --clone/--run/--folder/--findings/
-  --attempts/--scripts for the wo commands).
+- the bodies of def cmd_wo_* and def woc_* (any new helper), and the wo-parser
+  block in main() (optional --clone/--run/--folder/--findings/--attempts/
+  --scripts for the wo commands).
 Usage: python3 tests/crit-15-check.py [path-to-criteria.md]
 Prints CRIT-1.5-CHANGED <names> and exits 1 on any other difference, else
 CRIT-1.5-UNCHANGED. The plan names measure, baseline, lock, attempt, finish,
 later, amend, comment, sendcheck and verify; later has no cmd_ function (later
 criteria ride inside attempt and finish).
 """
+import ast
 import re
 import subprocess
 import sys
@@ -36,19 +41,49 @@ def block(text):
     return m.group(1)
 
 
-def spans(py):
-    """[(name, body)] for every top-level def (span to the next ^def or the end)."""
-    return [(m.group(1), m.group(0))
-            for m in re.finditer(r"(?ms)^def (\w+)\(.*?(?=^def |\Z)", py)]
+def tree_of(py):
+    try:
+        return ast.parse(py)
+    except SyntaxError:
+        print("CRIT-1.5-CHANGED (crit.py block does not parse)")
+        sys.exit(1)
 
 
 def defs(py):
+    """{name: body} for every top-level def; cmd_remind stops at the
+    work-orders comment (the WO constants below it are module lines)."""
     out = {}
-    for name, body in spans(py):
+    for m in re.finditer(r"(?ms)^def (\w+)\(.*?(?=^def |\Z)", py):
+        name, body = m.group(1), m.group(0)
         if name == "cmd_remind":
             body = body.split("# ---------- work orders")[0]
         out[name] = body
     return out
+
+
+def kept_lines(py):
+    """Kept lines: everything outside skipped def bodies (exact AST boundaries),
+    minus the wo-parser block and the allowlisted WO_KINDS / WO_REQUIRED_CRITERIA /
+    WOC_* lines and the import delta. Blank lines are ignored: removing a
+    skipped def leaves its padding behind, which carries no meaning."""
+    py = strip_wo_parsers(py)
+    skip = set()
+    for n in ast.walk(tree_of(py)):
+        if isinstance(n, ast.FunctionDef) and n.col_offset == 0 and n.name.startswith(SKIP_DEF):
+            skip.update(range(n.lineno - 1, n.end_lineno))
+    out = []
+    for i, l in enumerate(py.splitlines()):
+        if i in skip or not l.strip():
+            continue
+        s = l.strip()
+        if re.match(r"^WO_KINDS = ", s):
+            continue
+        if re.match(r"^WO_REQUIRED_CRITERIA = ", s):
+            continue
+        if re.match(r"^WOC_", s):
+            continue
+        out.append(l)
+    return "\n".join(out).replace(", contextlib", "").replace(", io", "")
 
 
 def strip_wo_parsers(text):
@@ -66,16 +101,6 @@ def strip_wo_parsers(text):
     return "\n".join(out)
 
 
-def norm_rest(py):
-    """Module text with every top-level def span removed, minus the
-    allowlisted 1.6.1 lines (the two WO constants, the import delta)."""
-    rest = re.sub(r"(?ms)^def \w+\(.*?(?=^def |\Z)", "", py)
-    lines = [l for l in rest.splitlines()
-             if not re.match(r"^WO_KINDS = ", l.strip())
-             and not re.match(r"^WO_REQUIRED_CRITERIA = ", l.strip())]
-    return "\n".join(lines).replace(", contextlib", "").replace(", io", "")
-
-
 def main():
     path = sys.argv[1] if len(sys.argv) > 1 else CRIT_PATH
     now_py = block(open(path).read())
@@ -91,12 +116,12 @@ def main():
         if n.startswith(SKIP_DEF):
             continue
         mine, theirs = now_f[n], old_f.get(n)
-        if n == "main":
-            mine, theirs = strip_wo_parsers(mine), strip_wo_parsers(theirs) if theirs else None
+        if n == "main" and theirs is not None:
+            mine, theirs = strip_wo_parsers(mine), strip_wo_parsers(theirs)
         if theirs is None or mine != theirs:
             bad.append(n)
     bad += sorted(n for n in old_f if not n.startswith(SKIP_DEF) and n not in now_f)
-    if norm_rest(now_py) != norm_rest(old_py):
+    if kept_lines(now_py) != kept_lines(old_py):
         bad.append("module-text")
     if bad:
         print("CRIT-1.5-CHANGED " + " ".join(sorted(set(bad))))
