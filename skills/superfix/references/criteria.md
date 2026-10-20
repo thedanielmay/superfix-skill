@@ -2162,8 +2162,11 @@ def woc_check(a, t):
         if hits:
             bad.append(f"WORKORDER-DATA ({hits[0]})")
     text = woc_body(a)
-    if text is None or not woc_data_yes(text, woc_base_name(t) or ""):
-        bad.append("WORKORDER-NO-YES (no recorded yes to the second data question)")
+    base = woc_base_name(t) or "the file"
+    if text is None:
+        bad.append("WORKORDER-NO-YES (no body given: pass --body or --issue so the Data yes line can be checked)")
+    elif not woc_data_yes(text, base):
+        bad.append(f"WORKORDER-NO-YES (no Data yes line for {base} in ## Decision)")
     try:
         rec = read_lock(F / "checks")
         if any(not inside(pathlib.Path(p), F) for p in rec["data"]):
@@ -2525,8 +2528,12 @@ def woc_sendback(a):
         print(f"WORKORDER-PATH {a.dest} (criteria send-backs go only to the default path)")
         return 1
     text = woc_body(a)
-    if text is None or not woc_data_yes(text, woc_base_name((F / "workorder.md").read_text()) or ""):
-        print("WORKORDER-NO-YES (no recorded yes to the second data question)")
+    base = woc_base_name((F / "workorder.md").read_text()) or "the file"
+    if text is None:
+        print("WORKORDER-NO-YES (no body given: pass --body or --issue so the Data yes line can be checked)")
+        return 1
+    if not woc_data_yes(text, base):
+        print(f"WORKORDER-NO-YES (no Data yes line for {base} in ## Decision)")
         return 1
     at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
     if not at or not sc or woc_body(a) is None:

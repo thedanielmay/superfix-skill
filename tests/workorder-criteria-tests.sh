@@ -60,7 +60,23 @@ t wo-data 'WORKORDER-DATA' plant "sed -i '' 's#^SOURCE:.*#SOURCE: data/members-e
 t wo-data-done-when 'WORKORDER-DATA' plant "echo 'Contact jane@example.org about rows.' >> \"$M_RF/checks/done-when.md\""
 t wo-no-yes-gates-check 'WORKORDER-NO-YES' sh -c 'restore; sed "/^## Decision/,\$d" "$M_BODYDEC" > "$T/body-nodec.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-nodec.md"'
 t wo-no-yes-answer-no 'WORKORDER-NO-YES' sh -c 'restore; sed "s/: yes$/: no/" "$M_BODYDEC" > "$T/body-no.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-no.md"'
+t wo-no-body-names-cause 'no body given' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD"'
 t wo-data-yes-case-insensitive '^WORKORDER-OK$' sh -c 'restore; sed "s/: yes$/: YES/" "$M_BODYDEC" > "$T/body-YES.md"; python3 -I "$M_RD/crit.py" wo-check --wo "$M_RF/workorder.md" --run "$M_RD" --body "$T/body-YES.md"'
+
+# ---- DOC COMMANDS (workorder.md criteria commands run exactly as documented) ----
+cat > "$T/docrun.py" <<'EOF'
+import re, sys
+md, k1, k2, rd, rf, dest, body = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7]
+md = open(md).read()
+line = next(l for l in md.splitlines() if k1 in l and k2 in l)
+cmd = next(m.group(1) for m in re.finditer(r"`([^`]*)`", line) if k1 in m.group(1))
+cmd = cmd.replace('"F/workorder.md"', f'"{rf}/workorder.md"').replace('"D"', f'"{rd}"').replace('"F"', f'"{rf}"')
+cmd = cmd.replace("<destination>", dest).replace("<journal file>", body)
+print(f"python3 -I \"{rd}/crit.py\" {cmd}")
+EOF
+t wo-doc-check-ok '^WORKORDER-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-check F/workorder.md "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC")"'
+t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-baseline --folder "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC")"'
+t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
