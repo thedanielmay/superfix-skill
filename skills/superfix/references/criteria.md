@@ -2417,7 +2417,18 @@ def woc_return(a):
         print("RETURN-NO-COPY (work/<file> is missing from the returned folder)")
         return 1
     text = woc_body(a)
-    drafts = woc_drafts_ok(ours) and text is not None and woc_proc_job(text)
+    if text is None:
+        drafts = False
+    else:
+        # the drafts gate reads the body's criteria: only the locked body counts,
+        # so a swapped --body cannot smuggle an owner criterion in (checked against
+        # our stub lock's criteria-sha, not the --body file's word for it)
+        try:
+            lk = read_lock(F / "checks")
+            locked = lock_sha(text, F / "checks", lk["data"]) == lk["sha"]
+        except (OSError, ValueError):
+            locked = False
+        drafts = locked and woc_drafts_ok(ours) and woc_proc_job(text)
 
     def allowed(rel):
         if rel in ("workorder.md", "report.md", "sendback.md", "key", f"work/{base}"):

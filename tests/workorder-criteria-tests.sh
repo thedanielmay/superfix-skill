@@ -372,6 +372,14 @@ print("FILES now names drafts")
 EOF
 t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$Q_BODYDEC"
 t wo-drafts-refused-nonprocess 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC"'
+python3 - "$Q_BODYDEC" "$T/body-doctored.md" <<'EOF'
+import pathlib, sys
+t = pathlib.Path(sys.argv[1]).read_text()
+t = t.replace("## Decision", "- P2-C1 [owner] refund process: the guide says how a refund is paid; pass: you tick all 2 items below; how: checklist; who: owner sign-off\n  - [ ] the guide gives the refund timeframe in days\n  - [ ] every see step points at a step that exists\n\n## Decision", 1)
+pathlib.Path(sys.argv[2]).write_text(t)
+print("doctored body written")
+EOF
+t wo-drafts-unlocked-body-refused 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retu"; cp -r "$Q_DEST" "$T/retu"; mkdir -p "$T/retu/work/drafts"; echo "please approve" > "$T/retu/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retu" --body "$T/body-doctored.md"'
 # ---- J: process drafts allowed (owner criterion in the body) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
 [ -n "$J_RD" ] || { echo "CANNOT RUN: process rig build failed"; exit 2; }
