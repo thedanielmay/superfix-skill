@@ -265,6 +265,7 @@ doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo2 "$P_RD/work/wo2-members-export.csv"
 t wo-prog-verify2 'VERIFY-FAIL' python3 -I "$P_RD/crit.py" wo-verify --run "$P_RD" --head wo2 --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
 t wo-doc-sendback-ready 'SENDBACK-READY' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-sendback --attempts "$P_RD" "$P_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3" "$P_BODYDEC" 1 "$T/find-ok.txt" "$P_RCRC")"'
 t wo-sendback-modes 'MODES-OK' python3 "$T/modes.py" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3"
+t wo-sendback-self-consistent 'SELF-CONSISTENT' sh -c 'D="$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1-r3"; test "$(shasum -a 256 "$D/work/members-export.csv" | cut -d" " -f1)" = "$(sed -n "s/^BASE: //p" "$D/workorder.md" | cut -d" " -f1)" && ls "$D"/RETURNED-*.md >/dev/null 2>&1 && echo SELF-CONSISTENT'
 rm -rf "$T/Pret3"; cp -r "$T/Pret2" "$T/Pret3"
 python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret3/folder" --body "$P_BODYDEC" >/dev/null 2>&1
 doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo3 "$P_RD/work/wo3-members-export.csv" >/dev/null 2>&1
