@@ -2456,12 +2456,13 @@ def woc_return(a):
 
     over = sorted(str(p.relative_to(RF)) for p in RF.rglob("*") if p.is_file()
                   and not allowed(str(p.relative_to(RF))) and not str(p.relative_to(RF)).startswith("checks/"))
+    checks = []
     for n, sh in sorted(files.items()):
         if not n.startswith("folder/checks/"):
             continue
         q = RF / n[len("folder/"):]
         if not q.is_file() or sha_file(q) != sh:
-            over.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+            checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
             break
     if (RF / "checks").is_dir():
         for q in sorted((RF / "checks").rglob("*")):
@@ -2471,11 +2472,25 @@ def woc_return(a):
             if rel == "folder/checks/files.sha256":
                 continue
             if rel not in files or sha_file(q) != files[rel]:
-                over.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+                checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
                 break
     if over:
         print("RETURN-FILES-OVER " + " ".join(sorted(set(over))))
+        for _c in sorted(set(checks)):
+            print(f"RETURN-FILES-OVER {_c}")
         return 1
+    for rel in sorted(str(p.relative_to(RF)) for p in RF.rglob("RETURNED-*.md") if p.is_file() and len(p.relative_to(RF).parts) == 1):
+        m = re.fullmatch(r"RETURNED-(\d+)\.md", rel)
+        if not m:
+            continue
+        want = D / "workorder" / "notes" / rel
+        try:
+            same = want.is_file() and (RF / rel).read_bytes() == want.read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            print(f"RETURN-FOREIGN-NOTE {rel} (not the note Superfix wrote for round {m.group(1)}: send the folder back unchanged)")
+            return 1
     rs = woc_returns(D)
     if len(rs) + 1 > WO_LIMIT:
         print(f"RETURN-CAP {len(rs) + 1} of {WO_LIMIT} attempts used (over the limit: stop)")
@@ -2486,7 +2501,9 @@ def woc_return(a):
         os.chmod(dst, 0o600)
     except OSError:
         pass
-    n = woc_save_return(D, copy=str(dst), sha=sha_file(dst))
+    n = woc_save_return(D, copy=str(dst), sha=sha_file(dst), tainted=bool(checks))
+    for _c in sorted(set(checks)):
+        print(f"RETURN-FILES-OVER {_c}")
     print(f"RETURN-CRITERIA-COPIED wo{n} {sha_file(dst)} attempts {n}")
     print(f"next: lockcheck, attempt --label wo{n} and progress with your own locked crit.py, then the section 15 three runs")
     return 0
@@ -2592,6 +2609,9 @@ def woc_verify(a):
         for name in sv:
             out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
         failing.append("findings")
+    if r.get("tainted"):
+        out.append("CHECKS-CHANGED (a bundled file differed at return: Superfix measures only with its own copies; this return can never pass)")
+        failing.append("tainted")
     r["failing"] = len(failing)
     r["values"] = {i: row["v"][i] for i in sorted(ids)}
     r["lock"] = row["lock"]
@@ -2653,23 +2673,39 @@ def woc_clean_work_path(w):
     return str(w)
 
 
-def woc_clean_round(d, base):
-    """Delete d/work when d passes the gates: lstat must show a real
-    directory (never a link) and realpath must sit inside base. Returns [left]."""
+def woc_round_ok(d, base):
+    """True when d passes the lstat plus realpath gates: a real directory inside base."""
     d = pathlib.Path(d)
     try:
         st = os.lstat(d)
+    except OSError:
+        return False
+    if not stat.S_ISDIR(st.st_mode):
+        return False
+    try:
+        return os.path.dirname(str(real(d))) == str(real(base))
+    except OSError:
+        return False
+
+
+def woc_verified_round_dirs(work_id):
+    """Round-folder candidates passing the gates; missing paths skipped
+    (woc_clean_round lists the ones that fail)."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    return [d for d in ([base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))) if woc_round_ok(d, base)]
+
+
+def woc_clean_round(d, base):
+    """Delete d/work when d passes the gates: missing is clean, anything failing
+    the lstat plus realpath checks is listed, never touched. Returns [left]."""
+    d = pathlib.Path(d)
+    try:
+        os.lstat(d)
     except FileNotFoundError:
         return []
     except OSError:
         return [str(d)]
-    if not stat.S_ISDIR(st.st_mode):
-        return [str(d)]
-    try:
-        inside = os.path.dirname(str(real(d))) == str(real(base))
-    except OSError:
-        return [str(d)]
-    if not inside:
+    if not woc_round_ok(d, base):
         return [str(d)]
     got = woc_clean_work_path(d / "work")
     return [got] if got else []
@@ -2693,6 +2729,15 @@ def woc_cleanup_full(D, keep=True):
     got = woc_clean_work_path(D / "workorder" / "folder" / "work")
     if got:
         left.append(got)
+    note_dirs = [D / "workorder" / "folder"] + (woc_verified_round_dirs(wid) if wid else [])
+    for d in note_dirs:
+        for pat in ("RETURNED-*.md", "report.md"):
+            for p in sorted(d.glob(pat)):
+                try:
+                    if p.is_symlink() or p.is_file():
+                        p.unlink()
+                except OSError:
+                    left.append(str(p))
     if keep:
         keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
         keep = {str(real(pathlib.Path(k))) for k in keep if k}
@@ -2828,7 +2873,7 @@ def woc_cleanup_sendback_note(D):
 
 
 def woc_sendback(a):
-    """Send a criteria folder back: the same locked stub, the returned copy back in work/, Superfix's own FAIL lines."""
+    """Send a criteria folder back: the same locked stub, the copy as first placed in work/, Superfix's own FAIL lines."""
     D = pathlib.Path(a.run)
     o = woc_ours(D)
     if o is None:
@@ -2906,10 +2951,13 @@ def woc_sendback(a):
                                       "Superfix's own runs at your last copy:\n```\n"
                                       + "\n".join(last.get("lines", [])) + "\n```\n")
     (dest / f"RETURNED-{len(rs) + 1}.md").write_text(f"# Returned for round {len(rs) + 1}: redo from this fresh copy\n"
-                                                     "work/ holds the copy as first placed (its sha is BASE above).\n"
+                                                     "work/ holds the copy as first placed (its sha is BASE in workorder.md).\n"
                                                      "Your last copy measured:\n```\n"
                                                      + "\n".join(last.get("lines", [])) + "\n```\n"
                                                      "The tick list in ## Done when names the rows to check.\n")
+    notes = D / "workorder" / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dest / f"RETURNED-{len(rs) + 1}.md", notes / f"RETURNED-{len(rs) + 1}.md")
     woc_lock_modes(dest)
     print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
     return 0
