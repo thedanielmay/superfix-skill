@@ -190,7 +190,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" finish --run "$HOME/.superfi
 - `scan` prints `SCAN-CLEAN` or `SCAN-PII <what> (line <n>)` for an e-mail address, a phone-like number, a link, a run of 9 or more digits, or a value after a label such as `Name:` or `Phone:`.
 - `where` prints `PATH-CLOUD <path>` or `PATH-LOCAL <path>`. Cloud means under `~/Library/CloudStorage`, `~/shared-drives`, `~/Dropbox`, `~/Library/Mobile Documents` (iCloud Drive), `~/Google Drive` or `~/OneDrive`, and also `~/Desktop` and `~/Documents` when iCloud's Desktop and Documents sync is on (detected by those folders inside iCloud Drive); symlinks are resolved and the comparison ignores case.
 - `copy` records the original's sha256 and prints `COPY-READY <copy> sha <sha>`, `COPY-EXISTS`, `COPY-REFUSED` (a `--name` outside letters, digits, `.`, `_` and `-`, or ending `.sf-orig`), `PATH-CLOUD` (the run folder itself syncs) or `ASK-FIRST <original>` (ask, then `--asked`).
-- `finish` prints `ORIGINAL-UNCHANGED <path>` for each original, then `WORK-DELETED`; or `ORIGINAL-CHANGED <path>` or `WORK-METADATA-BAD <file>` (a record `copy` did not write; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`.
+- `finish` prints `ORIGINAL-UNCHANGED <path>` or `ORIGINAL-CHANGED <path>` for each recorded original (a kept orphan record still reports its original), then `WORK-DELETED`; or `WORK-METADATA-BAD <file>` (a record `copy` did not write; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`. Kind `criteria` ends with `wo-finish` instead: chmod-first, then the shared finish, or `WORK-PERMISSION-DENIED <path>` when it cannot delete.
 
 ### 10. The real file (Google Sheet, Drive file, any file the owner puts back himself)
 
@@ -2586,48 +2586,99 @@ def woc_verify(a):
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
     if not failing:
         _, ok = woc_cleanup_full(D)
-        print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
-        return 0 if ok else 1
+        if ok:
+            print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
+            return 0
+        print("\n".join(out + ["VERIFY-FAIL (cleanup left data: delete the listed paths, then re-verify)"]))
+        return 1
     print("\n".join(out + ["VERIFY-FAIL"]))
     return 1
 
 
-def woc_round_dirs(work_id):
-    """The round-1 <id>/ folder plus the ~/superfix-workorders/<id>-r<n>/ send-back rounds."""
-    base = pathlib.Path.home() / "superfix-workorders"
-    ds = [base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))
-    return [d for d in ds if d.is_dir()]
-
-
 def woc_cleanup_rounds(work_id):
     """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
-    Returns [work/ paths still present]."""
+    Every candidate goes through lstat plus realpath checks: links, non-dirs and
+    outside paths are listed, never touched. Returns [paths still present]."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    cands = [base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))
     left = []
-    for d in woc_round_dirs(work_id):
-        shutil.rmtree(d / "work", ignore_errors=True)
-        if (d / "work").exists():
-            left.append(str(d / "work"))
+    for d in cands:
+        left.extend(woc_clean_round(d, base))
     return left
+
+
+def woc_clean_work_path(w):
+    """Delete one work/ path: a link is unlinked, a dir is chmod-first then
+    removed and lstat-verified. Returns "" when gone, else the path as left."""
+    w = pathlib.Path(w)
+    try:
+        wst = os.lstat(w)
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return str(w)
+    if stat.S_ISLNK(wst.st_mode):
+        try:
+            os.unlink(w)
+        except OSError:
+            return str(w)
+        return ""
+    if not stat.S_ISDIR(wst.st_mode):
+        return str(w)
+    try:
+        os.chmod(w, 0o700)
+    except OSError:
+        pass
+    shutil.rmtree(w, ignore_errors=True)
+    try:
+        os.lstat(w)
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return str(w)
+    return str(w)
+
+
+def woc_clean_round(d, base):
+    """Delete d/work when d is a folder Superfix created: lstat must show a real
+    directory (never a link) and realpath must sit inside base. Returns [left]."""
+    d = pathlib.Path(d)
+    try:
+        st = os.lstat(d)
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return [str(d)]
+    if not stat.S_ISDIR(st.st_mode):
+        return [str(d)]
+    try:
+        inside = os.path.dirname(str(real(d))) == str(real(base))
+    except OSError:
+        return [str(d)]
+    if not inside:
+        return [str(d)]
+    got = woc_clean_work_path(d / "work")
+    return [got] if got else []
 
 
 def woc_cleanup_full(D, keep=True):
     """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
     data files. With keep (a pass) the verified copies stay until taken or stop;
     without it (stop, later, finish) everything goes. A .sf-orig record whose data
-    file is gone goes with it, so finish finds no orphan record. Records (lock,
-    returns.json, attempts) stay for audit. Prints CLEANUP-INCOMPLETE with leftover
-    paths when anything remains. Returns (work-order id, clean)."""
+    file is gone goes with it once its named original hashes unchanged, so finish
+    finds no orphan record. Round folders that fail the lstat plus realpath checks
+    are listed, never touched. Records (lock, returns.json, attempts) stay for
+    audit. Prints CLEANUP-INCOMPLETE with leftover paths when anything remains.
+    Returns (work-order id, clean)."""
     D = pathlib.Path(D)
     try:
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
     except OSError:
         wid = ""
     left = woc_cleanup_rounds(wid) if wid else []
-    fw = D / "workorder" / "folder" / "work"
-    if fw.exists():
-        shutil.rmtree(fw, ignore_errors=True)
-        if fw.exists():
-            left.append(str(fw))
+    got = woc_clean_work_path(D / "workorder" / "folder" / "work")
+    if got:
+        left.append(got)
     if keep:
         keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
         keep = {str(real(pathlib.Path(k))) for k in keep if k}
@@ -2635,7 +2686,11 @@ def woc_cleanup_full(D, keep=True):
         keep = set()
     w = D / "work"
     if w.is_dir():
-        for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e: left.append(str(getattr(e, "filename", dirpath)))):
+        try:
+            os.chmod(w, 0o700)
+        except OSError:
+            pass
+        for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e, _w=w: left.append(str(getattr(e, "filename", _w)))):
             for dn in list(dirnames):
                 full = pathlib.Path(dirpath) / dn
                 try:
@@ -2652,29 +2707,86 @@ def woc_cleanup_full(D, keep=True):
                         dirnames.remove(dn)
             for fn in sorted(filenames):
                 p = pathlib.Path(dirpath) / fn
+                if p.is_symlink():
+                    try:
+                        p.unlink()
+                    except OSError:
+                        left.append(str(p))
+                    continue
                 try:
-                    if not p.is_symlink():
-                        os.chmod(p, 0o600)
+                    fst = os.lstat(p)
+                except OSError:
+                    left.append(str(p))
+                    continue
+                if not stat.S_ISREG(fst.st_mode) or fst.st_nlink != 1:
+                    left.append(str(p))
+                    continue
+                try:
+                    os.chmod(p, 0o600)
                 except OSError:
                     pass
                 if p.suffix == ".sf-orig":
                     continue
-                if p.is_symlink() or (p.is_file() and str(real(p)) not in keep):
+                if str(real(p)) not in keep:
                     try:
                         p.unlink()
                     except OSError:
                         left.append(str(p))
         for p in sorted(w.rglob("*.sf-orig")):
             data = p.parent / p.name[:-len(".sf-orig")]
-            if p.is_symlink() or not data.exists():
+            if p.is_symlink():
                 try:
                     p.unlink()
                 except OSError:
                     left.append(str(p))
+                continue
+            if data.is_file():
+                continue
+            if data.exists():
+                left.append(str(p))
+                continue
+            try:
+                sha, sep, path = p.read_text().strip().partition(" ")
+            except OSError:
+                left.append(str(p))
+                continue
+            if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
+                left.append(str(p))
+                continue
+            op = pathlib.Path(path)
+            if op.is_file():
+                if placeholder(path):
+                    left.append(str(p))
+                    continue
+                try:
+                    same = sha_file(op) == sha
+                except OSError:
+                    same = False
+                if not same:
+                    left.append(str(p))
+                    continue
+            try:
+                p.unlink()
+            except OSError:
+                left.append(str(p))
     left = sorted(set(left))
     if left:
         print(f"CLEANUP-INCOMPLETE {' '.join(left)} (personal data may remain: delete these by hand)")
     return wid, not left
+
+
+def cmd_wo_finish(a):
+    """FINISH for kind criteria: chmod-first, then the shared finish, with a clear message on permission failure."""
+    work = real(pathlib.Path(a.run)) / "work"
+    try:
+        os.chmod(work, 0o700)
+    except OSError:
+        pass
+    try:
+        return cmd_finish(a)
+    except PermissionError:
+        print(f"WORK-PERMISSION-DENIED {work} (could not delete it: fix permissions by hand, then finish again)")
+        return 1
 
 
 def cmd_wo_cleanup(a):
@@ -2694,6 +2806,13 @@ def cmd_wo_cleanup(a):
     return 0
 
 
+def woc_cleanup_sendback_note(D):
+    """Cleanup inside a refused send-back: surface leftovers instead of silently continuing."""
+    _, ok = woc_cleanup_full(D)
+    if not ok:
+        print("CLEANUP-LEFT (personal data remains under the listed paths: delete them by hand)")
+
+
 def woc_sendback(a):
     """Send a criteria folder back: the same locked stub, the returned copy back in work/, Superfix's own FAIL lines."""
     D = pathlib.Path(a.run)
@@ -2707,7 +2826,7 @@ def woc_sendback(a):
         return 1
     last = rs[-1]
     if last["failing"] == 0:
-        woc_cleanup_full(D)
+        woc_cleanup_sendback_note(D)
         print("SENDBACK-NOTHING (the last return passed every check)")
         return 1
     want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
@@ -2745,11 +2864,11 @@ def woc_sendback(a):
     print(out, end="")
     if "STOP-NO-PROGRESS" in out:
         print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
-        woc_cleanup_full(D)
+        woc_cleanup_sendback_note(D)
         return 1
     if "STOP-CAP" in out:
         print("RETURN-CAP (no send-back left: offer 2 or 3)")
-        woc_cleanup_full(D)
+        woc_cleanup_sendback_note(D)
         return 1
     if "PROGRESS-NONE" in out:
         print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
@@ -2763,7 +2882,7 @@ def woc_sendback(a):
     flat_pairs = [_same(hist[k - 1], hist[k]) for k in range(1, len(hist))]
     if len(flat_pairs) >= 2 and flat_pairs[-1] and flat_pairs[-2]:
         print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
-        woc_cleanup_full(D)
+        woc_cleanup_sendback_note(D)
         return 1
     dest = wo_dest(a.dest)
     if dest is None:
@@ -3610,6 +3729,7 @@ def main():
             s.add_argument("--findings"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
     s = p("wo-cleanup", cmd_wo_cleanup, "run")
+    s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")

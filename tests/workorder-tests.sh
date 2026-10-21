@@ -14,8 +14,9 @@ git clone -q --bare "$X" "$T/origin.git"; git -C "$X" remote set-url origin "$T/
 export HOME="$T/home"; mkdir -p "$HOME"; D="$HOME/.superfix/runs/thedanielmay+superfix-testbed+109"; mkdir -p "$D/workorder"; echo k > "$D/key"
 awk '/^# --- crit.py start ---$/{f=1} f{print} /^# --- crit.py end ---$/{f=0}' "$ROOT/skills/superfix/references/criteria.md" > "$D/crit.py"
 C="python3 -I $D/crit.py"; pass=0; fail=0
-t() { local name="$1" want="$2"; shift 2; local out; out="$("$@" 2>&1)"
-  if printf '%s' "$out" | tr '\n' '|' | grep -qE "$want"; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: want /$want/ got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-300)"; fi; }
+trap 'rm -rf "$T"' EXIT
+t() { local name="$1" want="$2" rc=""; shift 2; if [[ "$1" =~ ^[0-9]+$ ]]; then rc="$1"; shift; fi; local out rcgot; out="$("$@" 2>&1)"; rcgot=$?
+  if printf '%s' "$out" | tr '\n' '|' | grep -qE "$want" && { [ -z "$rc" ] || [ "$rcgot" = "$rc" ]; }; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: want /$want/ rc ${rc:-any} got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-300) (rc $rcgot)"; fi; }
 # the example work order is the template in workorder.md, exactly
 awk '/^~~~~$/{n++; next} n==1' "$ROOT/skills/superfix/references/workorder.md" > "$T/example.md"
 sed -n '/^# BEGIN CHECKS$/,/^# END CHECKS$/p' "$T/example.md" | sed '1d;$d' > "$T/check.sh"
