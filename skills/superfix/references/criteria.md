@@ -2417,18 +2417,25 @@ def woc_return(a):
         print("RETURN-NO-COPY (work/<file> is missing from the returned folder)")
         return 1
     text = woc_body(a)
-    if text is None:
+    if text is None or not woc_drafts_ok(ours):
         drafts = False
     else:
-        # the drafts gate reads the body's criteria: only the locked body counts,
-        # so a swapped --body cannot smuggle an owner criterion in (checked against
-        # our stub lock's criteria-sha, not the --body file's word for it)
+        # the drafts gate reads the body's criteria from the run's real criteria
+        # folder (the same reference verify and sendback use): only the locked
+        # body counts, so a swapped --body cannot smuggle an owner criterion in
+        at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+        if not at or not sc:
+            print("RETURN-NEEDS-CRITERIA (wo-return needs --attempts and --scripts for the run's real criteria folder)")
+            return 1
         try:
-            lk = read_lock(F / "checks")
-            locked = lock_sha(text, F / "checks", lk["data"]) == lk["sha"]
-        except (OSError, ValueError):
-            locked = False
-        drafts = locked and woc_drafts_ok(ours) and woc_proc_job(text)
+            st, _ = lock_state(text, sc)
+        except Stop as e:
+            print(str(e))
+            return 1
+        if st != "ok":
+            print("RETURN-NEEDS-CRITERIA (that criteria folder holds no lock for this body: pass the run's real criteria folder)")
+            return 1
+        drafts = woc_proc_job(text)
 
     def allowed(rel):
         if rel in ("workorder.md", "report.md", "sendback.md", "key", f"work/{base}"):
@@ -3552,7 +3559,7 @@ def main():
     s = p("wo-check", cmd_wo_check, "wo", body=True); s.add_argument("--check"); s.add_argument("--clone"); s.add_argument("--run")
     s = p("wo-baseline", cmd_wo_baseline, "run", body=True); s.add_argument("--clone"); s.add_argument("--folder")
     s = p("wo-lock", cmd_wo_lock, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--folder"); s.add_argument("--asked", action="store_true")
-    s = p("wo-return", cmd_wo_return, "run", "folder", body=True); s.add_argument("--clone"); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true")
+    s = p("wo-return", cmd_wo_return, "run", "folder", body=True); s.add_argument("--clone"); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true"); s.add_argument("--attempts"); s.add_argument("--scripts")
     for name, f in (("wo-verify", cmd_wo_verify), ("wo-solved", cmd_wo_solved)):
         s = p(name, f, "run", "head", body=True); s.add_argument("--clone"); s.add_argument("--timeout", type=int, default=300)
         if name == "wo-verify":
