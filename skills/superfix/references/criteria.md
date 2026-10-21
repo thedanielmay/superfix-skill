@@ -2422,18 +2422,28 @@ def woc_return(a):
     else:
         # the drafts gate reads the body's criteria from the run's real criteria
         # folder (the same reference verify and sendback use): only the locked
-        # body counts, so a swapped --body cannot smuggle an owner criterion in
+        # body of THIS run counts, so a swapped --body cannot smuggle an owner
+        # criterion in and another job's body and folder cannot open the gate
         at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
         if not at or not sc:
             print("RETURN-NEEDS-CRITERIA (wo-return needs --attempts and --scripts for the run's real criteria folder)")
             return 1
+        if not pathlib.Path(at).is_file() or real(pathlib.Path(at)).parent != real(pathlib.Path(sc)):
+            print("RETURN-NEEDS-CRITERIA (the attempts file is missing or not inside the scripts folder: pass the run's real criteria folder)")
+            return 1
         try:
-            st, _ = lock_state(text, sc)
+            st, lk = lock_state(text, sc)
         except Stop as e:
             print(str(e))
             return 1
         if st != "ok":
             print("RETURN-NEEDS-CRITERIA (that criteria folder holds no lock for this body: pass the run's real criteria folder)")
+            return 1
+        data = lk.get("data", []) if isinstance(lk, dict) else []
+        tied = bool(data) and ((origpath is not None and str(real(pathlib.Path(origpath))) in {str(real(pathlib.Path(d))) for d in data})
+                               or all(str(real(pathlib.Path(d))).startswith(str(real(D)) + os.sep) for d in data))
+        if not tied:
+            print("RETURN-FOREIGN-JOB (the body and criteria folder belong to another run: pass this run's own)")
             return 1
         drafts = woc_proc_job(text)
 
@@ -2472,6 +2482,10 @@ def woc_return(a):
         return 1
     dst = D / "work" / f"wo{len(rs) + 1}-{base}"
     shutil.copy2(got, dst)
+    try:
+        os.chmod(dst, 0o600)
+    except OSError:
+        pass
     n = woc_save_return(D, copy=str(dst), sha=sha_file(dst))
     print(f"RETURN-CRITERIA-COPIED wo{n} {sha_file(dst)} attempts {n}")
     print(f"next: lockcheck, attempt --label wo{n} and progress with your own locked crit.py, then the section 15 three runs")
