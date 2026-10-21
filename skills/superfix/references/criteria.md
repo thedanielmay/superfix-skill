@@ -2640,7 +2640,7 @@ def woc_clean_work_path(w):
 
 
 def woc_clean_round(d, base):
-    """Delete d/work when d is a folder Superfix created: lstat must show a real
+    """Delete d/work when d passes the gates: lstat must show a real
     directory (never a link) and realpath must sit inside base. Returns [left]."""
     d = pathlib.Path(d)
     try:
