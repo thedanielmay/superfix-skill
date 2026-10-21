@@ -219,6 +219,7 @@ t wo-verify-wo2-fail 'VERIFY-FAIL' python3 -I "$M_RD/crit.py" wo-verify --run "$
 mv "$HOME/superfix-workorders" "$T/swo-plain2"; ln -s "$T/plain" "$HOME/superfix-workorders"
 t wo-sendback-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r3" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 rm "$HOME/superfix-workorders"; mv "$T/swo-plain2" "$HOME/superfix-workorders"
+t wo-return-ignores-returned-note 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
 
 # ---- ENDING RIG (a pass cleans everything: rounds, stub copy, run copies) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-end-wo thedanielmay+superfix-testbed+end-wo1 "$T/src/members-export.csv" work/members-export.csv E)"
