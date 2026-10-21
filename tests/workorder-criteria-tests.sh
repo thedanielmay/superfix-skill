@@ -226,6 +226,7 @@ python3 -I "$E_RD/crit.py" wo-lock --run "$E_RD" --folder "$E_RF" --dest "$E_DES
 retfix Eret1 "$E_DEST" 8
 python3 -I "$E_RD/crit.py" wo-return --run "$E_RD" --folder "$T/Eret1/folder" --body "$E_BODYDEC" >/dev/null 2>&1
 doattempt "$E_RD" "$E_RCRC" "$E_BODYDEC" wo1 "$E_RD/work/wo1-members-export.csv" >/dev/null 2>&1
+mkdir -p "$E_RD/work/neg/sub"; cp "$T/src/members-export.csv" "$E_RD/work/neg/neg-p9.csv"; cp "$T/src/members-export.csv" "$E_RD/work/neg/sub/neg-p8.csv"
 mkdir -p "$E_DEST-r9/work"; echo stale > "$E_DEST-r9/work/stale.csv"
 t wo-doc-verify-ok 'VERIFY-PASS' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-verify "--head wo" "$E_RD" "$E_RF" "$T/docdest" "$E_BODYDEC" 1 "$T/find-ok.txt" "$E_RCRC")"'
 t wo-ending-pass-keeps-copy 'KEPT-COPY' sh -c 'test "$(find "$E_RD/work" "$E_DEST" "$E_DEST-r9" -name "*.csv")" = "$E_RD/work/wo1-members-export.csv" && echo KEPT-COPY'
@@ -240,6 +241,7 @@ export N_RD N_RF N_RCRC N_DEST N_BODYDEC
 python3 -I "$N_RD/crit.py" wo-lock --run "$N_RD" --folder "$N_RF" --dest "$N_DEST" --body "$N_BODYDEC" >/dev/null 2>&1
 t wo-finish-runs 'WORK-DELETED' python3 -I "$N_RD/crit.py" finish --run "$N_RD"
 t wo-finish-leaves-stub-copy 'STUB-COPY-LEFT' sh -c 'test -f "$N_RF/work/members-export.csv" && echo STUB-COPY-LEFT'
+mkdir -p "$N_RD/work/neg/sub"; cp "$T/src/members-export.csv" "$N_RD/work/neg/neg-p9.csv"; cp "$T/src/members-export.csv" "$N_RD/work/neg/sub/neg-p8.csv"
 t wo-cleanup-ok 'CLEANUP-OK' python3 -I "$N_RD/crit.py" wo-cleanup --run "$N_RD"
 t wo-cleanup-cleans 'NO-DATA' python3 "$T/nodata.py" "$N_RD" "$N_DEST"
 

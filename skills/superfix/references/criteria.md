@@ -2612,12 +2612,22 @@ def woc_cleanup_full(D):
     keep = {str(real(pathlib.Path(k))) for k in keep if k}
     w = D / "work"
     if w.is_dir():
-        for p in sorted(w.iterdir()):
-            if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig" and str(real(p)) not in keep):
-                try:
-                    p.unlink()
-                except OSError:
-                    pass
+        for dirpath, dirnames, filenames in os.walk(w, followlinks=False):
+            for dn in list(dirnames):
+                full = pathlib.Path(dirpath) / dn
+                if full.is_symlink():
+                    try:
+                        full.unlink()
+                    except OSError:
+                        pass
+                    dirnames.remove(dn)
+            for fn in sorted(filenames):
+                p = pathlib.Path(dirpath) / fn
+                if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig" and str(real(p)) not in keep):
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
     return wid
 
 
