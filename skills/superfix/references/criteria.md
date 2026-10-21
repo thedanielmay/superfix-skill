@@ -2732,12 +2732,15 @@ def woc_sendback(a):
     dest = wo_dest(a.dest)
     if dest is None:
         return 1
-    base = woc_copy_file((F / "workorder.md").read_text(), F).name
     woc_copy_folder(F, dest, (F / "workorder.md").read_text())
-    shutil.copy2(last["copy"], dest / "work" / base)
     (dest / "sendback.md").write_text(f"# Sent back: round {len(rs) + 1}, {last['n']} of {WO_LIMIT} attempts used\n"
                                       "Superfix's own runs at your last copy:\n```\n"
                                       + "\n".join(last.get("lines", [])) + "\n```\n")
+    (dest / f"RETURNED-{len(rs) + 1}.md").write_text(f"# Returned for round {len(rs) + 1}: redo from this fresh copy\n"
+                                                     "work/ holds the copy as first placed (its sha is BASE above).\n"
+                                                     "Your last copy measured:\n```\n"
+                                                     + "\n".join(last.get("lines", [])) + "\n```\n"
+                                                     "The tick list in ## Done when names the rows to check.\n")
     woc_lock_modes(dest)
     print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
     return 0
