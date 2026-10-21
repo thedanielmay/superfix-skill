@@ -2440,6 +2440,8 @@ def woc_return(a):
     def allowed(rel):
         if rel in ("workorder.md", "report.md", "sendback.md", "key", f"work/{base}"):
             return True
+        if re.fullmatch(r"RETURNED-\d+\.md", rel):
+            return True
         return rel.startswith("work/drafts/") and drafts
 
     over = sorted(str(p.relative_to(RF)) for p in RF.rglob("*") if p.is_file()
