@@ -161,7 +161,7 @@ They follow redaction.md: a figure the owner calls private goes on the secrets l
 
 ### 9. Where the work happens
 
-Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good); the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas, the scripts and the tool's records in the criteria folder, never the data.
+Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good), except the verified copies, which stay until taken or stop; a stop deletes everything; leftovers print `CLEANUP-INCOMPLETE` with exit 1; the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas, the scripts and the tool's records in the criteria folder, never the data.
 - While the owner still has to put a changed copy back (section 10), the job has not ended: the run folder and its `work/` stay (mode 700 and 600, on this Mac only), the stop message names the copy's path, and redaction.md's end-of-run delete waits until the export is measured or the owner says stop. Then `finish` runs first, then the delete.
 
 **Nothing changed in criteria mode is committed by default, on any repo: a data file, a guide, a process document alike.** The changed files stay on the Mac in `work/`, and the PR (when there is one) or the final comment describes the change in counts. A commit needs ALL of:
@@ -2585,9 +2585,9 @@ def woc_verify(a):
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
     if not failing:
-        woc_cleanup_full(D)
+        _, ok = woc_cleanup_full(D)
         print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
-        return 0
+        return 0 if ok else 1
     print("\n".join(out + ["VERIFY-FAIL"]))
     return 1
 
@@ -2600,44 +2600,81 @@ def woc_round_dirs(work_id):
 
 
 def woc_cleanup_rounds(work_id):
-    """Delete work/ inside every send-back round folder: personal data must not linger past an ending."""
+    """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
+    Returns [work/ paths still present]."""
+    left = []
     for d in woc_round_dirs(work_id):
         shutil.rmtree(d / "work", ignore_errors=True)
+        if (d / "work").exists():
+            left.append(str(d / "work"))
+    return left
 
 
-def woc_cleanup_full(D):
+def woc_cleanup_full(D, keep=True):
     """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
-    data files, except the verified copies. Records (.sf-orig, lock, returns.json,
-    attempts) stay for audit. The verified copies stay until taken or stop."""
+    data files. With keep (a pass) the verified copies stay until taken or stop;
+    without it (stop, later, finish) everything goes. A .sf-orig record whose data
+    file is gone goes with it, so finish finds no orphan record. Records (lock,
+    returns.json, attempts) stay for audit. Prints CLEANUP-INCOMPLETE with leftover
+    paths when anything remains. Returns (work-order id, clean)."""
     D = pathlib.Path(D)
     try:
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
     except OSError:
         wid = ""
-    if wid:
-        woc_cleanup_rounds(wid)
-    shutil.rmtree(D / "workorder" / "folder" / "work", ignore_errors=True)
-    keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
-    keep = {str(real(pathlib.Path(k))) for k in keep if k}
+    left = woc_cleanup_rounds(wid) if wid else []
+    fw = D / "workorder" / "folder" / "work"
+    if fw.exists():
+        shutil.rmtree(fw, ignore_errors=True)
+        if fw.exists():
+            left.append(str(fw))
+    if keep:
+        keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
+        keep = {str(real(pathlib.Path(k))) for k in keep if k}
+    else:
+        keep = set()
     w = D / "work"
     if w.is_dir():
-        for dirpath, dirnames, filenames in os.walk(w, followlinks=False):
+        for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e: left.append(str(getattr(e, "filename", dirpath)))):
             for dn in list(dirnames):
                 full = pathlib.Path(dirpath) / dn
+                try:
+                    if not full.is_symlink():
+                        os.chmod(full, 0o700)
+                except OSError:
+                    pass
                 if full.is_symlink():
                     try:
                         full.unlink()
                     except OSError:
-                        pass
-                    dirnames.remove(dn)
+                        left.append(str(full))
+                    else:
+                        dirnames.remove(dn)
             for fn in sorted(filenames):
                 p = pathlib.Path(dirpath) / fn
-                if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig" and str(real(p)) not in keep):
+                try:
+                    if not p.is_symlink():
+                        os.chmod(p, 0o600)
+                except OSError:
+                    pass
+                if p.suffix == ".sf-orig":
+                    continue
+                if p.is_symlink() or (p.is_file() and str(real(p)) not in keep):
                     try:
                         p.unlink()
                     except OSError:
-                        pass
-    return wid
+                        left.append(str(p))
+        for p in sorted(w.rglob("*.sf-orig")):
+            data = p.parent / p.name[:-len(".sf-orig")]
+            if p.is_symlink() or not data.exists():
+                try:
+                    p.unlink()
+                except OSError:
+                    left.append(str(p))
+    left = sorted(set(left))
+    if left:
+        print(f"CLEANUP-INCOMPLETE {' '.join(left)} (personal data may remain: delete these by hand)")
+    return wid, not left
 
 
 def cmd_wo_cleanup(a):
@@ -2647,9 +2684,11 @@ def cmd_wo_cleanup(a):
     if not woc_run_is_criteria(D):
         print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/)")
         return 1
-    wid = woc_cleanup_full(D)
+    wid, ok = woc_cleanup_full(D, keep=False)
     if not wid:
         print("CLEANUP-NO-WORKORDER (no stub workorder.md in the run folder)")
+        return 1
+    if not ok:
         return 1
     print(f"CLEANUP-OK {wid} (rounds, stub and run copies deleted; records kept)")
     return 0
