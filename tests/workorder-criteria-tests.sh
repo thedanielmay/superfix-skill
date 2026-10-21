@@ -372,7 +372,7 @@ p.write_text(t)
 print("FILES now names drafts")
 EOF
 t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$Q_BODYDEC"
-t wo-drafts-refused-nonprocess 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC"'
+t wo-drafts-refused-nonprocess 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retp"; cp -r "$Q_DEST" "$T/retp"; mkdir -p "$T/retp/work/drafts"; echo "please approve" > "$T/retp/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retp" --body "$Q_BODYDEC" --attempts "$Q_RCRC/attempts" --scripts "$Q_RCRC"'
 python3 - "$Q_BODYDEC" "$T/body-doctored.md" <<'EOF'
 import pathlib, sys
 t = pathlib.Path(sys.argv[1]).read_text()
@@ -380,7 +380,22 @@ t = t.replace("## Decision", "- P2-C1 [owner] refund process: the guide says how
 pathlib.Path(sys.argv[2]).write_text(t)
 print("doctored body written")
 EOF
-t wo-drafts-unlocked-body-refused 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retu"; cp -r "$Q_DEST" "$T/retu"; mkdir -p "$T/retu/work/drafts"; echo "please approve" > "$T/retu/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retu" --body "$T/body-doctored.md"'
+t wo-drafts-unlocked-body-refused 'CRITERIA-CHANGED' sh -c 'rm -rf "$T/retu"; cp -r "$Q_DEST" "$T/retu"; mkdir -p "$T/retu/work/drafts"; echo "please approve" > "$T/retu/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retu" --body "$T/body-doctored.md" --attempts "$Q_RCRC/attempts" --scripts "$Q_RCRC"'
+
+# ---- DIVERGED STUB (stub check-only, real criteria owner: the gate reads real) ----
+python3 - "$Q_RD/body.md" "$T/body-own.md" <<'EOF'
+import pathlib, sys
+t = pathlib.Path(sys.argv[1]).read_text()
+t += "- P2-C1 [owner] refund process: the guide says how a refund is paid; pass: you tick all 2 items below; how: checklist; who: owner sign-off\n  - [ ] the guide gives the refund timeframe in days\n  - [ ] every see step points at a step that exists\n"
+pathlib.Path(sys.argv[2]).write_text(t)
+print("owner body written")
+EOF
+rm -f "$Q_RCRC/lock" "$Q_RCRC/attempts"; rm -rf "$Q_RCRC/records"
+python3 -I "$Q_RD/crit.py" baseline --run "$Q_RD" --scripts "$Q_RCRC" --body "$T/body-own.md" --attempts "$Q_RCRC/attempts" --label base --measure "P1-C1=$Q_RD/work/members-export.csv" --measure "P1-K1=$Q_RD/work/members-export.csv" >/dev/null 2>&1
+QLOCKOUT="$(python3 -I "$Q_RD/crit.py" lock --scripts "$Q_RCRC" --by "the owner at the keyboard" --run "$Q_RD" --attempts "$Q_RCRC/attempts" --body "$T/body-own.md" --data "$Q_RD/work/members-export.csv" --approved "P1,P2")"
+QSHA="$(printf '%s\n' "$QLOCKOUT" | sed -n 's/^Internal: criteria-sha \([0-9a-f]*\).*/\1/p')"
+{ cat "$T/body-own.md"; printf '\n## Decision\nData yes: members-export.csv (the whole file): yes\nP2: You chose no '"'"'must not get worse'"'"' check, so a fix could break something unnoticed.\nInternal: criteria-sha %s (sha256), locked 2026-10-21 00:00, approved by the owner at the keyboard\n' "$QSHA"; } > "$T/body-dec2.md"
+t wo-diverged-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retd2"; cp -r "$Q_DEST" "$T/retd2"; mkdir -p "$T/retd2/work/drafts"; echo hi > "$T/retd2/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retd2" --body "$T/body-dec2.md" --attempts "$Q_RCRC/attempts" --scripts "$Q_RCRC"'
 # ---- J: process drafts allowed (owner criterion in the body) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
 [ -n "$J_RD" ] || { echo "CANNOT RUN: process rig build failed"; exit 2; }
@@ -393,7 +408,7 @@ p.write_text(t)
 print("FILES now names drafts")
 EOF
 t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$J_RD/crit.py" wo-lock --run "$J_RD" --folder "$J_RF" --dest "$J_DEST" --body "$J_BODYDEC"
-t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retj"; cp -r "$J_DEST" "$T/retj"; mkdir -p "$T/retj/work/drafts"; echo "please approve" > "$T/retj/work/drafts/note.md"; python3 -I "$J_RD/crit.py" wo-return --run "$J_RD" --folder "$T/retj" --body "$J_BODYDEC"'
+t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retj"; cp -r "$J_DEST" "$T/retj"; mkdir -p "$T/retj/work/drafts"; echo "please approve" > "$T/retj/work/drafts/note.md"; python3 -I "$J_RD/crit.py" wo-return --run "$J_RD" --folder "$T/retj" --body "$J_BODYDEC" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC"'
 cat > "$T/deadlocals.py" <<'EOF'
 import ast, sys
 src = open(sys.argv[1]).read()
