@@ -3,7 +3,7 @@
 New in 1.6.0 ([superfix-skill#57](https://github.com/thedanielmay/superfix-skill/issues/57)). SKILL.md (Work order mode) says when to read this file: in full, before the stop. Every command writes its values out literally (the shell keeps no variables between calls) and prints one word; silence is never a pass. The commands are `crit.py`'s, written into the run folder exactly as criteria.md section 5 says.
 
 ### 1. When, who, where
-- Only when this run's request or the go reply says "work order", "someone else will do it" or "hand off", and every problem is row Code, or every problem is a criteria-mode file (never Qik, a live Sheet or Doc, or a mix). Otherwise say in one line why not and run as normal. Never the fast lane. "Keep executing" still means Superfix makes the change.
+- Only when this run's request or the go reply says "work order", "someone else will do it" or "hand off", and every problem is row Code, or every problem is a criteria-mode file (never Qik, a live Sheet or Doc, or a mix). Otherwise say in one line why not and run as normal. A process held in a file, a document or a data file is in scope. Never the fast lane. "Keep executing" still means Superfix makes the change.
 - Who can carry it out: anyone with git, the repo's runtime (named with its version in CHECKS) and read access to the repo: a cheaper model, another service, a developer, or the owner.
 - An executor on this Mac runs as another user, or sandboxed: as the same user it can read `~/.superfix` (held.sh, the lock, crit.py). That is why the folder never goes inside `~/.superfix` (`wo-lock` and `wo-sendback` refuse it: `WORKORDER-DEST-INSIDE-SUPERFIX`).
 - At the stop, one plain line: "This route costs about the same as me fixing it, or more; the gain is handing it off."
