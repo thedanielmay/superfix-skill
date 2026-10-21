@@ -132,6 +132,29 @@ t wo-return-kind-flip 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retk"; cp -r "$M_D
 t wo-return-code-run-criteria-folder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/fakerun"; mkdir -p "$T/fakerun/workorder"; echo "abc  workorder.md" > "$T/fakerun/workorder/lock"; python3 -I "$M_RD/crit.py" wo-return --run "$T/fakerun" --folder "$T/ret1/folder" --body "$M_BODYDEC"'
 t wo-return-binary-workorder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retb"; cp -r "$M_DEST" "$T/retb"; printf "\377\376\000binary-binary" > "$T/retb/workorder.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retb" --body "$M_BODYDEC"'
 
+# ---- Step 0 writes outside the folder (#91): the template block run literally, then the return ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-step0-wo thedanielmay+superfix-testbed+step0-wo1 "$T/src/members-export.csv" work/members-export.csv S0)"
+[ -n "$S0_RD" ] || { echo "CANNOT RUN: step0 rig build failed"; exit 2; }
+export S0_RD S0_RF S0_RCRC S0_DEST S0_BODYDEC
+python3 -I "$S0_RD/crit.py" wo-lock --run "$S0_RD" --folder "$S0_RF" --dest "$S0_DEST" --body "$S0_BODYDEC" >/dev/null 2>&1
+# The criteria template's own Step 0 block, exactly as printed, with this rig's CHECKS-SHA filled in
+step0blk() { python3 - "$ROOT/skills/superfix/references/workorder.md" "$S0_DEST/workorder.md" "$1" <<'EOF'
+import pathlib, re, sys
+md = pathlib.Path(sys.argv[1]).read_text()
+sec = md.split("### 4b.", 1)[-1].split("### 5.", 1)[0]
+m = re.search(r"```bash\n(.*?)```", sec, re.S)
+blk = m.group(1) if m else ""
+sha = re.search(r"^CHECKS-SHA: ([0-9a-f]{64})", pathlib.Path(sys.argv[2]).read_text(), re.M).group(1)
+pathlib.Path(sys.argv[3]).write_text(blk.replace("<sha256 of the CHECKS block>", sha))
+print("BLOCK-EMPTY" if not blk else "BLOCK-READY")
+EOF
+}
+t wo-criteria-step0-block-exists 'BLOCK-READY' step0blk "$T/step0-blk.sh"
+t wo-criteria-step0-return-ok 'START-OK.*RETURN-CRITERIA-COPIED wo1' sh -c 'rm -rf "$T/S0ret"; cp -r "$S0_DEST" "$T/S0ret"; (cd "$T/S0ret" && bash "$T/step0-blk.sh"); test ! -e "$T/S0ret/checks/files.sha256" && python3 -I "$S0_RD/crit.py" wo-return --run "$S0_RD" --folder "$T/S0ret" --body "$S0_BODYDEC"'
+t wo-criteria-step0-other-extra-still-refused 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/S0rete"; cp -r "$S0_DEST" "$T/S0rete"; (cd "$T/S0rete" && bash "$T/step0-blk.sh" >/dev/null); echo x > "$T/S0rete/checks/extra.txt"; python3 -I "$S0_RD/crit.py" wo-return --run "$S0_RD" --folder "$T/S0rete" --body "$S0_BODYDEC"'
+t wo-criteria-no-checks-inside 'NO-STEP0-INSIDE' sh -c '! grep -q "checks/files.sha256" "$ROOT/skills/superfix/references/workorder.md" "$ROOT/skills/superfix/references/criteria.md" "$ROOT/tests/mkrig.py" && echo NO-STEP0-INSIDE'
+t wo-stop-paragraph-names-post 'POST-FIRST' sh -c 'awk "/^- For kind/ && /after the shared steps/" "$ROOT/skills/superfix/references/workorder.md" | grep -q "posted first.*never only in chat" && echo POST-FIRST'
+
 # ---- VERIFY (verdicts from Superfix's own recorded attempt) ----
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-ok.txt"
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 9999)\n' > "$T/find-bad.txt"
