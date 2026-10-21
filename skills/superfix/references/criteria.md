@@ -2466,14 +2466,28 @@ def woc_return(a):
                 break
     if over:
         print("RETURN-FILES-OVER " + " ".join(sorted(set(over))))
+        for _c in sorted(set(checks)):
+            print(f"RETURN-FILES-OVER {_c}")
         return 1
+    for rel in sorted(str(p.relative_to(RF)) for p in RF.rglob("RETURNED-*.md") if p.is_file() and len(p.relative_to(RF).parts) == 1):
+        m = re.fullmatch(r"RETURNED-(\d+)\.md", rel)
+        if not m:
+            continue
+        want = D / "workorder" / "notes" / rel
+        try:
+            same = want.is_file() and (RF / rel).read_bytes() == want.read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            print(f"RETURN-FOREIGN-NOTE {rel} (not the note Superfix wrote for round {m.group(1)}: send the folder back unchanged)")
+            return 1
     rs = woc_returns(D)
     if len(rs) + 1 > WO_LIMIT:
         print(f"RETURN-CAP {len(rs) + 1} of {WO_LIMIT} attempts used (over the limit: stop)")
         return 1
     dst = D / "work" / f"wo{len(rs) + 1}-{base}"
     shutil.copy2(got, dst)
-    n = woc_save_return(D, copy=str(dst), sha=sha_file(dst))
+    n = woc_save_return(D, copy=str(dst), sha=sha_file(dst), tainted=bool(checks))
     for _c in sorted(set(checks)):
         print(f"RETURN-FILES-OVER {_c}")
     print(f"RETURN-CRITERIA-COPIED wo{n} {sha_file(dst)} attempts {n}")
@@ -2581,6 +2595,9 @@ def woc_verify(a):
         for name in sv:
             out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
         failing.append("findings")
+    if r.get("tainted"):
+        out.append("CHECKS-CHANGED (a bundled file differed at return: Superfix measures only with its own copies; this return can never pass)")
+        failing.append("tainted")
     r["failing"] = len(failing)
     r["values"] = {i: row["v"][i] for i in sorted(ids)}
     r["lock"] = row["lock"]
@@ -2619,7 +2636,18 @@ def woc_cleanup_full(D):
         wid = ""
     if wid:
         woc_cleanup_rounds(wid)
+        round_roots = woc_round_dirs(wid)
+    else:
+        round_roots = []
     shutil.rmtree(D / "workorder" / "folder" / "work", ignore_errors=True)
+    for d in [D / "workorder" / "folder"] + round_roots:
+        for pat in ("RETURNED-*.md", "report.md"):
+            for p in sorted(d.glob(pat)):
+                try:
+                    if p.is_symlink() or p.is_file():
+                        p.unlink()
+                except OSError:
+                    pass
     keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
     keep = {str(real(pathlib.Path(k))) for k in keep if k}
     w = D / "work"
@@ -2659,7 +2687,7 @@ def cmd_wo_cleanup(a):
 
 
 def woc_sendback(a):
-    """Send a criteria folder back: the same locked stub, the returned copy back in work/, Superfix's own FAIL lines."""
+    """Send a criteria folder back: the same locked stub, the copy as first placed in work/, Superfix's own FAIL lines."""
     D = pathlib.Path(a.run)
     o = woc_ours(D)
     if o is None:
@@ -2737,10 +2765,13 @@ def woc_sendback(a):
                                       "Superfix's own runs at your last copy:\n```\n"
                                       + "\n".join(last.get("lines", [])) + "\n```\n")
     (dest / f"RETURNED-{len(rs) + 1}.md").write_text(f"# Returned for round {len(rs) + 1}: redo from this fresh copy\n"
-                                                     "work/ holds the copy as first placed (its sha is BASE above).\n"
+                                                     "work/ holds the copy as first placed (its sha is BASE in workorder.md).\n"
                                                      "Your last copy measured:\n```\n"
                                                      + "\n".join(last.get("lines", [])) + "\n```\n"
                                                      "The tick list in ## Done when names the rows to check.\n")
+    notes = D / "workorder" / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dest / f"RETURNED-{len(rs) + 1}.md", notes / f"RETURNED-{len(rs) + 1}.md")
     woc_lock_modes(dest)
     print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
     return 0

@@ -217,7 +217,13 @@ t wo-verify-wo2-fail 'VERIFY-FAIL' python3 -I "$M_RD/crit.py" wo-verify --run "$
 mv "$HOME/superfix-workorders" "$T/swo-plain2"; ln -s "$T/plain" "$HOME/superfix-workorders"
 t wo-sendback-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r3" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 rm "$HOME/superfix-workorders"; mv "$T/swo-plain2" "$HOME/superfix-workorders"
-t wo-return-ignores-returned-note 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
+t wo-return-foreign-note-refused 'RETURN-FOREIGN-NOTE RETURNED-1.md' sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
+
+# ---- TAMPERED-RETURN RECORDS (a changed or added bundled check still records, marked tainted) ----
+t wo-return-checks-records 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retc"; cp -r "$T/ret1" "$T/retc"; echo "# x" >> "$T/retc/folder/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retc/folder" --body "$M_BODYDEC"'
+t wo-return-checks-sub-records 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/rets"; cp -r "$T/ret1" "$T/rets"; mkdir -p "$T/rets/folder/checks/sub"; echo x > "$T/rets/folder/checks/sub/evil.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/rets/folder" --body "$M_BODYDEC"'
+t wo-return-checks-deleted-records 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retdel"; cp -r "$T/ret1" "$T/retdel"; rm "$T/retdel/folder/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retdel/folder" --body "$M_BODYDEC"'
+t wo-return-checks-plus-extra 'RETURN-FILES-OVER .*work/extra2.txt.*RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/retce"; cp -r "$T/ret1" "$T/retce"; echo "# x" >> "$T/retce/folder/checks/measure-P1-C1.py"; echo x > "$T/retce/folder/work/extra2.txt"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retce/folder" --body "$M_BODYDEC"'
 
 # ---- TAINTED RIG (changed checks still record, measure and send back) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-chg-wo thedanielmay+superfix-testbed+chg-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
@@ -230,6 +236,20 @@ t wo-tainted-return-records 'RETURN-FILES-OVER .*CHECKS-CHANGED.*RETURN-CRITERIA
 doattempt "$V_RD" "$V_RCRC" "$V_BODYDEC" wo1 "$V_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 t wo-tainted-verify-fail 'VERIFY-FAIL' python3 -I "$V_RD/crit.py" wo-verify --run "$V_RD" --head wo1 --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC" --findings "$T/find-ok.txt"
 t wo-tainted-sendback-ready 'SENDBACK-READY' python3 -I "$V_RD/crit.py" wo-sendback --run "$V_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+chg-wo1-r2" --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC"
+
+# ---- FULL-FIX TAINTED RIG (a tampered return with a fully fixed copy must never pass) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-full-wo thedanielmay+superfix-testbed+full-wo1 "$T/src/members-export.csv" work/members-export.csv F)"
+[ -n "$F_RD" ] || { echo "CANNOT RUN: full-fix rig build failed"; exit 2; }
+export F_RD F_RF F_RCRC F_DEST F_BODYDEC
+python3 -I "$F_RD/crit.py" wo-lock --run "$F_RD" --folder "$F_RF" --dest "$F_DEST" --body "$F_BODYDEC" >/dev/null 2>&1
+rm -rf "$T/Fret"; cp -r "$F_DEST" "$T/Fret"; echo "# executor tweak" >> "$T/Fret/checks/measure-P1-C1.py"
+python3 "$T/dedupe.py" "$T/Fret/work/members-export.csv" "$T/Fret/work/members-export.csv" 8
+t wo-tainted-fullfix-return-records 'RETURN-FILES-OVER .*CHECKS-CHANGED.*RETURN-CRITERIA-COPIED wo1' python3 -I "$F_RD/crit.py" wo-return --run "$F_RD" --folder "$T/Fret" --body "$F_BODYDEC" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC"
+doattempt "$F_RD" "$F_RCRC" "$F_BODYDEC" wo1 "$F_RD/work/wo1-members-export.csv" >/dev/null 2>&1
+t wo-tainted-fullfix-verify-fail 'VERIFY-FAIL' python3 -I "$F_RD/crit.py" wo-verify --run "$F_RD" --head wo1 --attempts "$F_RCRC/attempts" --scripts "$F_RCRC" --body "$F_BODYDEC" --findings "$T/find-ok.txt"
+t wo-tainted-fullfix-sendback-ready 'SENDBACK-READY' python3 -I "$F_RD/crit.py" wo-sendback --run "$F_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1-r2" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC" --body "$F_BODYDEC"
+t wo-real-note-accepted 'RETURN-CRITERIA-COPIED' python3 -I "$F_RD/crit.py" wo-return --run "$F_RD" --folder "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1-r2" --body "$F_BODYDEC" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC"
+t wo-cleanup-removes-notes 'NOTES-GONE' sh -c 'cp "$T/src/members-export.csv" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md"; echo "report" > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md"; python3 -I "$F_RD/crit.py" wo-cleanup --run "$F_RD" >/dev/null 2>&1; test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md" && test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md" && echo NOTES-GONE'
 
 # ---- ENDING RIG (a pass cleans everything: rounds, stub copy, run copies) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-end-wo thedanielmay+superfix-testbed+end-wo1 "$T/src/members-export.csv" work/members-export.csv E)"
