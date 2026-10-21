@@ -125,9 +125,7 @@ t wo-return-ok 'RETURN-CRITERIA-COPIED wo1 .* attempts 1' python3 -I "$M_RD/crit
 t wo-return-original-moved 'RETURN-ORIGINAL-MOVED' sh -c 'echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/ret1/folder" --body "$M_BODYDEC"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
 t wo-return-files-over 'RETURN-FILES-OVER .*work/extra.txt' sh -c 'rm -rf "$T/retx"; cp -r "$M_DEST" "$T/retx"; echo x > "$T/retx/work/extra.txt"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retx" --body "$M_BODYDEC"'
 t wo-return-no-copy 'RETURN-NO-COPY' sh -c 'rm -rf "$T/retn"; cp -r "$M_DEST" "$T/retn"; rm "$T/retn/work/members-export.csv"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retn" --body "$M_BODYDEC"'
-t wo-return-checks-changed 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/retc"; cp -r "$M_DEST" "$T/retc"; echo "# x" >> "$T/retc/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retc" --body "$M_BODYDEC"'
 t wo-return-drafts-rejected-csv 'RETURN-FILES-OVER .*work/drafts/note.md' sh -c 'rm -rf "$T/retd"; cp -r "$M_DEST" "$T/retd"; mkdir -p "$T/retd/work/drafts"; echo hi > "$T/retd/work/drafts/note.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retd" --body "$M_BODYDEC"'
-t wo-return-checks-sub-rejected 'RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/rets"; cp -r "$M_DEST" "$T/rets"; mkdir -p "$T/rets/checks/sub"; echo x > "$T/rets/checks/sub/evil.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/rets" --body "$M_BODYDEC"'
 t wo-return-kind-flip 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retk"; cp -r "$M_DEST" "$T/retk"; sed -i "" "s/^CHECKS-KIND: criteria$/CHECKS-KIND: code/" "$T/retk/workorder.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retk" --body "$M_BODYDEC"'
 t wo-return-code-run-criteria-folder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/fakerun"; mkdir -p "$T/fakerun/workorder"; echo "abc  workorder.md" > "$T/fakerun/workorder/lock"; python3 -I "$M_RD/crit.py" wo-return --run "$T/fakerun" --folder "$T/ret1/folder" --body "$M_BODYDEC"'
 t wo-return-binary-workorder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retb"; cp -r "$M_DEST" "$T/retb"; printf "\377\376\000binary-binary" > "$T/retb/workorder.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retb" --body "$M_BODYDEC"'
@@ -220,6 +218,18 @@ mv "$HOME/superfix-workorders" "$T/swo-plain2"; ln -s "$T/plain" "$HOME/superfix
 t wo-sendback-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r3" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 rm "$HOME/superfix-workorders"; mv "$T/swo-plain2" "$HOME/superfix-workorders"
 t wo-return-ignores-returned-note 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
+
+# ---- TAINTED RIG (changed checks still record, measure and send back) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-chg-wo thedanielmay+superfix-testbed+chg-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
+[ -n "$V_RD" ] || { echo "CANNOT RUN: tainted rig build failed"; exit 2; }
+export V_RD V_RF V_RCRC V_DEST V_BODYDEC
+python3 -I "$V_RD/crit.py" wo-lock --run "$V_RD" --folder "$V_RF" --dest "$V_DEST" --body "$V_BODYDEC" >/dev/null 2>&1
+rm -rf "$T/Vret"; cp -r "$V_DEST" "$T/Vret"; echo "# executor tweak" >> "$T/Vret/checks/measure-P1-C1.py"
+python3 "$T/dedupe.py" "$T/Vret/work/members-export.csv" "$T/Vret/work/members-export.csv" 5
+t wo-tainted-return-records 'RETURN-FILES-OVER .*CHECKS-CHANGED.*RETURN-CRITERIA-COPIED wo1' python3 -I "$V_RD/crit.py" wo-return --run "$V_RD" --folder "$T/Vret" --body "$V_BODYDEC" --attempts "$V_RCRC/attempts" --scripts "$V_RCRC"
+doattempt "$V_RD" "$V_RCRC" "$V_BODYDEC" wo1 "$V_RD/work/wo1-members-export.csv" >/dev/null 2>&1
+t wo-tainted-verify-fail 'VERIFY-FAIL' python3 -I "$V_RD/crit.py" wo-verify --run "$V_RD" --head wo1 --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC" --findings "$T/find-ok.txt"
+t wo-tainted-sendback-ready 'SENDBACK-READY' python3 -I "$V_RD/crit.py" wo-sendback --run "$V_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+chg-wo1-r2" --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC"
 
 # ---- ENDING RIG (a pass cleans everything: rounds, stub copy, run copies) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-end-wo thedanielmay+superfix-testbed+end-wo1 "$T/src/members-export.csv" work/members-export.csv E)"

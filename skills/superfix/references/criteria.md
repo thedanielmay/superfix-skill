@@ -2446,12 +2446,13 @@ def woc_return(a):
 
     over = sorted(str(p.relative_to(RF)) for p in RF.rglob("*") if p.is_file()
                   and not allowed(str(p.relative_to(RF))) and not str(p.relative_to(RF)).startswith("checks/"))
+    checks = []
     for n, sh in sorted(files.items()):
         if not n.startswith("folder/checks/"):
             continue
         q = RF / n[len("folder/"):]
         if not q.is_file() or sha_file(q) != sh:
-            over.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+            checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
             break
     if (RF / "checks").is_dir():
         for q in sorted((RF / "checks").rglob("*")):
@@ -2461,7 +2462,7 @@ def woc_return(a):
             if rel == "folder/checks/files.sha256":
                 continue
             if rel not in files or sha_file(q) != files[rel]:
-                over.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+                checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
                 break
     if over:
         print("RETURN-FILES-OVER " + " ".join(sorted(set(over))))
@@ -2473,6 +2474,8 @@ def woc_return(a):
     dst = D / "work" / f"wo{len(rs) + 1}-{base}"
     shutil.copy2(got, dst)
     n = woc_save_return(D, copy=str(dst), sha=sha_file(dst))
+    for _c in sorted(set(checks)):
+        print(f"RETURN-FILES-OVER {_c}")
     print(f"RETURN-CRITERIA-COPIED wo{n} {sha_file(dst)} attempts {n}")
     print(f"next: lockcheck, attempt --label wo{n} and progress with your own locked crit.py, then the section 15 three runs")
     return 0
