@@ -714,6 +714,65 @@ t wo-cleanup-star-id-lists-base 'LEFT .*superfix-workorders' sh -c 'rm -rf "$HOM
 t wo-cleanup-fifo-nohang 'CLEANUP-INCOMPLETE' sh -c 'mkfifo "$X_RD/work/x.sf-orig"; python3 -I "$X_RD/crit.py" wo-cleanup --run "$X_RD" > "$T/fifo.out" 2>&1 & pid=$!; n=0; while kill -0 $pid 2>/dev/null && [ $n -lt 25 ]; do sleep 1; n=$((n+1)); done; if kill -0 $pid 2>/dev/null; then kill -9 $pid; echo HUNG; else wait $pid; cat "$T/fifo.out"; fi; rm -f "$X_RD/work/x.sf-orig"'
 t wo-gate-docs 'FOREIGN-NOTE-DOCS' sh -c 'grep -q "RETURN-FOREIGN-NOTE" "$ROOT/skills/superfix/references/workorder.md" && grep -q "can never pass" "$ROOT/skills/superfix/references/workorder.md" && grep -q "not supported; use another account" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS'
 
+# ---- FINAL-BOUNDED (issue 88: values, wording, checks leftovers, guards) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-scan-wo thedanielmay+superfix-testbed+scan-wo1 "$T/src/members-export.csv" work/members-export.csv I)"
+[ -n "$I_RD" ] || { echo "CANNOT RUN: scan rig build failed"; exit 2; }
+export I_RD I_RF I_RCRC I_DEST I_BODYDEC
+python3 -I "$I_RD/crit.py" wo-lock --run "$I_RD" --folder "$I_RF" --dest "$I_DEST" --body "$I_BODYDEC" >/dev/null 2>&1
+python3 - "$T/src/members-export.csv" <<'EOF'
+import csv, sys
+p = sys.argv[1]
+rows = list(csv.DictReader(open(p, newline="", encoding="utf-8")))
+rows[0]["member_id"] = "M7777"; rows[0]["name"] = "Quixotic Zanzibar"; rows[0]["fee"] = "98765"
+with open(p, "w", newline="", encoding="utf-8") as f:
+    w = csv.DictWriter(f, fieldnames=rows[0].keys())
+    w.writeheader(); w.writerows(rows)
+EOF
+cat > "$T/leak-comment.md" <<'EOF'
+> **In plain English:** The original moved. Nothing needed from you now.
+
+Solved check: the original changed at row 2. Row M7777 (Quixotic Zanzibar) has a fee of 98765.
+Cost: about 6 USD
+Pictures: NONE (no screen: command output and tests only)
+Labels: superfix:awaiting-decision
+Diagram: NONE (public repo)
+Gap note: NONE (supported)
+Work order: NONE (normal run)
+Criteria check: NONE (no Everything else problem)
+EOF
+cat > "$T/normal-comment.md" <<'EOF'
+P1-C1 PASS 0
+P1-K1 PASS 112
+8 duplicates removed, fee 45, rows 14 and 15
+Duplicate members: met (lines 14, 15)
+To undo: close the PR without merging.
+EOF
+t wo-scan-comment-flags-leak 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD"
+t wo-scan-comment-allows-counts 'SCAN-VALUES-CLEAN' python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-roundchk-wo thedanielmay+superfix-testbed+roundchk-wo1 "$T/src/members-export.csv" work/members-export.csv R2)"
+[ -n "$R2_RD" ] || { echo "CANNOT RUN: round checks rig build failed"; exit 2; }
+export R2_RD R2_RF R2_RCRC R2_DEST R2_BODYDEC
+python3 -I "$R2_RD/crit.py" wo-lock --run "$R2_RD" --folder "$R2_RF" --dest "$R2_DEST" --body "$R2_BODYDEC" >/dev/null 2>&1
+t wo-cleanup-round-checks-removed 'CHECKS-GONE' sh -c 'echo "smuggled data" > "$R2_DEST/checks/backup.csv"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD" >/dev/null 2>&1; test ! -e "$R2_DEST/checks/backup.csv" && echo CHECKS-GONE'
+t wo-notes-loop-guarded 'CLEANUP-INCOMPLETE.*RETURNED-9.md' sh -c 'echo linkme > "$T/notelink-target.md"; ln -s "$T/notelink-target.md" "$R2_DEST/RETURNED-9.md"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD"; rm -f "$R2_DEST/RETURNED-9.md"'
+cat > "$T/starunit.py" <<'EOF'
+import importlib.util, pathlib, sys
+home, wid = sys.argv[1], sys.argv[2]
+spec = importlib.util.spec_from_file_location("c", sys.argv[3])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+base = pathlib.Path(home, "superfix-workorders")
+d = base / "victimX-r1" / "work"
+d.mkdir(parents=True, exist_ok=True)
+(d / "f.csv").write_text("x\n")
+got = sorted(str(p) for p in m.woc_verified_round_dirs(wid))
+print("VERIFIED " + (" ".join(got) if got else "empty"))
+EOF
+t wo-verified-dirs-star-empty 'VERIFIED empty' sh -c 'rm -rf "$HOME/superfix-workorders/victimX-r1"; python3 "$T/starunit.py" "$HOME" "victim*" "$I_RD/crit.py"'
+t wo-finish-wording 'wo-finish' sh -c 'grep -q "plain \`finish\` is not used for a work order" "$ROOT/skills/superfix/references/workorder.md" && echo wo-finish'
+t wo-values-wording 'row number and column' sh -c 'grep -q "row number and column" "$ROOT/skills/superfix/references/workorder.md" && echo "row number and column"'
+t wo-gate-docs-88 'FOREIGN-NOTE-DOCS-88' sh -c 'grep -q "wo-scan-comment" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS-88'
+t wo-release-note-readme 'SAME-USER-RELEASE' sh -c 'grep -q "not supported; use another account" "$ROOT/README.md" && echo SAME-USER-RELEASE'
+
 # ---- CRIT-1.5-CHANGED (a one-byte edit to 1.5.0 code fails it) ----
 t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/criteria.md"
 cat > "$T/tamper.py" <<'EOF'

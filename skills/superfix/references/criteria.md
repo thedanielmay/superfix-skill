@@ -2244,6 +2244,116 @@ def woc_lock_state(D):
     return files, orig, opath
 
 
+def woc_distinctive_values(paths):
+    """Distinctive cell values from data files: (kind, value) pairs. Headers,
+    date-ish fields and short numbers are never distinctive: counts, amounts
+    and row numbers the checks report must stay allowed."""
+    day_month = {"monday", "tuesday", "wednesday", "thursday", "friday",
+                 "saturday", "sunday", "january", "february", "march", "april",
+                 "may", "june", "july", "august", "september", "october",
+                 "november", "december"}
+    found = []
+
+    def keep(kind, value):
+        if value not in [v for _, v in found]:
+            found.append((kind, value))
+
+    for path in paths:
+        try:
+            st = os.lstat(path)
+            if not stat.S_ISREG(st.st_mode) or st.st_size > 8000000:
+                continue
+            text = pathlib.Path(path).read_text(errors="replace")
+        except OSError:
+            continue
+        try:
+            rows = list(csv.reader(text.splitlines()))
+        except csv.Error:
+            continue
+        for n, row in enumerate(rows):
+            if n == 0 and len(row) > 1:
+                continue
+            for cell in row:
+                v = cell.strip()
+                if len(v) < 2:
+                    continue
+                if re.fullmatch(r"[0-9]+", v):
+                    if len(v) >= 5:
+                        keep("number", v)
+                    continue
+                if "@" in v and "." in v and len(v) >= 4 and re.fullmatch(r"[A-Za-z0-9_.%+-]+@[A-Za-z0-9.-]+", v):
+                    keep("email", v)
+                    continue
+                if " " in v:
+                    if len(v) >= 8:
+                        keep("name", v)
+                    continue
+                if re.fullmatch(r"[A-Za-z0-9_.-]*[0-9][A-Za-z0-9_.-]*", v) and len(v) >= 3:
+                    keep("id", v)
+                    continue
+                if re.fullmatch(r"[A-Z][a-z]+", v) and len(v) >= 4 and v.lower() not in day_month:
+                    keep("name", v)
+    return found
+
+
+def woc_comment_value_hits(comment, values):
+    """(line number, kind, value) for each comment line holding a distinctive
+    value. Multi-word values and emails match case-insensitively; single
+    tokens match case-sensitively on word boundaries."""
+    hits = []
+    for n, line in enumerate(comment.splitlines(), 1):
+        s = line.strip()
+        if not s or HEAD_RX.match(s) or s.startswith("Internal: "):
+            continue
+        for kind, value in values:
+            if " " in value or "@" in value:
+                matched = value.lower() in s.lower()
+            else:
+                matched = re.search(r"\b" + re.escape(value) + r"\b", s) is not None
+            if matched:
+                hits.append((n, kind, value))
+                break
+    return hits
+
+
+def woc_comment_corpus(D):
+    """Data files to scan comments against: the locked original plus the run
+    work copies (records excluded)."""
+    st = woc_lock_state(D)
+    files = []
+    if st is not None:
+        opath = st[2]
+        if opath:
+            files.append(pathlib.Path(opath))
+    w = pathlib.Path(D) / "work"
+    if w.is_dir():
+        for p in sorted(w.iterdir()):
+            if p.suffix == ".sf-orig":
+                continue
+            files.append(p)
+    return files
+
+
+def cmd_wo_scan_comment(a):
+    """SCAN-COMMENT: flag any distinctive cell value from the original or the
+    working copies that appears in a comment body. Prints SCAN-VALUE lines
+    (rc 1) or SCAN-VALUES-CLEAN."""
+    D = pathlib.Path(a.run)
+    try:
+        comment = pathlib.Path(a.comment).read_text(errors="replace")
+    except OSError:
+        print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
+        return 1
+    values = woc_distinctive_values(woc_comment_corpus(D))
+    hits = woc_comment_value_hits(comment, values)
+    if hits:
+        for n, kind, value in hits:
+            print(f"SCAN-VALUE {kind} (comment line {n})")
+        return 1
+    print("SCAN-VALUES-CLEAN")
+    return 0
+
+
 def woc_returns(D):
     p = pathlib.Path(D) / "workorder" / "returns.json"
     return json.loads(p.read_text()) if p.exists() else []
@@ -2694,24 +2804,33 @@ def woc_verify(a):
     return 1
 
 
-def woc_cleanup_rounds(work_id):
+def woc_round_cands(work_id):
+    """Candidate round folders: the round-1 folder plus name matches, with the
+    id validated and escaped. Returns (base, cands); cands is None when the id
+    is outside the safe charset (list the base, skip the scan)."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    if not re.fullmatch(r"[A-Za-z0-9+_.-]+", work_id or ""):
+        return base, None
+    safe = "".join(f"[{c}]" if c in "*?[" else c for c in work_id)
+    return base, [base / work_id] + sorted(base.glob(safe + "-r[0-9]*"))
+
+
+def woc_cleanup_rounds(work_id, bundled=None):
     """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
     Every candidate goes through lstat plus realpath checks: links, non-dirs and
     outside paths are listed, never touched. A linked base or an id outside the
     safe charset lists the base and skips the scan. Returns [paths still present]."""
-    base = pathlib.Path.home() / "superfix-workorders"
-    if not re.fullmatch(r"[A-Za-z0-9+_.-]+", work_id or ""):
+    base, cands = woc_round_cands(work_id)
+    if cands is None:
         return [str(base)]
     try:
         if stat.S_ISLNK(os.lstat(base).st_mode):
             return [str(base)]
     except OSError:
         pass
-    safe = "".join(f"[{c}]" if c in "*?[" else c for c in work_id)
-    cands = [base / work_id] + sorted(base.glob(safe + "-r[0-9]*"))
     left = []
     for d in cands:
-        left.extend(woc_clean_round(d, base))
+        left.extend(woc_clean_round(d, base, bundled))
     return left
 
 
@@ -2792,13 +2911,21 @@ def woc_round_ok(d, base):
 def woc_verified_round_dirs(work_id):
     """Round-folder candidates passing the gates; missing paths skipped
     (woc_clean_round lists the ones that fail)."""
-    base = pathlib.Path.home() / "superfix-workorders"
-    return [d for d in ([base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))) if woc_round_ok(d, base)]
+    base, cands = woc_round_cands(work_id)
+    if cands is None:
+        return []
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return []
+    except OSError:
+        pass
+    return [d for d in cands if woc_round_ok(d, base)]
 
 
-def woc_clean_round(d, base):
+def woc_clean_round(d, base, bundled=None):
     """Delete d/work when d passes the gates: missing is clean, anything failing
-    the lstat plus realpath checks is listed, never touched. Returns [left]."""
+    the lstat plus realpath checks is listed, never touched. Round checks/ files
+    outside the bundled set are deleted too (failures listed). Returns [left]."""
     d = pathlib.Path(d)
     try:
         os.lstat(d)
@@ -2809,7 +2936,42 @@ def woc_clean_round(d, base):
     if not woc_round_ok(d, base):
         return [str(d)]
     got = woc_clean_work_path(d / "work", d)
-    return [got] if got else []
+    left = [got] if got else []
+    if bundled is None:
+        return left
+    cdir = d / "checks"
+    try:
+        cst = os.lstat(cdir)
+    except FileNotFoundError:
+        return left
+    except OSError:
+        return left + [str(cdir)]
+    if not stat.S_ISDIR(cst.st_mode) or not woc_guard(cdir, d):
+        return left + [str(cdir)]
+    for q in sorted(cdir.iterdir()):
+        if not woc_guard(q, d):
+            left.append(str(q))
+            continue
+        try:
+            qst = os.lstat(q)
+        except OSError:
+            left.append(str(q))
+            continue
+        if not stat.S_ISREG(qst.st_mode):
+            left.append(str(q))
+            continue
+        try:
+            same = bundled.get(q.name) is not None and sha_file(q) == bundled[q.name]
+        except OSError:
+            left.append(str(q))
+            continue
+        if same:
+            continue
+        try:
+            q.unlink()
+        except OSError:
+            left.append(str(q))
+    return left
 
 
 def woc_cleanup_full(D, keep=True):
@@ -2826,7 +2988,11 @@ def woc_cleanup_full(D, keep=True):
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
     except OSError:
         wid = ""
-    left = woc_cleanup_rounds(wid) if wid else []
+    st = woc_lock_state(D)
+    bundled = {}
+    if st is not None:
+        bundled = {n[len("folder/checks/"):]: s for n, s in st[0].items() if n.startswith("folder/checks/")}
+    left = woc_cleanup_rounds(wid, bundled) if wid else []
     got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
     if got:
         left.append(got)
@@ -2834,8 +3000,21 @@ def woc_cleanup_full(D, keep=True):
     stub_pats = ("RETURNED-*.md", "report.md")
     round_pats = ("RETURNED-*.md", "report.md", "sendback.md", "key")
     for d, pats in [(D / "workorder" / "folder", stub_pats)] + [(d, round_pats) for d in round_dirs]:
+        try:
+            dst = os.lstat(d)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            left.append(str(d))
+            continue
+        if not stat.S_ISDIR(dst.st_mode):
+            left.append(str(d))
+            continue
         for pat in pats:
             for p in sorted(d.glob(pat)):
+                if not woc_guard(p, d):
+                    left.append(str(p))
+                    continue
                 try:
                     if p.is_symlink() or p.is_file():
                         p.unlink()
@@ -3935,6 +4114,7 @@ def main():
     s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
     s = p("wo-cleanup", cmd_wo_cleanup, "run")
     s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
+    s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
