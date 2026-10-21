@@ -80,6 +80,7 @@ t wo-doc-check-ok '^WORKORDER-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROO
 t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-baseline --folder "$M_RD" "$M_RF" "$T/docdest" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"'
 t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
 t wo-process-scope-wording 'PROCESS-SCOPE' sh -c 'grep -q "process held in a file" "$ROOT/skills/superfix/SKILL.md" && grep -q "process held in a file" "$ROOT/skills/superfix/references/workorder.md" && echo PROCESS-SCOPE'
+t wo-post-stop-wording 'POST-STOP' sh -c 'grep -q "every outcome, a stop included, is posted as in item 5" "$ROOT/skills/superfix/references/workorder.md" && echo POST-STOP'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
