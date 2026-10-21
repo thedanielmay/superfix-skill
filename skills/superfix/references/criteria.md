@@ -190,7 +190,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" finish --run "$HOME/.superfi
 - `scan` prints `SCAN-CLEAN` or `SCAN-PII <what> (line <n>)` for an e-mail address, a phone-like number, a link, a run of 9 or more digits, or a value after a label such as `Name:` or `Phone:`.
 - `where` prints `PATH-CLOUD <path>` or `PATH-LOCAL <path>`. Cloud means under `~/Library/CloudStorage`, `~/shared-drives`, `~/Dropbox`, `~/Library/Mobile Documents` (iCloud Drive), `~/Google Drive` or `~/OneDrive`, and also `~/Desktop` and `~/Documents` when iCloud's Desktop and Documents sync is on (detected by those folders inside iCloud Drive); symlinks are resolved and the comparison ignores case.
 - `copy` records the original's sha256 and prints `COPY-READY <copy> sha <sha>`, `COPY-EXISTS`, `COPY-REFUSED` (a `--name` outside letters, digits, `.`, `_` and `-`, or ending `.sf-orig`), `PATH-CLOUD` (the run folder itself syncs) or `ASK-FIRST <original>` (ask, then `--asked`).
-- `finish` prints `ORIGINAL-UNCHANGED <path>` or `ORIGINAL-CHANGED <path>` for each recorded original (a kept orphan record still reports its original), then `WORK-DELETED`; or `WORK-METADATA-BAD <file>` (a record `copy` did not write; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`. Kind `criteria` ends with `wo-finish` instead: chmod-first, then the shared finish, or `WORK-PERMISSION-DENIED <path>` when it cannot delete.
+- `finish` prints `ORIGINAL-UNCHANGED <path>` or `ORIGINAL-CHANGED <path>` for each recorded original still present, then `WORK-DELETED`; or `WORK-METADATA-BAD <file>` (a record `copy` did not write, or that cleanup deleted while data stayed; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`. Kind `criteria` ends with `wo-finish` instead: it checks the lock's origsha itself, printing `ORIGINAL-CHANGED` plus `WORK-KEPT` when the original changed or is missing, else the shared finish; `WORK-PERMISSION-DENIED <path>` when it cannot delete.
 
 ### 10. The real file (Google Sheet, Drive file, any file the owner puts back himself)
 
@@ -2306,17 +2306,25 @@ def woc_lock_modes(dest):
     dest = pathlib.Path(dest)
     for r, ds, fs in os.walk(dest):
         for d in ds:
+            p = os.path.join(r, d)
             try:
-                os.chmod(os.path.join(r, d), 0o700)
+                if stat.S_ISLNK(os.lstat(p).st_mode):
+                    continue
+                os.chmod(p, 0o700, follow_symlinks=False)
             except OSError:
                 pass
         for f in fs:
+            p = os.path.join(r, f)
             try:
-                os.chmod(os.path.join(r, f), 0o600)
+                if stat.S_ISLNK(os.lstat(p).st_mode):
+                    continue
+                os.chmod(p, 0o600, follow_symlinks=False)
             except OSError:
                 pass
     try:
-        os.chmod(dest, 0o700)
+        if stat.S_ISLNK(os.lstat(dest).st_mode):
+            return
+        os.chmod(dest, 0o700, follow_symlinks=False)
     except OSError:
         pass
 
@@ -2373,9 +2381,16 @@ def woc_lock(a):
     origsha, origpath = rec
     names = ["workorder.md"] + [f"checks/{n}" for n in sorted(woc_block_files(t))]
     (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names)
-                            + f"origsha {origsha}\norigpath {origpath}\n")
+                            + f"origsha {origsha}\norigpath {origpath}\n"
+                            + f"critsha {woc_body_critsha(a)}\n")
     woc_copy_folder(F, dest, t)
     woc_lock_modes(dest)
+    notes = W / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy2(dest / "key", notes / "key")
+    except OSError:
+        pass
     ws = sha_file(F / "workorder.md")
     if sha_file(dest / "workorder.md") != ws:
         print("WORKORDER-COPY-FAILED")
@@ -2390,6 +2405,16 @@ def woc_lock(a):
 def woc_symlinks(RF):
     return sorted(os.path.relpath(os.path.join(r, n), RF) for r, ds, fs in os.walk(RF) for n in ds + fs
                   if stat.S_ISLNK((s := os.lstat(os.path.join(r, n))).st_mode) or (stat.S_ISREG(s.st_mode) and s.st_nlink > 1))
+
+
+def woc_body_critsha(a):
+    """The newest criteria lock sha in the lock-time body, or "" (then no
+    drafts return passes until a body with a lock line is locked)."""
+    text = woc_body(a)
+    if text is None:
+        return ""
+    locks = [(m.group(2), n, m.group(1)) for n, l in enumerate(text.splitlines()) if (m := LOCK.match(l.strip()))]
+    return max(locks)[2] if locks else ""
 
 
 def woc_return(a):
@@ -2431,6 +2456,9 @@ def woc_return(a):
         if not pathlib.Path(at).is_file() or real(pathlib.Path(at)).parent != real(pathlib.Path(sc)):
             print("RETURN-NEEDS-CRITERIA (the attempts file is missing or not inside the scripts folder: pass the run's real criteria folder)")
             return 1
+        if real(pathlib.Path(at)) != real(pathlib.Path(sc)) / "attempts":
+            print("RETURN-NEEDS-CRITERIA (the attempts file must be that job's own attempts file: pass the run's real criteria folder)")
+            return 1
         try:
             st, lk = lock_state(text, sc)
         except Stop as e:
@@ -2445,6 +2473,20 @@ def woc_return(a):
         if not tied:
             print("RETURN-FOREIGN-JOB (the body and criteria folder belong to another run: pass this run's own)")
             return 1
+        try:
+            at_lines = pathlib.Path(at).read_text().splitlines()
+        except OSError:
+            at_lines = []
+        if not any(l.startswith("locked ") and len(l.split()) > 3 and l.split()[3] == lk.get("sha") for l in at_lines):
+            print("RETURN-NEEDS-CRITERIA (the attempts file is not chained to that lock: pass the job's own attempts file)")
+            return 1
+        try:
+            want_crit = [l[len("critsha "):] for l in (D / "workorder" / "lock").read_text().splitlines() if l.startswith("critsha ")]
+        except OSError:
+            want_crit = []
+        if not want_crit or not want_crit[-1] or lk.get("sha") != want_crit[-1]:
+            print("RETURN-NEEDS-CRITERIA (that criteria folder is not the run's locked one: pass the run's real criteria folder)")
+            return 1
         drafts = woc_proc_job(text)
 
     def allowed(rel):
@@ -2454,8 +2496,18 @@ def woc_return(a):
             return True
         return rel.startswith("work/drafts/") and drafts
 
-    over = sorted(str(p.relative_to(RF)) for p in RF.rglob("*") if p.is_file()
-                  and not allowed(str(p.relative_to(RF))) and not str(p.relative_to(RF)).startswith("checks/"))
+    def _raise(e):
+        raise e
+
+    try:
+        walked = []
+        for dirpath, _dn, filenames in os.walk(RF, followlinks=False, onerror=_raise):
+            walked.extend(pathlib.Path(dirpath) / f for f in filenames)
+    except OSError as e:
+        print(f"RETURN-UNREADABLE {getattr(e, 'filename', RF)} (a folder Superfix cannot read: fix permissions and send again)")
+        return 1
+    over = sorted(str(p.relative_to(RF)) for p in walked
+                  if not allowed(str(p.relative_to(RF))) and not str(p.relative_to(RF)).startswith("checks/"))
     checks = []
     for n, sh in sorted(files.items()):
         if not n.startswith("folder/checks/"):
@@ -2464,43 +2516,53 @@ def woc_return(a):
         if not q.is_file() or sha_file(q) != sh:
             checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
             break
-    if (RF / "checks").is_dir():
-        for q in sorted((RF / "checks").rglob("*")):
-            if q.is_dir():
-                continue
-            rel = "folder/" + str(q.relative_to(RF))
-            if rel == "folder/checks/files.sha256":
-                continue
-            if rel not in files or sha_file(q) != files[rel]:
-                checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
-                break
+    for q in sorted(p for p in walked if str(p.relative_to(RF)).startswith("checks/") and p.is_file()):
+        rel = "folder/" + str(q.relative_to(RF))
+        try:
+            qreg = stat.S_ISREG(os.lstat(q).st_mode)
+        except OSError:
+            qreg = False
+        if not qreg or rel not in files or sha_file(q) != files[rel]:
+            checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+            break
     if over:
         print("RETURN-FILES-OVER " + " ".join(sorted(set(over))))
         for _c in sorted(set(checks)):
             print(f"RETURN-FILES-OVER {_c}")
         return 1
-    for rel in sorted(str(p.relative_to(RF)) for p in RF.rglob("RETURNED-*.md") if p.is_file() and len(p.relative_to(RF).parts) == 1):
+    for rel in sorted(str(p.relative_to(RF)) for p in walked if p.is_file() and len(p.relative_to(RF).parts) == 1 and str(p.relative_to(RF)).startswith("RETURNED-")):
         m = re.fullmatch(r"RETURNED-(\d+)\.md", rel)
         if not m:
             continue
         want = D / "workorder" / "notes" / rel
         try:
-            same = want.is_file() and (RF / rel).read_bytes() == want.read_bytes()
+            qreg = stat.S_ISREG(os.lstat(RF / rel).st_mode)
+            same = qreg and want.is_file() and (RF / rel).read_bytes() == want.read_bytes()
         except OSError:
             same = False
         if not same:
             print(f"RETURN-FOREIGN-NOTE {rel} (not the note Superfix wrote for round {m.group(1)}: send the folder back unchanged)")
             return 1
     rs = woc_returns(D)
+    for rel, want in (("sendback.md", D / "workorder" / "notes" / f"sendback-{len(rs) + 1}.md"),
+                      ("key", D / "workorder" / "notes" / "key")):
+        q = RF / rel
+        if not q.is_file():
+            continue
+        try:
+            qreg = stat.S_ISREG(os.lstat(q).st_mode)
+            same = qreg and want.is_file() and q.read_bytes() == want.read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            print(f"RETURN-FOREIGN-NOTE {rel} (not what Superfix wrote: send the folder back unchanged)")
+            return 1
     if len(rs) + 1 > WO_LIMIT:
         print(f"RETURN-CAP {len(rs) + 1} of {WO_LIMIT} attempts used (over the limit: stop)")
         return 1
     dst = D / "work" / f"wo{len(rs) + 1}-{base}"
     shutil.copy2(got, dst)
-    try:
-        os.chmod(dst, 0o600)
-    except OSError:
-        pass
+    woc_safe_chmod(dst, 0o600)
     n = woc_save_return(D, copy=str(dst), sha=sha_file(dst), tainted=bool(checks))
     for _c in sorted(set(checks)):
         print(f"RETURN-FILES-OVER {_c}")
@@ -2609,14 +2671,17 @@ def woc_verify(a):
         for name in sv:
             out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
         failing.append("findings")
+    taint_line = "CHECKS-CHANGED (a bundled file differed at return: Superfix measures only with its own copies; this return can never pass)"
     if r.get("tainted"):
-        out.append("CHECKS-CHANGED (a bundled file differed at return: Superfix measures only with its own copies; this return can never pass)")
+        out.append(taint_line)
         failing.append("tainted")
     r["failing"] = len(failing)
     r["values"] = {i: row["v"][i] for i in sorted(ids)}
     r["lock"] = row["lock"]
     r["flat"] = flat
     r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
+    if r.get("tainted"):
+        r["lines"] = [taint_line] + r["lines"]
     (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
     if not failing:
         _, ok = woc_cleanup_full(D)
@@ -2632,37 +2697,73 @@ def woc_verify(a):
 def woc_cleanup_rounds(work_id):
     """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
     Every candidate goes through lstat plus realpath checks: links, non-dirs and
-    outside paths are listed, never touched. Returns [paths still present]."""
+    outside paths are listed, never touched. A linked base or an id outside the
+    safe charset lists the base and skips the scan. Returns [paths still present]."""
     base = pathlib.Path.home() / "superfix-workorders"
-    cands = [base / work_id] + sorted(base.glob(work_id + "-r[0-9]*"))
+    if not re.fullmatch(r"[A-Za-z0-9+_.-]+", work_id or ""):
+        return [str(base)]
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return [str(base)]
+    except OSError:
+        pass
+    safe = "".join(f"[{c}]" if c in "*?[" else c for c in work_id)
+    cands = [base / work_id] + sorted(base.glob(safe + "-r[0-9]*"))
     left = []
     for d in cands:
         left.extend(woc_clean_round(d, base))
     return left
 
 
-def woc_clean_work_path(w):
-    """Delete one work/ path: a link is unlinked, a dir is chmod-first then
-    removed and lstat-verified. Returns "" when gone, else the path as left."""
+def woc_guard(p, base):
+    """True when p may be touched: lstat shows base and p are both not links,
+    and realpath puts p inside base. Doubt means False: list, never touch."""
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return False
+        if stat.S_ISLNK(os.lstat(p).st_mode):
+            return False
+        r, rb = str(real(p)), str(real(base))
+    except OSError:
+        return False
+    return r == rb or r.startswith(rb + os.sep)
+
+
+def woc_safe_chmod(p, mode):
+    """chmod without following links; regular files only when st_nlink is 1.
+    Returns False when refused (a link, or a shared inode): list it. True
+    otherwise (chmodded, or the chmod itself failed benignly)."""
+    try:
+        st = os.lstat(p)
+    except OSError:
+        return False
+    if stat.S_ISLNK(st.st_mode):
+        return False
+    if stat.S_ISREG(st.st_mode) and st.st_nlink != 1:
+        return False
+    try:
+        os.chmod(p, mode, follow_symlinks=False)
+    except OSError:
+        pass
+    return True
+
+
+def woc_clean_work_path(w, base):
+    """Delete one work/ path under a created folder: refused (listed) unless the
+    guard passes. A dir is chmod-first then removed and lstat-verified.
+    Returns "" when gone, else the path as left."""
     w = pathlib.Path(w)
     try:
-        wst = os.lstat(w)
+        os.lstat(w)
     except FileNotFoundError:
         return ""
     except OSError:
         return str(w)
-    if stat.S_ISLNK(wst.st_mode):
-        try:
-            os.unlink(w)
-        except OSError:
-            return str(w)
-        return ""
-    if not stat.S_ISDIR(wst.st_mode):
+    if not woc_guard(w, base):
         return str(w)
-    try:
-        os.chmod(w, 0o700)
-    except OSError:
-        pass
+    if not stat.S_ISDIR(os.lstat(w).st_mode):
+        return str(w)
+    woc_safe_chmod(w, 0o700)
     shutil.rmtree(w, ignore_errors=True)
     try:
         os.lstat(w)
@@ -2707,7 +2808,7 @@ def woc_clean_round(d, base):
         return [str(d)]
     if not woc_round_ok(d, base):
         return [str(d)]
-    got = woc_clean_work_path(d / "work")
+    got = woc_clean_work_path(d / "work", d)
     return [got] if got else []
 
 
@@ -2726,12 +2827,14 @@ def woc_cleanup_full(D, keep=True):
     except OSError:
         wid = ""
     left = woc_cleanup_rounds(wid) if wid else []
-    got = woc_clean_work_path(D / "workorder" / "folder" / "work")
+    got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
     if got:
         left.append(got)
-    note_dirs = [D / "workorder" / "folder"] + (woc_verified_round_dirs(wid) if wid else [])
-    for d in note_dirs:
-        for pat in ("RETURNED-*.md", "report.md"):
+    round_dirs = woc_verified_round_dirs(wid) if wid else []
+    stub_pats = ("RETURNED-*.md", "report.md")
+    round_pats = ("RETURNED-*.md", "report.md", "sendback.md", "key")
+    for d, pats in [(D / "workorder" / "folder", stub_pats)] + [(d, round_pats) for d in round_dirs]:
+        for pat in pats:
             for p in sorted(d.glob(pat)):
                 try:
                     if p.is_symlink() or p.is_file():
@@ -2745,102 +2848,141 @@ def woc_cleanup_full(D, keep=True):
         keep = set()
     w = D / "work"
     if w.is_dir():
-        try:
-            os.chmod(w, 0o700)
-        except OSError:
-            pass
-        for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e, _w=w: left.append(str(getattr(e, "filename", _w)))):
-            for dn in list(dirnames):
-                full = pathlib.Path(dirpath) / dn
-                try:
-                    if not full.is_symlink():
-                        os.chmod(full, 0o700)
-                except OSError:
-                    pass
-                if full.is_symlink():
-                    try:
-                        full.unlink()
-                    except OSError:
+        if not woc_guard(w, D) or not woc_safe_chmod(w, 0o700):
+            left.append(str(w))
+        else:
+            for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e, _w=w: left.append(str(getattr(e, "filename", _w)))):
+                for dn in list(dirnames):
+                    full = pathlib.Path(dirpath) / dn
+                    if full.is_symlink():
+                        try:
+                            full.unlink()
+                        except OSError:
+                            left.append(str(full))
+                        else:
+                            dirnames.remove(dn)
+                        continue
+                    if not woc_guard(full, w) or not woc_safe_chmod(full, 0o700):
                         left.append(str(full))
-                    else:
                         dirnames.remove(dn)
-            for fn in sorted(filenames):
-                p = pathlib.Path(dirpath) / fn
+                for fn in sorted(filenames):
+                    p = pathlib.Path(dirpath) / fn
+                    if p.is_symlink():
+                        try:
+                            p.unlink()
+                        except OSError:
+                            left.append(str(p))
+                        continue
+                    if not woc_guard(p, w) or not woc_safe_chmod(p, 0o600):
+                        left.append(str(p))
+                        continue
+                    if p.suffix == ".sf-orig":
+                        continue
+                    if str(real(p)) not in keep:
+                        try:
+                            p.unlink()
+                        except OSError:
+                            left.append(str(p))
+            for p in sorted(w.rglob("*.sf-orig")):
+                data = p.parent / p.name[:-len(".sf-orig")]
                 if p.is_symlink():
                     try:
                         p.unlink()
                     except OSError:
                         left.append(str(p))
                     continue
-                try:
-                    fst = os.lstat(p)
-                except OSError:
-                    left.append(str(p))
+                if data.is_file():
                     continue
-                if not stat.S_ISREG(fst.st_mode) or fst.st_nlink != 1:
+                if data.exists():
                     left.append(str(p))
                     continue
                 try:
-                    os.chmod(p, 0o600)
+                    prst = os.lstat(p)
                 except OSError:
+                    left.append(str(p))
+                    continue
+                if not stat.S_ISREG(prst.st_mode):
+                    left.append(str(p))
+                    continue
+                try:
+                    sha, sep, path = p.read_text().strip().partition(" ")
+                except OSError:
+                    left.append(str(p))
+                    continue
+                if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
+                    left.append(str(p))
+                    continue
+                op = pathlib.Path(path)
+                try:
+                    ost = os.lstat(op)
+                except OSError:
+                    ost = None
+                if ost is None:
                     pass
-                if p.suffix == ".sf-orig":
+                elif not stat.S_ISREG(ost.st_mode) or placeholder(path):
+                    left.append(str(p))
                     continue
-                if str(real(p)) not in keep:
+                else:
                     try:
-                        p.unlink()
+                        same = sha_file(op) == sha
                     except OSError:
+                        same = False
+                    if not same:
                         left.append(str(p))
-        for p in sorted(w.rglob("*.sf-orig")):
-            data = p.parent / p.name[:-len(".sf-orig")]
-            if p.is_symlink():
+                        continue
                 try:
                     p.unlink()
                 except OSError:
                     left.append(str(p))
-                continue
-            if data.is_file():
-                continue
-            if data.exists():
-                left.append(str(p))
-                continue
-            try:
-                sha, sep, path = p.read_text().strip().partition(" ")
-            except OSError:
-                left.append(str(p))
-                continue
-            if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
-                left.append(str(p))
-                continue
-            op = pathlib.Path(path)
-            if op.is_file():
-                if placeholder(path):
-                    left.append(str(p))
-                    continue
-                try:
-                    same = sha_file(op) == sha
-                except OSError:
-                    same = False
-                if not same:
-                    left.append(str(p))
-                    continue
-            try:
-                p.unlink()
-            except OSError:
-                left.append(str(p))
     left = sorted(set(left))
     if left:
         print(f"CLEANUP-INCOMPLETE {' '.join(left)} (personal data may remain: delete these by hand)")
     return wid, not left
 
 
-def cmd_wo_finish(a):
-    """FINISH for kind criteria: chmod-first, then the shared finish, with a clear message on permission failure."""
-    work = real(pathlib.Path(a.run)) / "work"
+def woc_finish_orig_ok(D, work):
+    """True when the recorded original is unchanged: hashed itself from the
+    lock's origsha line (a missing original counts as changed). Prints the
+    verdict and False otherwise. No lock to check against: True."""
     try:
-        os.chmod(work, 0o700)
+        lines = (pathlib.Path(D) / "workorder" / "lock").read_text().splitlines()
     except OSError:
-        pass
+        return True
+    sha = path = None
+    for l in lines:
+        if l.startswith("origsha "):
+            sha = l[8:]
+        elif l.startswith("origpath "):
+            path = l[9:]
+    if not sha or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path or placeholder(path):
+        return True
+    try:
+        ost = os.lstat(path)
+    except OSError:
+        ost = None
+    same = bool(ost is not None and stat.S_ISREG(ost.st_mode))
+    if same:
+        try:
+            same = sha_file(path) == sha
+        except OSError:
+            same = False
+    if same:
+        return True
+    print(f"ORIGINAL-CHANGED {path}")
+    print(f"WORK-KEPT {work} (the original changed: tell the owner, ask before deleting)")
+    return False
+
+
+def cmd_wo_finish(a):
+    """FINISH for kind criteria: the lock's origsha decides, with a clear message on permission failure."""
+    D = pathlib.Path(a.run)
+    work = real(D) / "work"
+    if work.is_dir() and not woc_guard(work, D):
+        print(f"WORK-SYMLINK {work} (a link where the run work folder should be: tell the owner, delete only after he answers)")
+        return 1
+    if not woc_finish_orig_ok(D, work):
+        return 1
+    woc_safe_chmod(work, 0o700)
     try:
         return cmd_finish(a)
     except PermissionError:
@@ -2958,6 +3100,7 @@ def woc_sendback(a):
     notes = D / "workorder" / "notes"
     notes.mkdir(parents=True, exist_ok=True)
     shutil.copy2(dest / f"RETURNED-{len(rs) + 1}.md", notes / f"RETURNED-{len(rs) + 1}.md")
+    shutil.copy2(dest / "sendback.md", notes / f"sendback-{len(rs) + 1}.md")
     woc_lock_modes(dest)
     print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
     return 0

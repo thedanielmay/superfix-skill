@@ -219,7 +219,7 @@ t wo-verify-wo2-fail 'VERIFY-FAIL' python3 -I "$M_RD/crit.py" wo-verify --run "$
 mv "$HOME/superfix-workorders" "$T/swo-plain2"; ln -s "$T/plain" "$HOME/superfix-workorders"
 t wo-sendback-symlink-refused 'WORKORDER-SYMLINK' python3 -I "$M_RD/crit.py" wo-sendback --run "$M_RD" --dest "$M_DEST-r3" --attempts "$M_RCRC/attempts" --scripts "$M_RCRC" --body "$M_BODYDEC"
 rm "$HOME/superfix-workorders"; mv "$T/swo-plain2" "$HOME/superfix-workorders"
-t wo-return-foreign-note-refused 'RETURN-FOREIGN-NOTE RETURNED-1.md' sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
+t wo-return-foreign-note-refused 'RETURN-FOREIGN-NOTE RETURNED-1.md' 1 sh -c 'rm -rf "$T/retnote"; cp -r "$T/ret1" "$T/retnote"; echo "note for the next round" > "$T/retnote/folder/RETURNED-1.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retnote/folder" --body "$M_BODYDEC"'
 
 # ---- TAMPERED-RETURN RECORDS (a changed or added bundled check still records, marked tainted) ----
 t wo-return-checks-records 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retc"; cp -r "$T/ret1" "$T/retc"; echo "# x" >> "$T/retc/folder/checks/measure-P1-C1.py"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retc/folder" --body "$M_BODYDEC"'
@@ -248,7 +248,7 @@ rm -rf "$T/Fret"; cp -r "$F_DEST" "$T/Fret"; echo "# executor tweak" >> "$T/Fret
 python3 "$T/dedupe.py" "$T/Fret/work/members-export.csv" "$T/Fret/work/members-export.csv" 8
 t wo-tainted-fullfix-return-records 'RETURN-FILES-OVER .*CHECKS-CHANGED.*RETURN-CRITERIA-COPIED wo1' python3 -I "$F_RD/crit.py" wo-return --run "$F_RD" --folder "$T/Fret" --body "$F_BODYDEC" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC"
 doattempt "$F_RD" "$F_RCRC" "$F_BODYDEC" wo1 "$F_RD/work/wo1-members-export.csv" >/dev/null 2>&1
-t wo-tainted-fullfix-verify-fail 'VERIFY-FAIL' python3 -I "$F_RD/crit.py" wo-verify --run "$F_RD" --head wo1 --attempts "$F_RCRC/attempts" --scripts "$F_RCRC" --body "$F_BODYDEC" --findings "$T/find-ok.txt"
+t wo-tainted-fullfix-verify-fail 'VERIFY-FAIL' 1 python3 -I "$F_RD/crit.py" wo-verify --run "$F_RD" --head wo1 --attempts "$F_RCRC/attempts" --scripts "$F_RCRC" --body "$F_BODYDEC" --findings "$T/find-ok.txt"
 t wo-tainted-fullfix-sendback-ready 'SENDBACK-READY' python3 -I "$F_RD/crit.py" wo-sendback --run "$F_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1-r2" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC" --body "$F_BODYDEC"
 t wo-real-note-accepted 'RETURN-CRITERIA-COPIED' python3 -I "$F_RD/crit.py" wo-return --run "$F_RD" --folder "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1-r2" --body "$F_BODYDEC" --attempts "$F_RCRC/attempts" --scripts "$F_RCRC"
 t wo-cleanup-removes-notes 'NOTES-GONE' sh -c 'cp "$T/src/members-export.csv" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md"; echo "report" > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md"; python3 -I "$F_RD/crit.py" wo-cleanup --run "$F_RD" >/dev/null 2>&1; test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md" && test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md" && echo NOTES-GONE'
@@ -288,7 +288,7 @@ export Y_RD Y_RF Y_RCRC Y_DEST Y_BODYDEC
 python3 -I "$Y_RD/crit.py" wo-lock --run "$Y_RD" --folder "$Y_RF" --dest "$Y_DEST" --body "$Y_BODYDEC" >/dev/null 2>&1
 mkdir -p "$T/outside/work"; echo "precious data" > "$T/outside/work/canary.txt"
 ln -s "$T/outside" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+sym-wo1-r99-x"
-t wo-cleanup-symlink-listed 'CLEANUP-INCOMPLETE.*r99-x' python3 -I "$Y_RD/crit.py" wo-cleanup --run "$Y_RD"
+t wo-cleanup-symlink-listed 'CLEANUP-INCOMPLETE.*r99-x' 1 python3 -I "$Y_RD/crit.py" wo-cleanup --run "$Y_RD"
 t wo-cleanup-symlink-canary-intact 'precious data' cat "$T/outside/work/canary.txt"
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-hard-wo thedanielmay+superfix-testbed+hard-wo1 "$T/src/members-export.csv" work/members-export.csv H)"
 [ -n "$H_RD" ] || { echo "CANNOT RUN: hardening rig build failed"; exit 2; }
@@ -486,6 +486,7 @@ python3 -I "$Q_RD/crit.py" baseline --run "$Q_RD" --scripts "$Q_RCRC" --body "$T
 QLOCKOUT="$(python3 -I "$Q_RD/crit.py" lock --scripts "$Q_RCRC" --by "the owner at the keyboard" --run "$Q_RD" --attempts "$Q_RCRC/attempts" --body "$T/body-own.md" --data "$Q_RD/work/members-export.csv" --approved "P1,P2")"
 QSHA="$(printf '%s\n' "$QLOCKOUT" | sed -n 's/^Internal: criteria-sha \([0-9a-f]*\).*/\1/p')"
 { cat "$T/body-own.md"; printf '\n## Decision\nData yes: members-export.csv (the whole file): yes\nP2: You chose no '"'"'must not get worse'"'"' check, so a fix could break something unnoticed.\nInternal: criteria-sha %s (sha256), locked 2026-10-21 00:00, approved by the owner at the keyboard\n' "$QSHA"; } > "$T/body-dec2.md"
+rm -rf "$Q_DEST"; python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$T/body-dec2.md" >/dev/null 2>&1
 t wo-diverged-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retd2"; cp -r "$Q_DEST" "$T/retd2"; mkdir -p "$T/retd2/work/drafts"; echo hi > "$T/retd2/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retd2" --body "$T/body-dec2.md" --attempts "$Q_RCRC/attempts" --scripts "$Q_RCRC"'
 # ---- J: process drafts allowed (owner criterion in the body) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
@@ -500,8 +501,8 @@ print("FILES now names drafts")
 EOF
 t wo-proc-lock-ok 'WORKORDER-LOCKED' python3 -I "$J_RD/crit.py" wo-lock --run "$J_RD" --folder "$J_RF" --dest "$J_DEST" --body "$J_BODYDEC"
 t wo-proc-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retj"; cp -r "$J_DEST" "$T/retj"; mkdir -p "$T/retj/work/drafts"; echo "please approve" > "$T/retj/work/drafts/note.md"; python3 -I "$J_RD/crit.py" wo-return --run "$J_RD" --folder "$T/retj" --body "$J_BODYDEC" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC"'
-t wo-cross-job-refused 'RETURN-FOREIGN-JOB' sh -c 'rm -rf "$T/retx"; cp -r "$Q_DEST" "$T/retx"; mkdir -p "$T/retx/work/drafts"; echo "draft from job A" > "$T/retx/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retx" --body "$J_BODYDEC" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC"'
-t wo-phantom-attempts-refused 'RETURN-NEEDS-CRITERIA' sh -c 'rm -rf "$T/rety"; cp -r "$Q_DEST" "$T/rety"; mkdir -p "$T/rety/work/drafts"; echo "draft from job A" > "$T/rety/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/rety" --body "$Q_BODYDEC" --attempts /nonexistent --scripts "$Q_RCRC"'
+t wo-cross-job-refused 'RETURN-FOREIGN-JOB' 1 sh -c 'rm -rf "$T/retx"; cp -r "$Q_DEST" "$T/retx"; mkdir -p "$T/retx/work/drafts"; echo "draft from job A" > "$T/retx/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retx" --body "$J_BODYDEC" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC"'
+t wo-phantom-attempts-refused 'RETURN-NEEDS-CRITERIA' 1 sh -c 'rm -rf "$T/rety"; cp -r "$Q_DEST" "$T/rety"; mkdir -p "$T/rety/work/drafts"; echo "draft from job A" > "$T/rety/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/rety" --body "$Q_BODYDEC" --attempts /nonexistent --scripts "$Q_RCRC"'
 t wo-kept-copy-mode-600 '600' sh -c 'rm -rf "$T/retm"; cp -r "$J_DEST" "$T/retm"; python3 "$T/dedupe.py" "$T/retm/work/members-export.csv" "$T/retm/work/members-export.csv" 8; chmod 666 "$T/retm/work/members-export.csv"; python3 -I "$J_RD/crit.py" wo-return --run "$J_RD" --folder "$T/retm" --body "$J_BODYDEC" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC" >/dev/null 2>&1; python3 -I "$J_RD/crit.py" attempt --run "$J_RD" --attempts "$J_RCRC/attempts" --scripts "$J_RCRC" --label wo2 --body "$J_BODYDEC" --measure "P1-C1=$J_RD/work/wo2-members-export.csv" --measure "P1-K1=$J_RD/work/wo2-members-export.csv" >/dev/null 2>&1; python3 -I "$J_RD/crit.py" wo-verify --run "$J_RD" --head wo2 --attempts "$J_RCRC/attempts" --scripts "$J_RCRC" --body "$J_BODYDEC" --findings "$T/find-ok.txt" | grep -q VERIFY-PASS && stat -f "%Lp" "$J_RD/work/wo2-members-export.csv"'
 cat > "$T/deadlocals.py" <<'EOF'
 import ast, sys
@@ -637,6 +638,81 @@ mapped = [(r["email"], r["name"], r["fee"]) for r in csv.DictReader(open(sys.arg
 print("KEPT-COLUMNS" if all(m in full for m in mapped) and len(mapped) == 112 else "COLUMNS-CHANGED")
 EOF
 t cut-mapback-keeps-columns '^KEPT-COLUMNS$' python3 "$T/keepcols.py" "$CD/work/full.csv" "$CD/work/mapped.csv"
+
+# ---- CONSOLIDATED-HARDENING (issue 87: links, lock checks, gates, names) ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link-wo thedanielmay+superfix-testbed+link-wo1 "$T/src/members-export.csv" work/members-export.csv R)"
+[ -n "$R_RD" ] || { echo "CANNOT RUN: link rig build failed"; exit 2; }
+export R_RD R_RF R_RCRC R_DEST R_BODYDEC
+python3 -I "$R_RD/crit.py" wo-lock --run "$R_RD" --folder "$R_RF" --dest "$R_DEST" --body "$R_BODYDEC" >/dev/null 2>&1
+t wo-cleanup-linked-runwork-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/ldoc/work"; echo precious > "$T/ldoc/work/canary.txt"; rm -rf "$R_RD/work"; ln -s "$T/ldoc" "$R_RD/work"; python3 -I "$R_RD/crit.py" wo-cleanup --run "$R_RD"; rm -f "$R_RD/work"'
+t wo-cleanup-linked-runwork-canary-intact 'precious' cat "$T/ldoc/work/canary.txt"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link2-wo thedanielmay+superfix-testbed+link2-wo1 "$T/src/members-export.csv" work/members-export.csv Z)"
+[ -n "$Z_RD" ] || { echo "CANNOT RUN: stub link rig build failed"; exit 2; }
+export Z_RD Z_RF Z_RCRC Z_DEST Z_BODYDEC
+python3 -I "$Z_RD/crit.py" wo-lock --run "$Z_RD" --folder "$Z_RF" --dest "$Z_DEST" --body "$Z_BODYDEC" >/dev/null 2>&1
+t wo-cleanup-linked-stub-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/lstub"; mv "$Z_RD/workorder/folder" "$T/lstub/folder"; echo victim > "$T/lstub/folder/work/victim.csv"; ln -s "$T/lstub/folder" "$Z_RD/workorder/folder"; python3 -I "$Z_RD/crit.py" wo-cleanup --run "$Z_RD"; rm -f "$Z_RD/workorder/folder"'
+t wo-cleanup-linked-stub-victim-intact 'victim' cat "$T/lstub/folder/work/victim.csv"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link3-wo thedanielmay+superfix-testbed+link3-wo1 "$T/src/members-export.csv" work/members-export.csv B)"
+[ -n "$B_RD" ] || { echo "CANNOT RUN: base link rig build failed"; exit 2; }
+export B_RD B_RF B_RCRC B_DEST B_BODYDEC
+python3 -I "$B_RD/crit.py" wo-lock --run "$B_RD" --folder "$B_RF" --dest "$B_DEST" --body "$B_BODYDEC" >/dev/null 2>&1
+t wo-cleanup-linked-base-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/swreal"; mv "$HOME/superfix-workorders/thedanielmay+superfix-testbed+link3-wo1" "$T/swreal/"; mv "$HOME/superfix-workorders" "$T/sworig"; ln -s "$T/swreal" "$HOME/superfix-workorders"; echo precious2 > "$T/swreal/thedanielmay+superfix-testbed+link3-wo1/work/precious2.csv"; python3 -I "$B_RD/crit.py" wo-cleanup --run "$B_RD"; rm -f "$HOME/superfix-workorders"; mv "$T/sworig" "$HOME/superfix-workorders"'
+t wo-cleanup-linked-base-victim-intact 'precious2' cat "$T/swreal/thedanielmay+superfix-testbed+link3-wo1/work/precious2.csv"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-finlock-wo thedanielmay+superfix-testbed+finlock-wo1 "$T/src/members-export.csv" work/members-export.csv L)"
+[ -n "$L_RD" ] || { echo "CANNOT RUN: finish-lock rig build failed"; exit 2; }
+export L_RD L_RF L_RCRC L_DEST L_BODYDEC
+python3 -I "$L_RD/crit.py" wo-lock --run "$L_RD" --folder "$L_RF" --dest "$L_DEST" --body "$L_BODYDEC" >/dev/null 2>&1
+retfix Lret1 "$L_DEST" 8
+python3 -I "$L_RD/crit.py" wo-return --run "$L_RD" --folder "$T/Lret1/folder" --body "$L_BODYDEC" >/dev/null 2>&1
+doattempt "$L_RD" "$L_RCRC" "$L_BODYDEC" wo1 "$L_RD/work/wo1-members-export.csv" >/dev/null 2>&1
+python3 -I "$L_RD/crit.py" wo-verify --run "$L_RD" --head wo1 --attempts "$L_RCRC/attempts" --scripts "$L_RCRC" --body "$L_BODYDEC" --findings "$T/find-ok.txt" >/dev/null 2>&1
+t wo-finish-lock-changed-kept 'ORIGINAL-CHANGED.*WORK-KEPT' 1 sh -c 'echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$L_RD/crit.py" wo-finish --run "$L_RD"; rc=$?; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"; exit $rc'
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-gate-wo thedanielmay+superfix-testbed+gate-wo1 "$T/src/members-export.csv" work/members-export.csv D)"
+[ -n "$D_RD" ] || { echo "CANNOT RUN: gate rig build failed"; exit 2; }
+export D_RD D_RF D_RCRC D_DEST D_BODYDEC
+python3 -I "$D_RD/crit.py" wo-lock --run "$D_RD" --folder "$D_RF" --dest "$D_DEST" --body "$D_BODYDEC" >/dev/null 2>&1
+t wo-return-forged-note-key-refused 'RETURN-FOREIGN-NOTE' 1 sh -c 'rm -rf "$T/Dret0"; cp -r "$D_DEST" "$T/Dret0"; python3 "$T/dedupe.py" "$T/Dret0/work/members-export.csv" "$T/Dret0/work/members-export.csv" 8; echo forged > "$T/Dret0/sendback.md"; echo forged > "$T/Dret0/key"; python3 -I "$D_RD/crit.py" wo-return --run "$D_RD" --folder "$T/Dret0" --body "$D_BODYDEC"'
+rm -rf "$T/Dret1"; cp -r "$D_DEST" "$T/Dret1"; python3 "$T/dedupe.py" "$T/Dret1/work/members-export.csv" "$T/Dret1/work/members-export.csv" 8; echo "x" >> "$T/Dret1/checks/files.sha256"
+t wo-return-checks-extra-taints 'RETURN-FILES-OVER .*CHECKS-CHANGED.*RETURN-CRITERIA-COPIED wo1' python3 -I "$D_RD/crit.py" wo-return --run "$D_RD" --folder "$T/Dret1" --body "$D_BODYDEC" --attempts "$D_RCRC/attempts" --scripts "$D_RCRC"
+doattempt "$D_RD" "$D_RCRC" "$D_BODYDEC" wo1 "$D_RD/work/wo1-members-export.csv" >/dev/null 2>&1
+t wo-tainted-verify-keeps-taint-line 'CHECKS-CHANGED' sh -c 'python3 -I "$D_RD/crit.py" wo-verify --run "$D_RD" --head wo1 --attempts "$D_RCRC/attempts" --scripts "$D_RCRC" --body "$D_BODYDEC" --findings "$T/find-ok.txt" >/dev/null 2>&1; python3 -c "import json; print(\" \".join(json.load(open(\"$D_RD/workorder/returns.json\"))[0][\"lines\"]))"'
+t wo-tainted-sendback-note-keeps-line 'CHECKS-CHANGED' sh -c 'python3 -I "$D_RD/crit.py" wo-sendback --run "$D_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2" --attempts "$D_RCRC/attempts" --scripts "$D_RCRC" --body "$D_BODYDEC" >/dev/null 2>&1; grep -h CHECKS-CHANGED "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2"/RETURNED-*.md "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2"/sendback.md'
+t wo-endings-delete-smuggled 'NOTES-GONE' sh -c 'echo smuggled > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/report.md"; echo smuggled > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/sendback.md"; python3 -I "$D_RD/crit.py" wo-cleanup --run "$D_RD" >/dev/null 2>&1; test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/report.md" && test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/sendback.md" && echo NOTES-GONE'
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-owner1-wo thedanielmay+superfix-testbed+owner1-wo1 "$T/src/members-export.csv" work/members-export.csv --owner X)"
+[ -n "$X_RD" ] || { echo "CANNOT RUN: owner rig build failed"; exit 2; }
+export X_RD X_RF X_RCRC X_DEST X_BODYDEC
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-owner2-wo thedanielmay+superfix-testbed+owner2-wo1 "$T/src/members-export.csv" work/members-export.csv --owner C)"
+[ -n "$C_RD" ] || { echo "CANNOT RUN: owner rig 2 build failed"; exit 2; }
+export C_RD C_RF C_RCRC C_DEST C_BODYDEC
+python3 - "$X_RD/workorder/folder/workorder.md" "$C_RD/workorder/folder/workorder.md" <<'EOF'
+import pathlib, sys
+for p in sys.argv[1:]:
+    q = pathlib.Path(p)
+    q.write_text(q.read_text().replace("FILES: work/members-export.csv\n", "FILES: work/members-export.csv, work/drafts/\n"))
+EOF
+python3 -I "$X_RD/crit.py" wo-lock --run "$X_RD" --folder "$X_RD/workorder/folder" --dest "$X_DEST" --body "$X_BODYDEC" >/dev/null 2>&1
+python3 -I "$C_RD/crit.py" wo-lock --run "$C_RD" --folder "$C_RD/workorder/folder" --dest "$C_DEST" --body "$C_BODYDEC" >/dev/null 2>&1
+t wo-drafts-agree-case 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retxc"; cp -r "$X_DEST" "$T/retxc"; mkdir -p "$T/retxc/work/drafts"; echo ok > "$T/retxc/work/drafts/note.md"; python3 -I "$X_RD/crit.py" wo-return --run "$X_RD" --folder "$T/retxc" --body "$X_BODYDEC" --attempts "$X_RCRC/attempts" --scripts "$X_RCRC"'
+t wo-drafts-checksum-gate 'RETURN-NEEDS-CRITERIA' 1 sh -c 'rm -rf "$T/retxs" "$T/rc2"; cp -r "$X_DEST" "$T/retxs"; mkdir -p "$T/retxs/work/drafts"; echo other > "$T/retxs/work/drafts/note.md"; mkdir -p "$T/rc2"; cp "$X_RCRC"/measure-*.py "$T/rc2/"; : > "$T/rc2/attempts"; cp "$T/src/members-export.csv" "$X_RD/work/extra-data.csv"; cp "$X_BODYDEC" "$T/xbody2.md"; python3 -I "$X_RD/crit.py" baseline --run "$X_RD" --attempts "$T/rc2/attempts" --scripts "$T/rc2" --label base --body "$T/xbody2.md" --measure "P1-C1=$X_RD/work/extra-data.csv" --measure "P1-K1=$X_RD/work/extra-data.csv" >/dev/null 2>&1; python3 -I "$X_RD/crit.py" lock --scripts "$T/rc2" --by owner --run "$X_RD" --attempts "$T/rc2/attempts" --body "$T/xbody2.md" --data "$X_RD/work/extra-data.csv" --approved P1,P2 > "$T/xlock.out" 2>&1; SHA=$(sed -n "s/^Internal: criteria-sha \([0-9a-f]*\) .*/\1/p" "$T/xlock.out"); grep -v "^Internal: criteria-sha " "$T/xbody2.md" > "$T/xbody3.md"; printf "Internal: criteria-sha %s (sha256), locked 2026-10-21 18:00, approved by the owner at the keyboard\n" "$SHA" >> "$T/xbody3.md"; python3 -I "$X_RD/crit.py" wo-return --run "$X_RD" --folder "$T/retxs" --body "$T/xbody3.md" --attempts "$T/rc2/attempts" --scripts "$T/rc2"; rc=$?; rm -f "$X_RD/work/extra-data.csv"; exit $rc'
+t wo-attempts-must-be-own 'RETURN-NEEDS-CRITERIA' 1 sh -c 'rm -rf "$T/retxa"; mkdir -p "$T/scxa"; cp "$X_RCRC"/measure-*.py "$T/scxa/"; cp "$X_RCRC/lock" "$T/scxa/lock"; cp "$C_RCRC/attempts" "$T/scxa/attempts"; cp -r "$X_DEST" "$T/retxa"; python3 -I "$X_RD/crit.py" wo-return --run "$X_RD" --folder "$T/retxa" --body "$X_BODYDEC" --attempts "$T/scxa/attempts" --scripts "$T/scxa"'
+t wo-return-unreadable-refused 'RETURN-UNREADABLE' 1 sh -c 'rm -rf "$T/retxu"; cp -r "$X_DEST" "$T/retxu"; mkdir -p "$T/retxu/work/noperm"; echo hidden > "$T/retxu/work/noperm/secret.csv"; chmod 000 "$T/retxu/work/noperm"; python3 -I "$X_RD/crit.py" wo-return --run "$X_RD" --folder "$T/retxu" --body "$X_BODYDEC" --attempts "$X_RCRC/attempts" --scripts "$X_RCRC"; rc=$?; chmod 755 "$T/retxu/work/noperm"; exit $rc'
+cat > "$T/starrig.py" <<'EOF'
+import importlib.util, pathlib, sys
+home, wid = sys.argv[1], sys.argv[2]
+spec = importlib.util.spec_from_file_location("c", sys.argv[3])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+base = pathlib.Path(home, "superfix-workorders")
+d = base / "starvictim-r1" / "work"
+d.mkdir(parents=True, exist_ok=True)
+(d / "precious.csv").write_text("victim data\n")
+left = m.woc_cleanup_rounds(wid)
+print("LEFT " + " ".join(left) if left else "LEFT none")
+print("VICTIM " + ("gone" if not (d / "precious.csv").exists() else "intact"))
+EOF
+t wo-cleanup-star-id-safe 'VICTIM intact' sh -c 'python3 "$T/starrig.py" "$HOME" "starvictim*" "$X_RD/crit.py"'
+t wo-cleanup-star-id-lists-base 'LEFT .*superfix-workorders' sh -c 'rm -rf "$HOME/superfix-workorders/starvictim-r1"; python3 "$T/starrig.py" "$HOME" "starvictim*" "$X_RD/crit.py"'
+t wo-cleanup-fifo-nohang 'CLEANUP-INCOMPLETE' sh -c 'mkfifo "$X_RD/work/x.sf-orig"; python3 -I "$X_RD/crit.py" wo-cleanup --run "$X_RD" > "$T/fifo.out" 2>&1 & pid=$!; n=0; while kill -0 $pid 2>/dev/null && [ $n -lt 25 ]; do sleep 1; n=$((n+1)); done; if kill -0 $pid 2>/dev/null; then kill -9 $pid; echo HUNG; else wait $pid; cat "$T/fifo.out"; fi; rm -f "$X_RD/work/x.sf-orig"'
+t wo-gate-docs 'FOREIGN-NOTE-DOCS' sh -c 'grep -q "RETURN-FOREIGN-NOTE" "$ROOT/skills/superfix/references/workorder.md" && grep -q "can never pass" "$ROOT/skills/superfix/references/workorder.md" && grep -q "not supported; use another account" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS'
 
 # ---- CRIT-1.5-CHANGED (a one-byte edit to 1.5.0 code fails it) ----
 t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/criteria.md"
