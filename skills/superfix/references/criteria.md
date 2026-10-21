@@ -2598,7 +2598,8 @@ def woc_cleanup_rounds(work_id):
 
 def woc_cleanup_full(D):
     """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
-    data files. Records (.sf-orig, lock, returns.json, attempts) stay for audit."""
+    data files, except the verified copies. Records (.sf-orig, lock, returns.json,
+    attempts) stay for audit. The verified copies stay until taken or stop."""
     D = pathlib.Path(D)
     try:
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
@@ -2607,10 +2608,12 @@ def woc_cleanup_full(D):
     if wid:
         woc_cleanup_rounds(wid)
     shutil.rmtree(D / "workorder" / "folder" / "work", ignore_errors=True)
+    keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
+    keep = {str(real(pathlib.Path(k))) for k in keep if k}
     w = D / "work"
     if w.is_dir():
         for p in sorted(w.iterdir()):
-            if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig"):
+            if p.is_symlink() or (p.is_file() and p.suffix != ".sf-orig" and str(real(p)) not in keep):
                 try:
                     p.unlink()
                 except OSError:

@@ -228,10 +228,10 @@ python3 -I "$E_RD/crit.py" wo-return --run "$E_RD" --folder "$T/Eret1/folder" --
 doattempt "$E_RD" "$E_RCRC" "$E_BODYDEC" wo1 "$E_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 mkdir -p "$E_DEST-r9/work"; echo stale > "$E_DEST-r9/work/stale.csv"
 t wo-doc-verify-ok 'VERIFY-PASS' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-verify "--head wo" "$E_RD" "$E_RF" "$T/docdest" "$E_BODYDEC" 1 "$T/find-ok.txt" "$E_RCRC")"'
-t wo-ending-pass-cleans 'NO-DATA' python3 "$T/nodata.py" "$E_RD" "$E_DEST" "$E_DEST-r9"
+t wo-ending-pass-keeps-copy 'KEPT-COPY' sh -c 'test "$(find "$E_RD/work" "$E_DEST" "$E_DEST-r9" -name "*.csv")" = "$E_RD/work/wo1-members-export.csv" && echo KEPT-COPY'
 t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$E_DEST-r2"; mkdir -p "$E_DEST-r8/work"; echo stale > "$E_DEST-r8/work/stale.csv"; mkdir -p "$E_DEST/work"; echo rebuilt > "$E_DEST/work/rebuilt.csv"; python3 -I "$E_RD/crit.py" wo-sendback --run "$E_RD" --dest "$E_DEST-r2" --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC"'
-t wo-sendback-nothing-cleans 'NO-DATA' python3 "$T/nodata.py" "$E_RD" "$E_DEST" "$E_DEST-r8"
-t wo-reverify-after-ending 'VERIFY-SHA-MISMATCH wo1' python3 -I "$E_RD/crit.py" wo-verify --run "$E_RD" --head wo1 --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC" --findings "$T/find-ok.txt"
+t wo-sendback-nothing-cleans 'KEPT-COPY' sh -c 'test "$(find "$E_RD/work" "$E_DEST" "$E_DEST-r8" -name "*.csv")" = "$E_RD/work/wo1-members-export.csv" && echo KEPT-COPY'
+t wo-reverify-after-ending 'VERIFY-PASS' python3 -I "$E_RD/crit.py" wo-verify --run "$E_RD" --head wo1 --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC" --findings "$T/find-ok.txt"
 
 # ---- FINISH RIG (finish leaves the stub copy; wo-cleanup removes it) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-fin-wo thedanielmay+superfix-testbed+fin-wo1 "$T/src/members-export.csv" work/members-export.csv N)"
@@ -358,7 +358,7 @@ t wo-cut-base-is-placed-copy 'BASE-IS-PLACED-COPY' sh -c 'test "$(shasum -a 256 
 doattempt "$U_RD" "$U_RCRC" "$U_BODYDEC" wo1 "$U_RD/work/wo1-cut.csv" >/dev/null 2>&1
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-cut.txt"
 t wo-cut-verify-pass 'VERIFY-PASS' python3 -I "$U_RD/crit.py" wo-verify --run "$U_RD" --head wo1 --attempts "$U_RCRC/attempts" --scripts "$U_RCRC" --body "$U_BODYDEC" --findings "$T/find-cut.txt"
-t wo-cut-verify-cleans 'NO-DATA' python3 "$T/nodata.py" "$U_RD" "$U_DEST"
+t wo-cut-verify-cleans 'KEPT-COPY' sh -c 'test "$(find "$U_RD/work" "$U_DEST" -name "*.csv")" = "$U_RD/work/wo1-cut.csv" && echo KEPT-COPY'
 
 # ---- I: process drafts allowed; dead locals scan ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-proc-wo thedanielmay+superfix-testbed+proc-wo1 "$T/src/members-export.csv" work/members-export.csv Q)"
