@@ -4,7 +4,7 @@
 # Usage: bash tests/project-tests.sh
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-T="$(mktemp -d /private/tmp/project-tests.XXXX)"; R="$T/repo"; mkdir -p "$R/.superfix"
+T="$(mktemp -d)"; R="$T/repo"; mkdir -p "$R/.superfix"
 LIVE="$ROOT/.superfix/project.md"; SAVED="$T/live-saved.md"
 [ -f "$LIVE" ] && cp "$LIVE" "$SAVED"
 cleanup() { rm -rf "$T"; if [ -f "$SAVED" ]; then mkdir -p "$ROOT/.superfix"; cp "$SAVED" "$LIVE"; else rm -f "$LIVE"; rmdir "$ROOT/.superfix" 2>/dev/null; fi; }
