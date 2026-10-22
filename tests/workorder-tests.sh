@@ -12,7 +12,7 @@ git -C "$X" fetch -q --tags origin 2>/dev/null
 # X's origin becomes a local copy: wo-return asks origin for a pushed branch, and the fake HOME below has no git login
 git clone -q --bare "$X" "$T/origin.git"; git -C "$X" remote set-url origin "$T/origin.git"
 export HOME="$T/home"; mkdir -p "$HOME"; D="$HOME/.superfix/runs/thedanielmay+superfix-testbed+109"; mkdir -p "$D/workorder"; echo k > "$D/key"
-awk '/^# --- crit.py start ---$/{f=1} f{print} /^# --- crit.py end ---$/{f=0}' "$ROOT/skills/superfix/references/criteria.md" > "$D/crit.py"
+cp "$ROOT/skills/superfix/references/crit.py" "$D/crit.py"
 C="python3 -I $D/crit.py"; pass=0; fail=0
 trap 'rm -rf "$T"' EXIT
 t() { local name="$1" want="$2" rc=""; shift 2; if [[ "$1" =~ ^[0-9]+$ ]]; then rc="$1"; shift; fi; local out rcgot; out="$("$@" 2>&1)"; rcgot=$?

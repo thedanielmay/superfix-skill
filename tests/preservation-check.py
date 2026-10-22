@@ -39,11 +39,15 @@ The last output line is "N unjustified" and the exit code is 1 when N is
 above 0. When git cannot give a tag or a file (no usable tag, no HEAD~ in a
 shallow clone) it prints one line starting "CANNOT RUN" and exits 2.
 """
-import argparse, json, pathlib, re, subprocess, sys
+import argparse, hashlib, json, pathlib, re, subprocess, sys
 from collections import Counter
 
 SKILL_DIR = "skills/superfix"
 RELEASE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
+CRIT_START = "# --- crit.py start ---"
+CRIT_END = "# --- crit.py end ---"
+CRIT_NEW = "skills/superfix/references/crit.py"
+CRIT_NEW_PLACE = CRIT_NEW + " > (whole file)"
 
 
 class CannotRun(Exception):
@@ -59,11 +63,32 @@ def git(root, *args):
 
 
 def places(text, fname):
-    """Yield (stripped line, place) for every non-blank line."""
+    """Yield (stripped line, place) for every non-blank line.
+
+    A crit.py block inside an .md file counts as one synthetic line
+    holding the block's sha256, so the moved tool (Fix 60) is one moved
+    line; any byte change inside it changes the sha and shows up as an
+    unjustified change. The markers themselves are part of the unit.
+    """
     heading, fence, seen = "(start of file)", None, Counter()
-    for raw in text.splitlines():
+    lines = text.splitlines()
+    k = 0
+    while k < len(lines):
+        raw = lines[k]
+        k += 1
         s = raw.strip()
         if not s:
+            continue
+        if s == CRIT_START:
+            block = []
+            while k < len(lines) and lines[k].strip() != CRIT_END:
+                block.append(lines[k])
+                k += 1
+            k += 1
+            h = hashlib.sha256(("\n".join(block) + "\n").encode()).hexdigest()
+            yield f"crit.py-sha256:{h}", f"{fname} > {heading}"
+            continue
+        if s == CRIT_END:
             continue
         place = f"{fname} > {heading}"
         if fence is None and (s.startswith("```") or s.startswith("~~~")):
@@ -118,6 +143,10 @@ def run(a):
     new = Counter()
     for p in new_files:
         new += count(p.read_text(), str(p.relative_to(root)))
+    crit_py = root / CRIT_NEW
+    if crit_py.exists():
+        h = hashlib.sha256(crit_py.read_bytes()).hexdigest()
+        new[(f"crit.py-sha256:{h}", CRIT_NEW_PLACE)] += 1
     print(f"Old files ({len(old_files)}): {', '.join(old_files)}")
     print(f"New files ({len(new_files)}): "
           f"{', '.join(str(p.relative_to(root)) for p in new_files)}")

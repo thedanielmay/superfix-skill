@@ -26,7 +26,10 @@ Allowed 1.6.1 differences, and nothing else:
   the 1.5.0 progress output inside wo-sendback);
 - the bodies of def cmd_wo_* and def woc_* (any new helper, plainly written),
   and the wo-parser block in main() (p("wo-*") calls with their options).
-Usage: python3 tests/crit-15-check.py [path-to-criteria.md]
+Usage: python3 tests/crit-15-check.py [path-to-crit.py-or-criteria.md]
+Takes the tool file directly, or a criteria.md holding the block between
+the crit.py markers (old tags and tampered copies); both shapes compare
+the same bytes.
 Prints CRIT-1.5-CHANGED <names> and exits 1 on any other difference, else
 CRIT-1.5-UNCHANGED. The plan names measure, baseline, lock, attempt, finish,
 later, amend, comment, sendcheck and verify; later has no cmd_ function (later
@@ -38,7 +41,8 @@ import subprocess
 import sys
 import textwrap
 
-CRIT_PATH = "skills/superfix/references/criteria.md"
+CRIT_PATH = "skills/superfix/references/crit.py"
+OLD_CRIT_MD = "skills/superfix/references/criteria.md"
 SKIP_DEF = ("cmd_wo_", "woc_")
 EXPECTED_KINDS = {"code", "criteria"}
 EXPECTED_WO_REQUIRED_CRITERIA = ["WORK-ORDER", "CHECKS-KIND", "SOURCE", "BASE", "FILES",
@@ -52,6 +56,11 @@ def block(text):
         print("CRIT-1.5-CHANGED (no crit.py block)")
         sys.exit(1)
     return m.group(1)
+
+
+def tool_text(text):
+    m = re.search(r"(?ms)^# --- crit.py start ---\n(.*)^# --- crit.py end ---$", text)
+    return m.group(1) if m else text
 
 
 def tree_of(py):
@@ -258,8 +267,8 @@ def strip_wo_parsers(text):
 
 def main():
     path = sys.argv[1] if len(sys.argv) > 1 else CRIT_PATH
-    now_py = block(open(path).read())
-    old_md = subprocess.run(["git", "show", f"v1.6.0:{CRIT_PATH}"],
+    now_py = tool_text(open(path).read())
+    old_md = subprocess.run(["git", "show", f"v1.6.0:{OLD_CRIT_MD}"],
                             capture_output=True, text=True)
     if old_md.returncode:
         print("CRIT-1.5-CHANGED (cannot read v1.6.0 text)")
