@@ -162,6 +162,7 @@ They follow redaction.md: a figure the owner calls private goes on the secrets l
 ### 9. Where the work happens
 
 Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good), except the verified copies, which stay until taken or stop; a stop deletes every data copy and keeps the records, which hold a hash and a path and no data, and names them `CLEANUP-KEPT`; leftovers print `CLEANUP-INCOMPLETE` with exit 1; the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas, the scripts and the tool's records in the criteria folder, never the data.
+The scan receipts in the run folder are working files of the comment gate, not records: the cleanup on a stop or a finish deletes them, while a pass keeps them, because the final comment is scanned after it.
 - While the owner still has to put a changed copy back (section 10), the job has not ended: the run folder and its `work/` stay (mode 700 and 600, on this Mac only), the stop message names the copy's path, and redaction.md's end-of-run delete waits until the export is measured or the owner says stop. Then `finish` runs first, then the delete.
 
 **Nothing changed in criteria mode is committed by default, on any repo: a data file, a guide, a process document alike.** The changed files stay on the Mac in `work/`, and the PR (when there is one) or the final comment describes the change in counts. A commit needs ALL of:
