@@ -7,7 +7,7 @@
 # stop questions (up to 2 extra replies). The only difference from w1code.sh:
 # the prompt carries no work order, executor or hand over words, and there is no
 # cold executor step, because a normal run does the work itself.
-. /private/tmp/claude-501/-Users-thedanielmay-Library-CloudStorage-GoogleDrive-daniel-thedanielmay-com-Shared-drives-samuel-life-planning-projects-knowledgehub/1e67bb95-fabc-4856-8d9c-b871330baba9/scratchpad/t161/w2lib.sh
+. "${SUPERFIX_T161:-$HOME/superfix-handoff/t161}/w2lib.sh"
 n=$1; [ -n "$n" ] || { echo "usage: r1.sh r1-<k>"; exit 1; }
 R=thedanielmay/superfix-testbed
 # one issue per chain: the R1 pricing issue (seed-1.4.1)
