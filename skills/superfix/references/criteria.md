@@ -91,8 +91,10 @@ Exact, after the problem questions and before the budget question, with no recom
 `crit.py` is written into the run folder from this file, by a command, never typed out by hand, like `shot.py` in evidence.md. `<skill dir>` is this skill's base directory, written out in full:
 
 ```bash
-umask 077; D="$HOME/.superfix/runs/<run-key>"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else awk '/^# --- crit.py start ---$/{f=1} f{print} /^# --- crit.py end ---$/{f=0}' '<skill dir>/references/criteria.md' > "$D/crit.py" && grep -q '^# --- crit.py end ---$' "$D/crit.py" && echo "CRIT-READY $D/crit.py"; fi
+umask 077; D="$HOME/.superfix/runs/<run-key>"; S="<criteria folder>"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; elif [ -f "$S/lock" ]; then C="$S/crit.py"; L="$(sed -n 's/^crit //p' "$S/lock")"; if [ -f "$C" ] && [ "$(shasum -a 256 "$C" | cut -d' ' -f1)" = "$L" ]; then cp "$C" "$D/crit.py" && echo "CRIT-READY $D/crit.py (the locked tool)"; else echo "CRIT-SHA-MISMATCH (the criteria folder's crit.py is not the lock's crit line: stop)"; fi; else awk '/^# --- crit.py start ---$/{f=1} f{print} /^# --- crit.py end ---$/{f=0}' '<skill dir>/references/criteria.md' > "$D/crit.py" && grep -q '^# --- crit.py end ---$' "$D/crit.py" && echo "CRIT-READY $D/crit.py"; fi
 ```
+
+A locked job keeps the tool it was locked with: when the criteria folder's `lock` exists, the command above reuses its `crit.py`, and stops loudly otherwise. It never writes a newer tool over the folder's copy and never re-locks silently. The 1.5.0 copy is there because every attempt wrote it, so later tool changes stop breaking older jobs.
 
 Every command below starts `python3 -I "$HOME/.superfix/runs/<run-key>/crit.py"`. The same arguments recur, always written out in full:
 - `--run "$HOME/.superfix/runs/<run-key>"`: the run folder (redaction.md), deleted at the end of the run;
@@ -159,7 +161,7 @@ They follow redaction.md: a figure the owner calls private goes on the secrets l
 
 ### 9. Where the work happens
 
-Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good); the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas, the scripts and the tool's records in the criteria folder, never the data.
+Work copies live in `$HOME/.superfix/runs/<run-key>/work/` and are DELETED when the job ends (solved, abandoned or stopped for good), except the verified copies, which stay until taken or stop; a stop deletes everything; leftovers print `CLEANUP-INCOMPLETE` with exit 1; the run folder delete at the end of the run removes them too. A `later` job keeps only numbers, data shas, the scripts and the tool's records in the criteria folder, never the data.
 - While the owner still has to put a changed copy back (section 10), the job has not ended: the run folder and its `work/` stay (mode 700 and 600, on this Mac only), the stop message names the copy's path, and redaction.md's end-of-run delete waits until the export is measured or the owner says stop. Then `finish` runs first, then the delete.
 
 **Nothing changed in criteria mode is committed by default, on any repo: a data file, a guide, a process document alike.** The changed files stay on the Mac in `work/`, and the PR (when there is one) or the final comment describes the change in counts. A commit needs ALL of:
@@ -188,7 +190,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" finish --run "$HOME/.superfi
 - `scan` prints `SCAN-CLEAN` or `SCAN-PII <what> (line <n>)` for an e-mail address, a phone-like number, a link, a run of 9 or more digits, or a value after a label such as `Name:` or `Phone:`.
 - `where` prints `PATH-CLOUD <path>` or `PATH-LOCAL <path>`. Cloud means under `~/Library/CloudStorage`, `~/shared-drives`, `~/Dropbox`, `~/Library/Mobile Documents` (iCloud Drive), `~/Google Drive` or `~/OneDrive`, and also `~/Desktop` and `~/Documents` when iCloud's Desktop and Documents sync is on (detected by those folders inside iCloud Drive); symlinks are resolved and the comparison ignores case.
 - `copy` records the original's sha256 and prints `COPY-READY <copy> sha <sha>`, `COPY-EXISTS`, `COPY-REFUSED` (a `--name` outside letters, digits, `.`, `_` and `-`, or ending `.sf-orig`), `PATH-CLOUD` (the run folder itself syncs) or `ASK-FIRST <original>` (ask, then `--asked`).
-- `finish` prints `ORIGINAL-UNCHANGED <path>` for each original, then `WORK-DELETED`; or `ORIGINAL-CHANGED <path>` or `WORK-METADATA-BAD <file>` (a record `copy` did not write; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`.
+- `finish` prints `ORIGINAL-UNCHANGED <path>` or `ORIGINAL-CHANGED <path>` for each recorded original still present, then `WORK-DELETED`; or `WORK-METADATA-BAD <file>` (a record `copy` did not write, or that cleanup deleted while data stayed; nothing is printed from it), then `WORK-KEPT` (stop, tell the owner, delete only after he answers); `ASK-FIRST` (hashing a cloud or online-only original can download it: ask, then `--asked`); or `WORK-NONE`. Kind `criteria` ends with `wo-finish` instead: it checks the lock's origsha itself, printing `ORIGINAL-CHANGED` plus `WORK-KEPT` when the original changed or is missing, else the shared finish; `WORK-PERMISSION-DENIED <path>` when it cannot delete.
 
 ### 10. The real file (Google Sheet, Drive file, any file the owner puts back himself)
 
@@ -364,6 +366,17 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" comment --comment "$HOME/.su
 - `<plain name> needs your sign-off; not checked by me.`
 - `The measure scripts ran without the macOS sandbox, as you agreed.` (only after the sandbox question's yes; the comments also carry the `UNSANDBOXED:` line)
 
+### 22. Work orders
+
+- A criteria work order hands a copy, never the original, to someone else; the template is workorder.md's `criteria` row.
+- The copy goes in only after the owner's explicit yes to the second of the two data questions there, with no recommended answer; `workorder.md` holds counts and row numbers only.
+- The folder is a stub run folder with its own lock on the stub path; the column cut keeps every column a script reads and maps back by `row`; the stub's `checks/VERIFY.txt` is never bundled.
+- On return the copy is untrusted data: Superfix's own locked tool measures it in the sandbox, never the folder's copies.
+- Each `[Superfix verifies]` line gets one finding "`<tick text>: met (lines 3, 4)`" or "`<tick text>: not met (lines 3, 4)`": a whole-word `met` (not `metadata`, not `met?`/`met-ish`/`met =`), line numbers in a closing `(lines ...)` shape and checked against the copy, else `FINDING-NOT-MET`, `FINDING-MISSING` or `FINDING-LINE-MISSING`; a finding for an unknown tick is `FINDING-UNKNOWN-TICK`.
+- Dedupe jobs always carry the earliest-wins line; `owner` items still need "signed off".
+- Return order: original unchanged, only FILES, own-measure, the three runs, the findings, then `CRITERIA-OK`.
+- Success says "the counts meet your checks"; a process ends at "ready for your review", never "solved".
+
 ### The script
 
 The tool, exactly as the command in section 5 writes it:
@@ -376,7 +389,7 @@ The tool, exactly as the command in section 5 writes it:
 # a data value, a measure script's own output or a line of the measured file.
 # It is DETECTIVE, not preventive: it finds changed, missing or hand-made
 # records, but a determined writer with file access can still forge them.
-import argparse, collections, csv, datetime, fractions, hashlib, json, os, pathlib, re, resource, secrets, shlex, shutil, signal, stat, subprocess, sys, tempfile, threading, time
+import argparse, collections, contextlib, csv, datetime, fractions, hashlib, io, json, os, pathlib, re, resource, secrets, shlex, shutil, signal, stat, subprocess, sys, tempfile, threading, time
 
 LINE = re.compile(r"^- (P(\d+)-([CK])(\d+)) \[([a-z]+)\] (.*)$")
 FIELDS = re.compile(r"^(?P<name>[^:]*): (?P<defn>.*); pass: (?P<pass>.*?); how: (?P<how>.*?); who: (?P<who>.*)$")
@@ -1890,7 +1903,8 @@ def cmd_remind(a):
 # ---------- work orders (1.6.0, references/workorder.md): someone else makes a code change ----------
 
 WO_REQUIRED = ["WORK-ORDER", "CHECKS-KIND", "REPO", "BASE", "BRANCH", "FILES", "LIMITS", "CHECKS-SHA", "BASELINE", "DELIVER"]
-WO_KINDS = {"code"}                      # 1.6.1 adds "criteria"
+WO_KINDS = {"code", "criteria"}          # 1.6.1 added "criteria"
+WO_REQUIRED_CRITERIA = ["WORK-ORDER", "CHECKS-KIND", "SOURCE", "BASE", "FILES", "LIMITS", "CHECKS-SHA", "BASELINE", "DELIVER"]
 WO_LIMIT = 5
 R_CALL = re.compile(r'\br ([CKH]\d+) \$\? (' + r'"(?:[^"\\]|\\.)*"' + "|'[^']*'" + ') ')   # r <id> $? <expected> <got>
 
@@ -1916,9 +1930,1366 @@ def git(clone, *args):
     return r.returncode, r.stdout.strip()
 
 
+def woc_split_finding(line):
+    """Split a findings line on the LAST whole-word ': met' / ': not met' verdict
+    -> (name, verdict, rest) or None.
+
+    The verdict is a whole word (": metadata" and ": methodology" do not match)
+    followed by something other than ?, - or = (": met?", ": met-ish" and
+    ": met = false" do not match). Splitting on the last match lets a tick text
+    contain a colon: only the final verdict counts.
+    """
+    ms = list(WOC_VERDICT_RX.finditer(line))
+    if not ms:
+        return None
+    m = ms[-1]
+    return line[:m.start()].strip(), ("not met" if m.group(1) else "met"), line[m.end():]
+
+
+def woc_tick(text):
+    """Tick lines under ## Done when: [(marker, name, must)] for '- [ ] [marker] name: must be value'."""
+    m = re.search(r"(?ms)^## Done when.*?(?=^## )", text)
+    out = []
+    for l in (m.group(0) if m else text).splitlines():
+        m2 = re.fullmatch(r"- \[ \] \[([^\]]+)\] (.+)", l.strip())
+        if m2:
+            out.append((m2.group(1),) + woc_split_must(m2.group(2)))
+    return out
+
+
+def woc_split_must(rest):
+    """'name: must be value' or bare judgment text (a [Superfix verifies] line has no must-be)."""
+    m = re.fullmatch(r"([^:]+): must be (.+)", rest.strip())
+    return (m.group(1), m.group(2)) if m else (rest.strip(), "")
+
+
+WOC_APPROVED_RX = re.compile(r"^- (?:(P\d+-[CK]\d+) )?\[([^\]]+)\] (.+)$")
+WOC_VERDICT_RX = re.compile(r":\s*(not\s+)?met\b(?!\?|-|\s*=)", re.IGNORECASE)
+
+
+def woc_approved(folder, name="checks/done-when.md"):
+    """Approved lines in done-when.md: {(marker, name, must): id}, plus the two Internal lines."""
+    d = pathlib.Path(folder) / name
+    if not d.is_file():
+        return None
+    out = {}
+    for l in d.read_text().splitlines():
+        m = WOC_APPROVED_RX.match(l.strip())
+        if m and m.group(1):
+            out[(m.group(2),) + woc_split_must(m.group(3))] = m.group(1)
+    return out
+
+
+def woc_body(a):
+    """The locked body (--body file, else --issue fetched by the tool itself), or None."""
+    b = getattr(a, "body", None)
+    if b and pathlib.Path(b).is_file():
+        try:
+            return pathlib.Path(b).read_text()
+        except OSError:
+            return None
+    if getattr(a, "issue", None):
+        try:
+            return body_text(a)
+        except (Stop, OSError, ValueError):
+            return None
+    return None
+
+
+def woc_norm_pass(p):
+    """A pass line without its trailing today-note, for comparing tick must-bes with body pass lines."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", p).strip()
+
+
+def woc_body_passes(text):
+    """{criterion id: normalized pass line} from the locked body's check and later criteria."""
+    out = {}
+    for c in criteria(text):
+        if c.get("name") and c.get("kind") in ("check", "later") and c.get("pass"):
+            out[c["id"]] = woc_norm_pass(c["pass"])
+    return out
+
+
+def woc_fidelity(appr, body_passes):
+    """Every done-when script/later line carries its locked body's pass line, and covers it."""
+    bad = []
+    ids = sorted(i for i in appr.values() if i)
+    for (marker, name, must), i in sorted(appr.items(), key=lambda kv: (kv[1] or "")):
+        if i is None or (marker != "script" and not marker.startswith("later")):
+            continue
+        if body_passes.get(i) is None or woc_norm_pass(must) != body_passes[i]:
+            bad.append(f"WORKORDER-TICKLIST {i} (not the locked body's pass line)")
+    for i in sorted(body_passes):
+        if i not in ids:
+            bad.append(f"WORKORDER-TICKLIST {i} (an approved criterion is missing from the tick list)")
+    return bad
+
+
+def woc_block_files(text):
+    """The CHECKS block as {name: sha} for '<sha>  checks/<name>' lines, or None."""
+    blk = wo_block(text)
+    if blk is None:
+        return None
+    rows = [l.split("  ", 1) for l in blk.splitlines() if l.strip()]
+    if any(len(r) != 2 or not re.fullmatch(r"[0-9a-f]{64}", r[0]) or not r[1].startswith("checks/") for r in rows):
+        return None
+    return {r[1][len("checks/"):]: r[0] for r in rows}
+
+
+def woc_scan_data(text):
+    """pii hits on workorder.md without the CHECKS block and the BASE:/CHECKS-SHA: lines (their shas hold digit runs)."""
+    blk = wo_block(text)
+    body = text.replace("# BEGIN CHECKS\n" + blk + "# END CHECKS", "") if blk else text
+    kept = [l for l in body.splitlines() if not l.startswith(("BASE: ", "CHECKS-SHA:"))]
+    return pii(kept)
+
+
+def woc_baseline_want(text):
+    return dict(re.findall(r"(P\d+-[CK]\d+) ([A-Z]+)", wo_head(text).get("BASELINE", "")))
+
+
+def woc_files_entries(t):
+    """FILES entries: exactly one work/<file>, plus optional work/drafts/ for a process job."""
+    return [f.strip() for f in (wo_head(t).get("FILES", "") or "").split(",") if f.strip()]
+
+
+def woc_drafts_ok(t):
+    return any(f.rstrip("/") == "work/drafts" for f in woc_files_entries(t))
+
+
+def woc_proc_job(text):
+    """A process or guide job: its criteria include an owner or later kind (processes set a
+    later criterion, section 1 Scope). Pure check jobs are data clean-ups: no drafts."""
+    try:
+        return any(c.get("kind") in ("owner", "later") for c in criteria(text))
+    except (AttributeError, TypeError):
+        return False
+
+
+def woc_copy_file(t, folder):
+    """The FILES data file: exactly one work/<file> entry (plus optional work/drafts/); its folder-side path or None."""
+    fs = woc_files_entries(t)
+    plain = [f for f in fs if f.rstrip("/") != "work/drafts"]
+    if len(plain) != 1 or len(fs) > 2 or "/" in plain[0][len("work/"):] or not plain[0].startswith("work/"):
+        return None
+    return pathlib.Path(folder) / plain[0]
+
+
+def woc_folder_is_criteria(path):
+    p = pathlib.Path(real(path)) / "workorder.md"
+    return p.is_file() and wo_head(p.read_text()).get("CHECKS-KIND") == "criteria"
+
+
+def woc_run_is_criteria(D):
+    p = pathlib.Path(D) / "workorder" / "folder" / "workorder.md"
+    return p.is_file() and wo_head(p.read_text()).get("CHECKS-KIND") == "criteria"
+
+
+def woc_need_clone(a, cmd):
+    """Code-kind commands need --clone: an argparse-style error, never a traceback downstream."""
+    if getattr(a, "clone", None) is None:
+        print(f"usage: crit.py {cmd} --run RUN --clone CLONE ...")
+        print(f"crit.py {cmd}: error: the following arguments are required: --clone")
+        return 2
+    return 0
+
+
+WOC_DATAYES_RX = re.compile(r"^Data yes:\s*(\S+)\s*\(.*?\)\s*:\s*(\S+)\s*$", re.IGNORECASE)
+
+
+def woc_data_yes(text, base):
+    """Last `Data yes:` line for this file in ## Decision: True only on an explicit yes."""
+    ans = None
+    for l in section(text, "Decision"):
+        m = WOC_DATAYES_RX.match(l.strip())
+        if m and m.group(1) == base:
+            ans = m.group(2).lower() == "yes"
+    return ans is True
+
+
+def woc_base_name(t):
+    """FILES data-file basename for the data-yes record, or None."""
+    fs = [f for f in woc_files_entries(t) if f.rstrip("/") != "work/drafts"]
+    if not fs or not fs[0].startswith("work/") or "/" in fs[0][len("work/"):]:
+        return None
+    return pathlib.Path(fs[0]).name
+
+
+def woc_check(a, t):
+    """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
+    lines, bad = t.splitlines(), []
+    for k in WO_REQUIRED_CRITERIA:
+        n = sum(1 for l in lines if l.startswith(k + ": "))
+        if n != 1:
+            bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
+    h = wo_head(t)
+    rep = t.find("\n## Report")
+    for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
+        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "- [ ]")):
+            bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
+        if re.search(r"^\s*- \[[xX]\]", l):
+            bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
+    if not re.search(r"(?m)^- \[ \] ", t):
+        bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    F = real(pathlib.Path(a.wo).parent)
+    appr = woc_approved(F)
+    ticks = woc_tick(t)
+    if appr is None:
+        bad.append("WORKORDER-CHECKS-SHA (checks/done-when.md is missing from the folder)")
+    else:
+        have = sorted(appr.get(k, "?") or "?" for k in ticks)
+        want = sorted(i for i in appr.values() if i)
+        for i in sorted(set(want) - set(have)):
+            bad.append(f"WORKORDER-TICKLIST {i} (an approved criterion is missing from the tick list)")
+        for k in ticks:
+            if ticks.count(k) > 1:
+                bad.append(f"WORKORDER-TICKLIST {appr.get(k) or k[1]} (a ticked line is doubled)")
+            elif k not in appr and k[0] == "script":
+                bad.append(f"WORKORDER-TICKLIST {k[1]} (no approved line matches this tick word for word)")
+        text = woc_body(a)
+        if text is not None:
+            bad.extend(woc_fidelity(appr, woc_body_passes(text)))
+    files = woc_block_files(t)
+    if files is None or sha_text(wo_block(t) + ("" if wo_block(t).endswith("\n") else "\n")) != h.get("CHECKS-SHA", "").split()[0]:
+        bad.append("WORKORDER-CHECKS-SHA (the CHECKS block and CHECKS-SHA differ)")
+    else:
+        for name, sha in files.items():
+            if not (F / "checks" / name).is_file() or sha_file(F / "checks" / name) != sha:
+                bad.append("WORKORDER-CHECKS-SHA (a bundled file differs from its CHECKS line)")
+                break
+    for name in ("crit.py", "lock", "attempts", "done-when.md"):
+        if files is not None and name not in files:
+            bad.append(f"WORKORDER-CHECKS-SHA (checks/{name} is not bundled)")
+    cp = woc_copy_file(t, F)
+    if cp is None or not cp.is_file() or sha_file(cp) != h.get("BASE", "").split()[0]:
+        bad.append("WORKORDER-NO-COPY (work/<file> is missing, FILES names more than one file, or its sha256 is not BASE)")
+    hits = woc_scan_data(t)
+    if hits:
+        bad.append(f"WORKORDER-DATA ({hits[0]})")
+    dw = F / "checks" / "done-when.md"
+    if dw.is_file():
+        hits = pii([l for l in dw.read_text(errors="replace").splitlines() if not l.startswith("Internal: ")])
+        if hits:
+            bad.append(f"WORKORDER-DATA ({hits[0]})")
+    text = woc_body(a)
+    base = woc_base_name(t) or "the file"
+    if text is None:
+        bad.append("WORKORDER-NO-YES (no body given: pass --body or --issue so the Data yes line can be checked)")
+    elif not woc_data_yes(text, base):
+        bad.append(f"WORKORDER-NO-YES (no Data yes line for {base} in ## Decision)")
+    try:
+        rec = read_lock(F / "checks")
+        if any(not inside(pathlib.Path(p), F) for p in rec["data"]):
+            bad.append("WORKORDER-LOCK-PATH (the folder lock names a path outside the stub)")
+    except (OSError, ValueError, KeyError, IndexError):
+        bad.append("WORKORDER-CHECKS-SHA (the folder lock cannot be read)")
+    else:
+        if sha_file(F / "checks" / "crit.py") != rec["crit"]:
+            bad.append("WORKORDER-CRIT-SHA (checks/crit.py is not the locked tool)")
+    print("\n".join(dict.fromkeys(bad)) if bad else "WORKORDER-OK")
+    return 1 if bad else 0
+
+
+def woc_run_measures(script_dir, done_name, copy_path, timeout=300, passes=None):
+    """Each [script] approval measured on the copy with the bundled scripts: {id: (word, value)}."""
+    appr = woc_approved(script_dir, done_name) or {}
+    out = {}
+    for (marker, _name, must), i in sorted(((k, v) for k, v in appr.items()), key=lambda kv: kv[1] or ""):
+        if not marker.startswith("script"):
+            continue
+        sc = pathlib.Path(script_dir) / f"measure-{i}.py"
+        if copy_path is None or not sc.is_file():
+            out[i] = ("ERROR", "?")
+            continue
+        p = passes.get(i, woc_norm_pass(must)) if passes else woc_norm_pass(must)
+        w, info = run_script({"id": i, "pass": p, "ck": i.split("-")[1][0]},
+                             sc, copy_path, None, timeout, False)
+        out[i] = (w, info.get("MEASURE", "?") if isinstance(info, dict) else "?")
+    return out
+
+
+def woc_baseline(a):
+    """BASELINE for kind criteria: the bundled measures on the untouched copy give the BASELINE words."""
+    F = real(a.folder)
+    t = (F / "workorder.md").read_text()
+    want = woc_baseline_want(t)
+    text = woc_body(a)
+    cp = woc_copy_file(t, F)
+    got = woc_run_measures(F / "checks", "done-when.md", cp if cp is not None and cp.is_file() else None,
+                           passes=woc_body_passes(text) if text is not None else None)
+    if any(w == "SANDBOX-MISSING" for w, _ in got.values()):
+        print("SANDBOX-MISSING (nothing ran; ask the owner the criteria-mode sandbox question first)")
+        return 1
+    bad = [f"{i} (no script result)" for i in want if i not in got]
+    bad += [i for i in want if i in got and got[i][0] != want[i]]
+    bad += [f"{i} (not in BASELINE)" for i in got if i not in want]
+    print("BASELINE-OK" if not bad else "BASELINE-MISMATCH " + ", ".join(sorted(set(bad))))
+    return 1 if bad else 0
+
+
+def woc_lock_state(D):
+    """Parse D/workorder/lock: ({name: sha} for '  ' lines, origsha, origpath) or None."""
+    p = pathlib.Path(D) / "workorder" / "lock"
+    if not p.is_file():
+        return None
+    files, orig, opath = {}, None, None
+    for l in p.read_text().splitlines():
+        if l.startswith("origsha "):
+            orig = l[len("origsha "):]
+        elif l.startswith("origpath "):
+            opath = l[len("origpath "):]
+        elif "  " in l:
+            s, n = l.split("  ", 1)
+            files[n] = s
+    return files, orig, opath
+
+
+def woc_distinctive_values(paths):
+    """Distinctive cell values from data files: (kind, value) pairs. Headers,
+    date-ish fields and short numbers are never distinctive: counts, amounts
+    and row numbers the checks report must stay allowed."""
+    day_month = {"monday", "tuesday", "wednesday", "thursday", "friday",
+                 "saturday", "sunday", "january", "february", "march", "april",
+                 "may", "june", "july", "august", "september", "october",
+                 "november", "december"}
+    found = []
+
+    def keep(kind, value):
+        if value not in [v for _, v in found]:
+            found.append((kind, value))
+
+    for path in paths:
+        try:
+            st = os.lstat(path)
+            if not stat.S_ISREG(st.st_mode) or st.st_size > 8000000:
+                continue
+            text = pathlib.Path(path).read_text(errors="replace")
+        except OSError:
+            continue
+        try:
+            rows = list(csv.reader(text.splitlines()))
+        except csv.Error:
+            continue
+        for n, row in enumerate(rows):
+            if n == 0 and len(row) > 1:
+                continue
+            for cell in row:
+                v = cell.strip()
+                if len(v) < 2:
+                    continue
+                if re.fullmatch(r"[0-9]+", v):
+                    if len(v) >= 5:
+                        keep("number", v)
+                    continue
+                if "@" in v and "." in v and len(v) >= 4 and re.fullmatch(r"[A-Za-z0-9_.%+-]+@[A-Za-z0-9.-]+", v):
+                    keep("email", v)
+                    continue
+                if " " in v:
+                    if len(v) >= 8:
+                        keep("name", v)
+                    continue
+                if re.fullmatch(r"[A-Za-z0-9_.-]*[0-9][A-Za-z0-9_.-]*", v) and len(v) >= 3:
+                    keep("id", v)
+                    continue
+                if re.fullmatch(r"[A-Z][a-z]+", v) and len(v) >= 4 and v.lower() not in day_month:
+                    keep("name", v)
+    return found
+
+
+def woc_comment_value_hits(comment, values):
+    """(line number, kind, value) for each comment line holding a distinctive
+    value. Multi-word values and emails match case-insensitively; single
+    tokens match case-sensitively on word boundaries."""
+    hits = []
+    for n, line in enumerate(comment.splitlines(), 1):
+        s = line.strip()
+        if not s or HEAD_RX.match(s) or s.startswith("Internal: "):
+            continue
+        for kind, value in values:
+            if " " in value or "@" in value:
+                matched = value.lower() in s.lower()
+            else:
+                matched = re.search(r"\b" + re.escape(value) + r"\b", s) is not None
+            if matched:
+                hits.append((n, kind, value))
+                break
+    return hits
+
+
+def woc_comment_corpus(D):
+    """Data files to scan comments against: the locked original plus the run
+    work copies (records excluded)."""
+    st = woc_lock_state(D)
+    files = []
+    if st is not None:
+        opath = st[2]
+        if opath:
+            files.append(pathlib.Path(opath))
+    w = pathlib.Path(D) / "work"
+    if w.is_dir():
+        for p in sorted(w.iterdir()):
+            if p.suffix == ".sf-orig":
+                continue
+            files.append(p)
+    return files
+
+
+def cmd_wo_scan_comment(a):
+    """SCAN-COMMENT: flag any distinctive cell value from the original or the
+    working copies that appears in a comment body. Prints SCAN-VALUE lines
+    (rc 1) or SCAN-VALUES-CLEAN."""
+    D = pathlib.Path(a.run)
+    try:
+        comment = pathlib.Path(a.comment).read_text(errors="replace")
+    except OSError:
+        print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
+        return 1
+    values = woc_distinctive_values(woc_comment_corpus(D))
+    hits = woc_comment_value_hits(comment, values)
+    if hits:
+        for n, kind, value in hits:
+            print(f"SCAN-VALUE {kind} (comment line {n})")
+        return 1
+    print("SCAN-VALUES-CLEAN")
+    return 0
+
+
+def woc_returns(D):
+    p = pathlib.Path(D) / "workorder" / "returns.json"
+    return json.loads(p.read_text()) if p.exists() else []
+
+
+def woc_save_return(D, **kv):
+    rs = woc_returns(D)
+    rs.append({"n": len(rs) + 1, **kv})
+    (pathlib.Path(D) / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
+    return len(rs)
+
+
+def woc_head(t):
+    """Header lines for kind criteria (wo_head only keeps the code kind's keys)."""
+    return {k: v for l in t.splitlines() for k, _, v in [l.partition(": ")] if k in WO_REQUIRED_CRITERIA}
+
+
+def woc_orig_record(t, D):
+    """(origsha, origpath) from the .sf-orig record matching SOURCE's basename, or None."""
+    src = (woc_head(t).get("SOURCE", "") or "").split()
+    if not src:
+        return None
+    cand = pathlib.Path(D) / "work" / (pathlib.Path(src[0]).name + ".sf-orig")
+    if not cand.is_file():
+        return None
+    try:
+        sha, sep, path = cand.read_text().strip().partition(" ")
+    except OSError:
+        return None
+    if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
+        return None
+    return sha, path
+
+
+def woc_ours(D):
+    """Our locked stub: (folder, headers, {name: sha}, origsha, origpath), or None after NO-LOCK/OURS-CHANGED."""
+    F = pathlib.Path(D) / "workorder" / "folder"
+    st = woc_lock_state(D)
+    if st is None:
+        print("RETURN-NO-LOCK (the run folder is gone: say so, use the ## Decision shas, ask for any password again)")
+        return None
+    files, origsha, origpath = st
+    if any(not (F / n[len("folder/"):]).exists() or sha_file(F / n[len("folder/"):]) != s
+           for n, s in files.items() if n.startswith("folder/")):
+        print("RETURN-OURS-CHANGED (our locked copies and their lock do not agree: stop)")
+        return None
+    return F, wo_head((F / "workorder.md").read_text()), files, origsha, origpath
+
+
+def woc_copy_folder(F, dest, t):
+    """Copy only the documented layout: key, workorder.md, work/, and the bundled checks (never VERIFY.txt or records)."""
+    for n in ["key", "workorder.md"] + [f"checks/{n}" for n in sorted(woc_block_files(t))]:
+        (dest / n).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(F / n, dest / n)
+    shutil.copytree(F / "work", dest / "work", symlinks=False, dirs_exist_ok=True)
+
+
+def woc_lock_modes(dest):
+    """Owner-only modes: 700 on every directory, 600 on every file (copytree keeps the stub's 755/644)."""
+    dest = pathlib.Path(dest)
+    for r, ds, fs in os.walk(dest):
+        for d in ds:
+            p = os.path.join(r, d)
+            try:
+                if stat.S_ISLNK(os.lstat(p).st_mode):
+                    continue
+                os.chmod(p, 0o700, follow_symlinks=False)
+            except OSError:
+                pass
+        for f in fs:
+            p = os.path.join(r, f)
+            try:
+                if stat.S_ISLNK(os.lstat(p).st_mode):
+                    continue
+                os.chmod(p, 0o600, follow_symlinks=False)
+            except OSError:
+                pass
+    try:
+        if stat.S_ISLNK(os.lstat(dest).st_mode):
+            return
+        os.chmod(dest, 0o700, follow_symlinks=False)
+    except OSError:
+        pass
+
+
+def woc_symlink_hit(dest):
+    """A link on ~/superfix-workorders, the destination, or any parent between: the path or None.
+    Only the tree at and below the base is walked: parents above it (macOS /private/tmp) are not ours."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    if os.path.islink(base):
+        return str(base)
+    d = pathlib.Path(dest)
+    try:
+        d.relative_to(base)
+    except ValueError:
+        return None
+    p = d
+    while p != base:
+        if os.path.islink(p):
+            return str(p)
+        p = p.parent
+    return None
+
+
+def woc_lock(a):
+    """Lock a criteria folder: WORKORDER and BASELINE again, default path only, then copy the folder."""
+    D, F = pathlib.Path(a.run), real(a.folder)
+    t = (F / "workorder.md").read_text()
+    h = wo_head(t)
+    if woc_check(argparse.Namespace(wo=str(F / "workorder.md"), run=a.run, body=getattr(a, "body", None),
+                                    issue=getattr(a, "issue", None)), t) \
+            or woc_baseline(argparse.Namespace(folder=str(F), body=getattr(a, "body", None),
+                                               issue=getattr(a, "issue", None))):
+        print("WORKORDER-LOCK-REFUSED (WORKORDER and BASELINE must both be OK)")
+        return 1
+    want = real(pathlib.Path.home() / "superfix-workorders" / h["WORK-ORDER"])
+    if real(a.dest) != want:
+        print(f"WORKORDER-PATH {a.dest} (criteria work orders go only to the default path)")
+        return 1
+    if in_cloud(real(a.dest)):
+        print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
+        return 1
+    hit = woc_symlink_hit(a.dest)
+    if hit is not None:
+        print(f"WORKORDER-SYMLINK {hit} (a link in the work-order path: use a plain local folder)")
+        return 1
+    dest = wo_dest(a.dest)
+    if dest is None:
+        return 1
+    W = D / "workorder"
+    rec = woc_orig_record(t, D)
+    if rec is None:
+        print("WORKORDER-LOCK-REFUSED (no .sf-orig record for the SOURCE file: copy the original with crit.py copy under its own name)")
+        return 1
+    origsha, origpath = rec
+    names = ["workorder.md"] + [f"checks/{n}" for n in sorted(woc_block_files(t))]
+    (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names)
+                            + f"origsha {origsha}\norigpath {origpath}\n"
+                            + f"critsha {woc_body_critsha(a)}\n")
+    woc_copy_folder(F, dest, t)
+    woc_lock_modes(dest)
+    notes = W / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy2(dest / "key", notes / "key")
+    except OSError:
+        pass
+    ws = sha_file(F / "workorder.md")
+    if sha_file(dest / "workorder.md") != ws:
+        print("WORKORDER-COPY-FAILED")
+        return 1
+    print(f"Internal: workorder-sha {ws} (sha256)")
+    print(f"Internal: checks-sha {h['CHECKS-SHA'].split()[0]} (sha256)")
+    print(f"Give this line to the executor separately: WORKORDER-SHA {ws} (sha256)")
+    print(f"WORKORDER-LOCKED {dest / 'workorder.md'}")
+    return 0
+
+
+def woc_symlinks(RF):
+    return sorted(os.path.relpath(os.path.join(r, n), RF) for r, ds, fs in os.walk(RF) for n in ds + fs
+                  if stat.S_ISLNK((s := os.lstat(os.path.join(r, n))).st_mode) or (stat.S_ISREG(s.st_mode) and s.st_nlink > 1))
+
+
+def woc_body_critsha(a):
+    """The newest criteria lock sha in the lock-time body, or "" (then no
+    drafts return passes until a body with a lock line is locked)."""
+    text = woc_body(a)
+    if text is None:
+        return ""
+    locks = [(m.group(2), n, m.group(1)) for n, l in enumerate(text.splitlines()) if (m := LOCK.match(l.strip()))]
+    return max(locks)[2] if locks else ""
+
+
+def woc_return(a):
+    """RETURN for kind criteria: our lock, the original, only FILES, then the copy for Superfix's own tools."""
+    D, RF = pathlib.Path(a.run), real(a.folder)
+    o = woc_ours(D)
+    if o is None:
+        return 1
+    F, _h, files, origsha, origpath = o
+    ours = (F / "workorder.md").read_text()
+    links = woc_symlinks(RF)
+    if links:
+        print("RETURN-SYMLINK " + " ".join(links) + " (a link in the returned folder: nothing read or committed; ask for a plain copy)")
+        return 1
+    cp = woc_copy_file(ours, F)
+    if cp is None:
+        print("WORKORDER-NO-COPY (FILES must name exactly one work/<file>, plus optional work/drafts/)")
+        return 1
+    base = cp.name
+    if origpath is None or not pathlib.Path(origpath).is_file() or sha_file(origpath) != origsha:
+        print("RETURN-ORIGINAL-MOVED (the recorded original is gone or changed: a fresh baseline through amend)")
+        return 1
+    got = RF / "work" / base
+    if not got.is_file():
+        print("RETURN-NO-COPY (work/<file> is missing from the returned folder)")
+        return 1
+    text = woc_body(a)
+    if text is None or not woc_drafts_ok(ours):
+        drafts = False
+    else:
+        # the drafts gate reads the body's criteria from the run's real criteria
+        # folder (the same reference verify and sendback use): only the locked
+        # body of THIS run counts, so a swapped --body cannot smuggle an owner
+        # criterion in and another job's body and folder cannot open the gate
+        at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+        if not at or not sc:
+            print("RETURN-NEEDS-CRITERIA (wo-return needs --attempts and --scripts for the run's real criteria folder)")
+            return 1
+        if not pathlib.Path(at).is_file() or real(pathlib.Path(at)).parent != real(pathlib.Path(sc)):
+            print("RETURN-NEEDS-CRITERIA (the attempts file is missing or not inside the scripts folder: pass the run's real criteria folder)")
+            return 1
+        if real(pathlib.Path(at)) != real(pathlib.Path(sc)) / "attempts":
+            print("RETURN-NEEDS-CRITERIA (the attempts file must be that job's own attempts file: pass the run's real criteria folder)")
+            return 1
+        try:
+            st, lk = lock_state(text, sc)
+        except Stop as e:
+            print(str(e))
+            return 1
+        if st != "ok":
+            print("RETURN-NEEDS-CRITERIA (that criteria folder holds no lock for this body: pass the run's real criteria folder)")
+            return 1
+        data = lk.get("data", []) if isinstance(lk, dict) else []
+        tied = bool(data) and ((origpath is not None and str(real(pathlib.Path(origpath))) in {str(real(pathlib.Path(d))) for d in data})
+                               or all(str(real(pathlib.Path(d))).startswith(str(real(D)) + os.sep) for d in data))
+        if not tied:
+            print("RETURN-FOREIGN-JOB (the body and criteria folder belong to another run: pass this run's own)")
+            return 1
+        try:
+            at_lines = pathlib.Path(at).read_text().splitlines()
+        except OSError:
+            at_lines = []
+        if not any(l.startswith("locked ") and len(l.split()) > 3 and l.split()[3] == lk.get("sha") for l in at_lines):
+            print("RETURN-NEEDS-CRITERIA (the attempts file is not chained to that lock: pass the job's own attempts file)")
+            return 1
+        try:
+            want_crit = [l[len("critsha "):] for l in (D / "workorder" / "lock").read_text().splitlines() if l.startswith("critsha ")]
+        except OSError:
+            want_crit = []
+        if not want_crit or not want_crit[-1] or lk.get("sha") != want_crit[-1]:
+            print("RETURN-NEEDS-CRITERIA (that criteria folder is not the run's locked one: pass the run's real criteria folder)")
+            return 1
+        drafts = woc_proc_job(text)
+
+    def allowed(rel):
+        if rel in ("workorder.md", "report.md", "sendback.md", "key", f"work/{base}"):
+            return True
+        if re.fullmatch(r"RETURNED-\d+\.md", rel):
+            return True
+        return rel.startswith("work/drafts/") and drafts
+
+    def _raise(e):
+        raise e
+
+    try:
+        walked = []
+        for dirpath, _dn, filenames in os.walk(RF, followlinks=False, onerror=_raise):
+            walked.extend(pathlib.Path(dirpath) / f for f in filenames)
+    except OSError as e:
+        print(f"RETURN-UNREADABLE {getattr(e, 'filename', RF)} (a folder Superfix cannot read: fix permissions and send again)")
+        return 1
+    over = sorted(str(p.relative_to(RF)) for p in walked
+                  if not allowed(str(p.relative_to(RF))) and not str(p.relative_to(RF)).startswith("checks/"))
+    checks = []
+    for n, sh in sorted(files.items()):
+        if not n.startswith("folder/checks/"):
+            continue
+        q = RF / n[len("folder/"):]
+        if not q.is_file() or sha_file(q) != sh:
+            checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+            break
+    for q in sorted(p for p in walked if str(p.relative_to(RF)).startswith("checks/") and p.is_file()):
+        rel = "folder/" + str(q.relative_to(RF))
+        try:
+            qreg = stat.S_ISREG(os.lstat(q).st_mode)
+        except OSError:
+            qreg = False
+        if not qreg or rel not in files or sha_file(q) != files[rel]:
+            checks.append("CHECKS-CHANGED (a bundled file differs: Superfix measures only with its own copies)")
+            break
+    if over:
+        print("RETURN-FILES-OVER " + " ".join(sorted(set(over))))
+        for _c in sorted(set(checks)):
+            print(f"RETURN-FILES-OVER {_c}")
+        return 1
+    for rel in sorted(str(p.relative_to(RF)) for p in walked if p.is_file() and len(p.relative_to(RF).parts) == 1 and str(p.relative_to(RF)).startswith("RETURNED-")):
+        m = re.fullmatch(r"RETURNED-(\d+)\.md", rel)
+        if not m:
+            continue
+        want = D / "workorder" / "notes" / rel
+        try:
+            qreg = stat.S_ISREG(os.lstat(RF / rel).st_mode)
+            same = qreg and want.is_file() and (RF / rel).read_bytes() == want.read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            print(f"RETURN-FOREIGN-NOTE {rel} (not the note Superfix wrote for round {m.group(1)}: send the folder back unchanged)")
+            return 1
+    rs = woc_returns(D)
+    for rel, want in (("sendback.md", D / "workorder" / "notes" / f"sendback-{len(rs) + 1}.md"),
+                      ("key", D / "workorder" / "notes" / "key")):
+        q = RF / rel
+        if not q.is_file():
+            continue
+        try:
+            qreg = stat.S_ISREG(os.lstat(q).st_mode)
+            same = qreg and want.is_file() and q.read_bytes() == want.read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            print(f"RETURN-FOREIGN-NOTE {rel} (not what Superfix wrote: send the folder back unchanged)")
+            return 1
+    if len(rs) + 1 > WO_LIMIT:
+        print(f"RETURN-CAP {len(rs) + 1} of {WO_LIMIT} attempts used (over the limit: stop)")
+        return 1
+    dst = D / "work" / f"wo{len(rs) + 1}-{base}"
+    shutil.copy2(got, dst)
+    woc_safe_chmod(dst, 0o600)
+    n = woc_save_return(D, copy=str(dst), sha=sha_file(dst), tainted=bool(checks))
+    for _c in sorted(set(checks)):
+        print(f"RETURN-FILES-OVER {_c}")
+    print(f"RETURN-CRITERIA-COPIED wo{n} {sha_file(dst)} attempts {n}")
+    print(f"next: lockcheck, attempt --label wo{n} and progress with your own locked crit.py, then the section 15 three runs")
+    return 0
+
+
+def woc_verify(a):
+    """VERIFY for kind criteria: verdicts from Superfix's own recorded attempt, then the findings line numbers."""
+    D = pathlib.Path(a.run)
+    rs = woc_returns(D)
+    r = next((r for r in rs if f"wo{r['n']}" == a.head), None)
+    if r is None:
+        print(f"VERIFY-NO-RETURN {a.head} (no recorded return or attempt under that label)")
+        return 1
+    text = woc_body(a)
+    at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+    if not at or not sc or text is None:
+        print(f"VERIFY-NO-ATTEMPT {a.head} (Superfix's own attempt must be recorded first: lockcheck, attempt --label {a.head}, progress)")
+        return 1
+    try:
+        _, lk = lock_state(text, sc)
+    except Stop as e:
+        print(str(e))
+        return 1
+    rows = epoch_rows(at)
+    row = next((x for x in rows if x["from"] == a.head), None)
+    flat = False
+    if row is None:
+        # ATTEMPT-SAME records nothing: carry the newest values forward so the
+        # flat return still counts (same values feed verdicts and progress).
+        if not rows:
+            print(f"VERIFY-NO-ATTEMPT {a.head} (no recorded attempt under that label: lockcheck, attempt --label {a.head}, progress)")
+            return 1
+        row = rows[-1]
+        flat = True
+    bad = check_rows(sc, rows, lk)
+    if bad:
+        print("\n".join(bad))
+        return 1
+    try:
+        csha = sha_file(r["copy"])
+    except OSError:
+        csha = None
+    if csha != row["sha"]:
+        print(f"VERIFY-SHA-MISMATCH {a.head} (the recorded attempt measured a different file: re-run attempt --label {a.head} on the returned copy)")
+        return 1
+    cs = {c["id"]: c for c in criteria(text) if c.get("name") and c.get("kind") == "check"}
+    base = rows[0]["raw"] if rows else {}
+    ids = [i for i in row["v"] if i in cs]
+    if not ids:
+        print(f"VERIFY-NO-RETURN {a.head} (the recorded attempt holds no check verdict)")
+        return 1
+    out, failing = [], []
+    if flat:
+        out.append(f"FLAT {a.head} (carried values from attempt {row['n']})")
+    for i in sorted(ids):
+        tg = target(cs[i]["pass"], base.get(i), cs[i]["ck"])
+        w = "PASS" if tg is not None and distance(tg, row["v"][i]) == 0 else "FAIL"
+        out.append(f"{i} {w} {fmt(row['v'][i])}")
+        if w != "PASS":
+            failing.append(i)
+    copy = pathlib.Path(r["copy"])
+    ours = (D / "workorder" / "folder" / "workorder.md").read_text()
+    sv = sorted({k[1] for k in woc_tick(ours) if k[0].lower().startswith("superfix verifies")})
+    if a.findings:
+        try:
+            nrec = len(records(copy))
+        except OSError:
+            nrec = 0
+        flines = pathlib.Path(a.findings).read_text().splitlines()
+        for name in sv:
+            parsed = []
+            named = []
+            for l in flines:
+                sp = woc_split_finding(l)
+                if sp is not None and sp[0] == name:
+                    parsed.append((l,) + sp[1:])
+                elif l.startswith(name + ":"):
+                    named.append(l)
+            if len(parsed) != 1:
+                # a whole-word "met" anywhere else, or any negation, refuses the finding
+                if any(re.search(r"\b(unmet|isn'?t|not|no|never|fail(?:ed)?|n't)\b", l, re.IGNORECASE) for l in named):
+                    out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
+                else:
+                    out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
+                failing.append("findings")
+                continue
+            _line, verdict, rest = parsed[0]
+            if verdict == "not met" or re.search(r"\b(unmet|isn'?t|not|no|never|fail(?:ed)?|n't)\b", rest, re.IGNORECASE):
+                out.append(f"FINDING-NOT-MET {name} (sent back while attempts remain)")
+                failing.append("findings")
+                continue
+            g = re.search(r"\(\s*lines?\b([^)]*)\)", rest, re.IGNORECASE)
+            nums = [int(x) for x in re.findall(r"\d+", g.group(1))] if g else []
+            if not nums or any(x < 1 or x > nrec for x in nums):
+                out.append(f"FINDING-LINE-MISSING {nums} (the copy has {nrec} records or lines)")
+                failing.append("findings")
+        for l in flines:
+            sp = woc_split_finding(l)
+            if sp is not None and sp[0] not in sv:
+                out.append(f"FINDING-UNKNOWN-TICK {sp[0]} (no such [Superfix verifies] line)")
+                failing.append("findings")
+    elif sv:
+        for name in sv:
+            out.append(f"FINDING-MISSING {name} (needs exactly one finding)")
+        failing.append("findings")
+    taint_line = "CHECKS-CHANGED (a bundled file differed at return: Superfix measures only with its own copies; this return can never pass)"
+    if r.get("tainted"):
+        out.append(taint_line)
+        failing.append("tainted")
+    r["failing"] = len(failing)
+    r["values"] = {i: row["v"][i] for i in sorted(ids)}
+    r["lock"] = row["lock"]
+    r["flat"] = flat
+    r["lines"] = [l for l in out if " FAIL" in l or l.startswith(("FINDING-", "VERIFY-"))]
+    if r.get("tainted"):
+        r["lines"] = [taint_line] + r["lines"]
+    (D / "workorder" / "returns.json").write_text(json.dumps(rs, indent=1) + "\n")
+    if not failing:
+        _, ok = woc_cleanup_full(D)
+        if ok:
+            print("\n".join(out + ["VERIFY-PASS (then the section 15 three runs)"]))
+            return 0
+        print("\n".join(out + ["VERIFY-FAIL (cleanup left data: delete the listed paths, then re-verify)"]))
+        return 1
+    print("\n".join(out + ["VERIFY-FAIL"]))
+    return 1
+
+
+def woc_round_cands(work_id):
+    """Candidate round folders: the round-1 folder plus name matches, with the
+    id validated and escaped. Returns (base, cands); cands is None when the id
+    is outside the safe charset (list the base, skip the scan)."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    if not re.fullmatch(r"[A-Za-z0-9+_.-]+", work_id or ""):
+        return base, None
+    safe = "".join(f"[{c}]" if c in "*?[" else c for c in work_id)
+    return base, [base / work_id] + sorted(base.glob(safe + "-r[0-9]*"))
+
+
+def woc_cleanup_rounds(work_id, bundled=None):
+    """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
+    Every candidate goes through lstat plus realpath checks: links, non-dirs and
+    outside paths are listed, never touched. A linked base or an id outside the
+    safe charset lists the base and skips the scan. Returns [paths still present]."""
+    base, cands = woc_round_cands(work_id)
+    if cands is None:
+        return [str(base)]
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return [str(base)]
+    except OSError:
+        pass
+    left = []
+    for d in cands:
+        left.extend(woc_clean_round(d, base, bundled))
+    return left
+
+
+def woc_guard(p, base):
+    """True when p may be touched: lstat shows base and p are both not links,
+    and realpath puts p inside base. Doubt means False: list, never touch."""
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return False
+        if stat.S_ISLNK(os.lstat(p).st_mode):
+            return False
+        r, rb = str(real(p)), str(real(base))
+    except OSError:
+        return False
+    return r == rb or r.startswith(rb + os.sep)
+
+
+def woc_safe_chmod(p, mode):
+    """chmod without following links; regular files only when st_nlink is 1.
+    Returns False when refused (a link, or a shared inode): list it. True
+    otherwise (chmodded, or the chmod itself failed benignly)."""
+    try:
+        st = os.lstat(p)
+    except OSError:
+        return False
+    if stat.S_ISLNK(st.st_mode):
+        return False
+    if stat.S_ISREG(st.st_mode) and st.st_nlink != 1:
+        return False
+    try:
+        os.chmod(p, mode, follow_symlinks=False)
+    except OSError:
+        pass
+    return True
+
+
+def woc_clean_work_path(w, base):
+    """Delete one work/ path under a created folder: refused (listed) unless the
+    guard passes. A dir is chmod-first then removed and lstat-verified.
+    Returns "" when gone, else the path as left."""
+    w = pathlib.Path(w)
+    try:
+        os.lstat(w)
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return str(w)
+    if not woc_guard(w, base):
+        return str(w)
+    if not stat.S_ISDIR(os.lstat(w).st_mode):
+        return str(w)
+    woc_safe_chmod(w, 0o700)
+    shutil.rmtree(w, ignore_errors=True)
+    try:
+        os.lstat(w)
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return str(w)
+    return str(w)
+
+
+def woc_round_ok(d, base):
+    """True when d passes the lstat plus realpath gates: a real directory inside base."""
+    d = pathlib.Path(d)
+    try:
+        st = os.lstat(d)
+    except OSError:
+        return False
+    if not stat.S_ISDIR(st.st_mode):
+        return False
+    try:
+        return os.path.dirname(str(real(d))) == str(real(base))
+    except OSError:
+        return False
+
+
+def woc_verified_round_dirs(work_id):
+    """Round-folder candidates passing the gates; missing paths skipped
+    (woc_clean_round lists the ones that fail)."""
+    base, cands = woc_round_cands(work_id)
+    if cands is None:
+        return []
+    try:
+        if stat.S_ISLNK(os.lstat(base).st_mode):
+            return []
+    except OSError:
+        pass
+    return [d for d in cands if woc_round_ok(d, base)]
+
+
+def woc_clean_round(d, base, bundled=None):
+    """Delete d/work when d passes the gates: missing is clean, anything failing
+    the lstat plus realpath checks is listed, never touched. Round checks/ files
+    outside the bundled set are deleted too (failures listed). Returns [left]."""
+    d = pathlib.Path(d)
+    try:
+        os.lstat(d)
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return [str(d)]
+    if not woc_round_ok(d, base):
+        return [str(d)]
+    got = woc_clean_work_path(d / "work", d)
+    left = [got] if got else []
+    if bundled is None:
+        return left
+    cdir = d / "checks"
+    try:
+        cst = os.lstat(cdir)
+    except FileNotFoundError:
+        return left
+    except OSError:
+        return left + [str(cdir)]
+    if not stat.S_ISDIR(cst.st_mode) or not woc_guard(cdir, d):
+        return left + [str(cdir)]
+    for q in sorted(cdir.iterdir()):
+        if not woc_guard(q, d):
+            left.append(str(q))
+            continue
+        try:
+            qst = os.lstat(q)
+        except OSError:
+            left.append(str(q))
+            continue
+        if not stat.S_ISREG(qst.st_mode):
+            left.append(str(q))
+            continue
+        try:
+            same = bundled.get(q.name) is not None and sha_file(q) == bundled[q.name]
+        except OSError:
+            left.append(str(q))
+            continue
+        if same:
+            continue
+        try:
+            q.unlink()
+        except OSError:
+            left.append(str(q))
+    return left
+
+
+def woc_cleanup_full(D, keep=True):
+    """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
+    data files. With keep (a pass) the verified copies stay until taken or stop;
+    without it (stop, later, finish) everything goes. A .sf-orig record whose data
+    file is gone goes with it once its named original hashes unchanged, so finish
+    finds no orphan record. Round folders that fail the lstat plus realpath checks
+    are listed, never touched. Records (lock, returns.json, attempts) stay for
+    audit. Prints CLEANUP-INCOMPLETE with leftover paths when anything remains.
+    Returns (work-order id, clean)."""
+    D = pathlib.Path(D)
+    try:
+        wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
+    except OSError:
+        wid = ""
+    st = woc_lock_state(D)
+    bundled = {}
+    if st is not None:
+        bundled = {n[len("folder/checks/"):]: s for n, s in st[0].items() if n.startswith("folder/checks/")}
+    left = woc_cleanup_rounds(wid, bundled) if wid else []
+    got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
+    if got:
+        left.append(got)
+    round_dirs = woc_verified_round_dirs(wid) if wid else []
+    stub_pats = ("RETURNED-*.md", "report.md")
+    round_pats = ("RETURNED-*.md", "report.md", "sendback.md", "key")
+    for d, pats in [(D / "workorder" / "folder", stub_pats)] + [(d, round_pats) for d in round_dirs]:
+        try:
+            dst = os.lstat(d)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            left.append(str(d))
+            continue
+        if not stat.S_ISDIR(dst.st_mode):
+            left.append(str(d))
+            continue
+        for pat in pats:
+            for p in sorted(d.glob(pat)):
+                if not woc_guard(p, d):
+                    left.append(str(p))
+                    continue
+                try:
+                    if p.is_symlink() or p.is_file():
+                        p.unlink()
+                except OSError:
+                    left.append(str(p))
+    if keep:
+        keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
+        keep = {str(real(pathlib.Path(k))) for k in keep if k}
+    else:
+        keep = set()
+    w = D / "work"
+    if w.is_dir():
+        if not woc_guard(w, D) or not woc_safe_chmod(w, 0o700):
+            left.append(str(w))
+        else:
+            for dirpath, dirnames, filenames in os.walk(w, followlinks=False, onerror=lambda e, _w=w: left.append(str(getattr(e, "filename", _w)))):
+                for dn in list(dirnames):
+                    full = pathlib.Path(dirpath) / dn
+                    if full.is_symlink():
+                        try:
+                            full.unlink()
+                        except OSError:
+                            left.append(str(full))
+                        else:
+                            dirnames.remove(dn)
+                        continue
+                    if not woc_guard(full, w) or not woc_safe_chmod(full, 0o700):
+                        left.append(str(full))
+                        dirnames.remove(dn)
+                for fn in sorted(filenames):
+                    p = pathlib.Path(dirpath) / fn
+                    if p.is_symlink():
+                        try:
+                            p.unlink()
+                        except OSError:
+                            left.append(str(p))
+                        continue
+                    if not woc_guard(p, w) or not woc_safe_chmod(p, 0o600):
+                        left.append(str(p))
+                        continue
+                    if p.suffix == ".sf-orig":
+                        continue
+                    if str(real(p)) not in keep:
+                        try:
+                            p.unlink()
+                        except OSError:
+                            left.append(str(p))
+            for p in sorted(w.rglob("*.sf-orig")):
+                data = p.parent / p.name[:-len(".sf-orig")]
+                if p.is_symlink():
+                    try:
+                        p.unlink()
+                    except OSError:
+                        left.append(str(p))
+                    continue
+                if data.is_file():
+                    continue
+                if data.exists():
+                    left.append(str(p))
+                    continue
+                try:
+                    prst = os.lstat(p)
+                except OSError:
+                    left.append(str(p))
+                    continue
+                if not stat.S_ISREG(prst.st_mode):
+                    left.append(str(p))
+                    continue
+                try:
+                    sha, sep, path = p.read_text().strip().partition(" ")
+                except OSError:
+                    left.append(str(p))
+                    continue
+                if not sep or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path:
+                    left.append(str(p))
+                    continue
+                op = pathlib.Path(path)
+                try:
+                    ost = os.lstat(op)
+                except OSError:
+                    ost = None
+                if ost is None:
+                    pass
+                elif not stat.S_ISREG(ost.st_mode) or placeholder(path):
+                    left.append(str(p))
+                    continue
+                else:
+                    try:
+                        same = sha_file(op) == sha
+                    except OSError:
+                        same = False
+                    if not same:
+                        left.append(str(p))
+                        continue
+                try:
+                    p.unlink()
+                except OSError:
+                    left.append(str(p))
+    left = sorted(set(left))
+    if left:
+        print(f"CLEANUP-INCOMPLETE {' '.join(left)} (personal data may remain: delete these by hand)")
+    return wid, not left
+
+
+def woc_finish_orig_ok(D, work):
+    """True when the recorded original is unchanged: hashed itself from the
+    lock's origsha line (a missing original counts as changed). Prints the
+    verdict and False otherwise. No lock to check against: True."""
+    try:
+        lines = (pathlib.Path(D) / "workorder" / "lock").read_text().splitlines()
+    except OSError:
+        return True
+    sha = path = None
+    for l in lines:
+        if l.startswith("origsha "):
+            sha = l[8:]
+        elif l.startswith("origpath "):
+            path = l[9:]
+    if not sha or not re.fullmatch(r"[0-9a-f]{64}", sha) or not path or placeholder(path):
+        return True
+    try:
+        ost = os.lstat(path)
+    except OSError:
+        ost = None
+    same = bool(ost is not None and stat.S_ISREG(ost.st_mode))
+    if same:
+        try:
+            same = sha_file(path) == sha
+        except OSError:
+            same = False
+    if same:
+        return True
+    print(f"ORIGINAL-CHANGED {path}")
+    print(f"WORK-KEPT {work} (the original changed: tell the owner, ask before deleting)")
+    return False
+
+
+def cmd_wo_finish(a):
+    """FINISH for kind criteria: the lock's origsha decides, with a clear message on permission failure."""
+    D = pathlib.Path(a.run)
+    work = real(D) / "work"
+    if work.is_dir() and not woc_guard(work, D):
+        print(f"WORK-SYMLINK {work} (a link where the run work folder should be: tell the owner, delete only after he answers)")
+        return 1
+    if not woc_finish_orig_ok(D, work):
+        return 1
+    woc_safe_chmod(work, 0o700)
+    try:
+        return cmd_finish(a)
+    except PermissionError:
+        print(f"WORK-PERMISSION-DENIED {work} (could not delete it: fix permissions by hand, then finish again)")
+        return 1
+
+
+def cmd_wo_cleanup(a):
+    """CLEANUP: the model runs this on a stop, a later, or finish (the pass, cap and
+    no-progress paths run the same cleanup themselves)."""
+    D = pathlib.Path(a.run)
+    if not woc_run_is_criteria(D):
+        print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/)")
+        return 1
+    wid, ok = woc_cleanup_full(D, keep=False)
+    if not wid:
+        print("CLEANUP-NO-WORKORDER (no stub workorder.md in the run folder)")
+        return 1
+    if not ok:
+        return 1
+    print(f"CLEANUP-OK {wid} (rounds, stub and run copies deleted; records kept)")
+    return 0
+
+
+def woc_cleanup_sendback_note(D):
+    """Cleanup inside a refused send-back: surface leftovers instead of silently continuing."""
+    _, ok = woc_cleanup_full(D)
+    if not ok:
+        print("CLEANUP-LEFT (personal data remains under the listed paths: delete them by hand)")
+
+
+def woc_sendback(a):
+    """Send a criteria folder back: the same locked stub, the copy as first placed in work/, Superfix's own FAIL lines."""
+    D = pathlib.Path(a.run)
+    o = woc_ours(D)
+    if o is None:
+        return 1
+    F, h, *_ = o
+    rs = woc_returns(D)
+    if not rs or "failing" not in rs[-1]:
+        print("SENDBACK-NOT-VERIFIED (run wo-return and wo-verify on the returned work first)")
+        return 1
+    last = rs[-1]
+    if last["failing"] == 0:
+        woc_cleanup_sendback_note(D)
+        print("SENDBACK-NOTHING (the last return passed every check)")
+        return 1
+    want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
+    if real(a.dest) != want:
+        print(f"WORKORDER-PATH {a.dest} (criteria send-backs go only to the default path)")
+        return 1
+    if in_cloud(real(a.dest)):
+        print(f"PATH-CLOUD {a.dest} (a synced folder: criteria work orders go only to a local default path)")
+        return 1
+    hit = woc_symlink_hit(a.dest)
+    if hit is not None:
+        print(f"WORKORDER-SYMLINK {hit} (a link in the work-order path: use a plain local folder)")
+        return 1
+    text = woc_body(a)
+    base = woc_base_name((F / "workorder.md").read_text()) or "the file"
+    if text is None:
+        print("WORKORDER-NO-YES (no body given: pass --body or --issue so the Data yes line can be checked)")
+        return 1
+    if not woc_data_yes(text, base):
+        print(f"WORKORDER-NO-YES (no Data yes line for {base} in ## Decision)")
+        return 1
+    at, sc = getattr(a, "attempts", None), getattr(a, "scripts", None)
+    if not at or not sc or woc_body(a) is None:
+        print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
+        return 1
+    ns = argparse.Namespace(attempts=at, scripts=sc, body=getattr(a, "body", None), issue=getattr(a, "issue", None))
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            cmd_progress(ns)
+    except Stop as e:
+        print(str(e))
+        return 1
+    out = buf.getvalue()
+    print(out, end="")
+    if "STOP-NO-PROGRESS" in out:
+        print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        woc_cleanup_sendback_note(D)
+        return 1
+    if "STOP-CAP" in out:
+        print("RETURN-CAP (no send-back left: offer 2 or 3)")
+        woc_cleanup_sendback_note(D)
+        return 1
+    if "PROGRESS-NONE" in out:
+        print("SENDBACK-NOT-VERIFIED (Superfix's own attempt and progress must be recorded first)")
+        return 1
+    hist = [(r.get("values"), r.get("lock")) for r in rs
+            if "failing" in r and isinstance(r.get("values"), dict)]
+
+    def _same(x, y):
+        return x[1] == y[1] and x[0] is not None and x[0] == y[0]
+
+    flat_pairs = [_same(hist[k - 1], hist[k]) for k in range(1, len(hist))]
+    if len(flat_pairs) >= 2 and flat_pairs[-1] and flat_pairs[-2]:
+        print("NO-PROGRESS (two returns in a row did not move, from Superfix's own runs: offer 2 or 3)")
+        woc_cleanup_sendback_note(D)
+        return 1
+    dest = wo_dest(a.dest)
+    if dest is None:
+        return 1
+    woc_copy_folder(F, dest, (F / "workorder.md").read_text())
+    (dest / "sendback.md").write_text(f"# Sent back: round {len(rs) + 1}, {last['n']} of {WO_LIMIT} attempts used\n"
+                                      "Superfix's own runs at your last copy:\n```\n"
+                                      + "\n".join(last.get("lines", [])) + "\n```\n")
+    (dest / f"RETURNED-{len(rs) + 1}.md").write_text(f"# Returned for round {len(rs) + 1}: redo from this fresh copy\n"
+                                                     "work/ holds the copy as first placed (its sha is BASE in workorder.md).\n"
+                                                     "Your last copy measured:\n```\n"
+                                                     + "\n".join(last.get("lines", [])) + "\n```\n"
+                                                     "The tick list in ## Done when names the rows to check.\n")
+    notes = D / "workorder" / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dest / f"RETURNED-{len(rs) + 1}.md", notes / f"RETURNED-{len(rs) + 1}.md")
+    shutil.copy2(dest / "sendback.md", notes / f"sendback-{len(rs) + 1}.md")
+    woc_lock_modes(dest)
+    print(f"SENDBACK-READY {dest} (round {len(rs) + 1}; {last['n']} of {WO_LIMIT} attempts used)")
+    return 0
+
+
 def cmd_wo_check(a):
     """WORKORDER: is this work order complete, fresh, and its CHECKS the locked ones?"""
     t = pathlib.Path(a.wo).read_text()
+    if wo_head(t).get("CHECKS-KIND") == "criteria":
+        return woc_check(a, t)
     lines, bad = t.splitlines(), []
     for k in WO_REQUIRED:
         n = sum(1 for l in lines if l.startswith(k + ": "))
@@ -2032,6 +3403,11 @@ def drop_worktree(clone, wt):
 
 def cmd_wo_baseline(a):
     """BASELINE: solved-check run 1 at the base: the locked check.sh in the sandbox gives exactly BASELINE, every held-back check FAILs."""
+    if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
+        return woc_baseline(a)
+    rc = woc_need_clone(a, "wo-baseline")
+    if rc:
+        return rc
     D = pathlib.Path(a.run)
     h = wo_head((D / "workorder/workorder.md").read_text())
     ids = wo_ids(D)
@@ -2075,6 +3451,11 @@ def wo_dest(dest):
 
 def cmd_wo_lock(a):
     """WORKORDER and BASELINE again, then lock the run folder's copies (shasum format), copy workorder.md to the destination, print the sha lines."""
+    if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
+        return woc_lock(a)
+    rc = woc_need_clone(a, "wo-lock")
+    if rc:
+        return rc
     W = pathlib.Path(a.run) / "workorder"
     files = [f for f in ("workorder.md", "check.sh", "held.sh") if (W / f).exists()]
     if files != ["workorder.md", "check.sh", "held.sh"]:
@@ -2083,7 +3464,7 @@ def cmd_wo_lock(a):
     if in_cloud(a.dest) and not a.asked:
         print(f"PATH-CLOUD {a.dest} (a synced folder needs the owner's explicit yes, then add --asked)")
         return 1
-    if cmd_wo_check(argparse.Namespace(wo=str(W / "workorder.md"), check=str(W / "check.sh"), clone=a.clone)) \
+    if cmd_wo_check(argparse.Namespace(wo=str(W / "workorder.md"), check=str(W / "check.sh"), clone=a.clone, run=a.run)) \
             or cmd_wo_baseline(argparse.Namespace(run=a.run, clone=a.clone)):
         print("WORKORDER-LOCK-REFUSED (WORKORDER and BASELINE must both be OK)")
         return 1
@@ -2160,6 +3541,28 @@ def wo_attempts(a, D, B, H):
 
 def cmd_wo_return(a):
     """RETURN: the shared steps, then the code step: one resolved H, built on the last returned H, attempts counted."""
+    if getattr(a, "run", None) and woc_run_is_criteria(pathlib.Path(a.run)):
+        if getattr(a, "folder", None):
+            rf = pathlib.Path(real(a.folder)) / "workorder.md"
+            if rf.is_file():
+                try:
+                    kind = wo_head(rf.read_text()).get("CHECKS-KIND")
+                except (OSError, UnicodeDecodeError):
+                    kind = None
+            else:
+                kind = "criteria"
+            if kind != "criteria":
+                print("RETURN-OURS-CHANGED (the returned workorder.md is unreadable or its kind differs from our lock: stop)")
+                return 1
+        return woc_return(a)
+    if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
+        if getattr(a, "run", None) and not woc_run_is_criteria(pathlib.Path(a.run)):
+            print("RETURN-OURS-CHANGED (the returned folder says criteria but our run is not a criteria run: stop)")
+            return 1
+        return woc_return(a)
+    rc = woc_need_clone(a, "wo-return")
+    if rc:
+        return rc
     s = wo_shared(a)
     if s is None:
         return 1
@@ -2229,6 +3632,11 @@ def cmd_wo_verify(a):
     """Superfix's own runs at H: the locked check.sh, the held-back checks, the test names and the suite, in the sandbox.
     Records Superfix's failing count for H (the send-back and NO-PROGRESS read it)."""
     D = pathlib.Path(a.run)
+    if woc_run_is_criteria(D):
+        return woc_verify(a)
+    rc = woc_need_clone(a, "wo-verify")
+    if rc:
+        return rc
     h = wo_head((D / "workorder/workorder.md").read_text())
     ids = wo_ids(D)
     base = worktree(a.clone, h["BASE"])
@@ -2270,6 +3678,12 @@ def cmd_wo_solved(a):
     non-test changes reverted (outside the sandbox). Each must give exactly one CHECK FAIL per C, PASS per K, exit 0:
     a crash or a timeout is never 'failed as expected'."""
     D = pathlib.Path(a.run)
+    if woc_run_is_criteria(D):
+        print("WO-SOLVED-NOT-FOR-CRITERIA (a criteria return has no commit: run the section 15 three runs with your own 1.5.0 commands)")
+        return 1
+    rc = woc_need_clone(a, "wo-solved")
+    if rc:
+        return rc
     h = wo_head((D / "workorder/workorder.md").read_text())
     B, ids, bad = h["BASE"], wo_ids(D), []
     tests = ["--", "test", "tests", ":(glob)**/*.test.*"]
@@ -2301,6 +3715,11 @@ def cmd_wo_sendback(a):
     return.bundle (Step 0 carries on from it) and Superfix's own failure lines (held-back ones by id only). Refused at the
     cap, with no progress, or before Superfix's own runs."""
     D = pathlib.Path(a.run)
+    if woc_run_is_criteria(D):
+        return woc_sendback(a)
+    rc = woc_need_clone(a, "wo-sendback")
+    if rc:
+        return rc
     W, rs = D / "workorder", rounds(D)
     if not rs or "failing" not in rs[-1] or "attempts" not in rs[-1]:
         print("SENDBACK-NOT-VERIFIED (run wo-return and wo-verify on the returned work first)")
@@ -2340,6 +3759,12 @@ def cmd_wo_sendback(a):
 def cmd_wo_files(a):
     """The files row: after the shared steps, changed FILES that came back as plain files are committed as one attempt on
     the last returned H (BASE in round 1); anything else is named and ignored."""
+    if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
+        print("RETURN-NO-WORK (kind criteria carries work/<file> inside the folder; use wo-return)")
+        return 1
+    rc = woc_need_clone(a, "wo-files")
+    if rc:
+        return rc
     s = wo_shared(a)
     if s is None:
         return 1
@@ -2678,14 +4103,19 @@ def main():
     s = sp.add_parser("index"); s.add_argument("op", choices=["add", "remove"]); s.add_argument("--job", required=True)
     s.add_argument("--waits", default=""); s.set_defaults(f=cmd_index)
     s = p("remind", cmd_remind, "name", "where", "date"); s.add_argument("--dry-run", action="store_true")
-    s = p("wo-check", cmd_wo_check, "wo"); s.add_argument("--check"); s.add_argument("--clone")
-    p("wo-baseline", cmd_wo_baseline, "run", "clone")
-    s = p("wo-lock", cmd_wo_lock, "run", "dest", "clone"); s.add_argument("--asked", action="store_true")
-    s = p("wo-return", cmd_wo_return, "run", "folder", "clone", body=True); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true")
+    s = p("wo-check", cmd_wo_check, "wo", body=True); s.add_argument("--check"); s.add_argument("--clone"); s.add_argument("--run")
+    s = p("wo-baseline", cmd_wo_baseline, "run", body=True); s.add_argument("--clone"); s.add_argument("--folder")
+    s = p("wo-lock", cmd_wo_lock, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--folder"); s.add_argument("--asked", action="store_true")
+    s = p("wo-return", cmd_wo_return, "run", "folder", body=True); s.add_argument("--clone"); s.add_argument("--patch"); s.add_argument("--remote-branch", action="store_true"); s.add_argument("--attempts"); s.add_argument("--scripts")
     for name, f in (("wo-verify", cmd_wo_verify), ("wo-solved", cmd_wo_solved)):
-        s = p(name, f, "run", "clone", "head"); s.add_argument("--timeout", type=int, default=300)
-    p("wo-files", cmd_wo_files, "run", "folder", "clone", body=True)
-    p("wo-sendback", cmd_wo_sendback, "run", "clone", "dest")
+        s = p(name, f, "run", "head", body=True); s.add_argument("--clone"); s.add_argument("--timeout", type=int, default=300)
+        if name == "wo-verify":
+            s.add_argument("--findings"); s.add_argument("--attempts"); s.add_argument("--scripts")
+    s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
+    s = p("wo-cleanup", cmd_wo_cleanup, "run")
+    s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
+    s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
+    s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
     s.add_argument("--scripts")
