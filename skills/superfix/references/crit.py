@@ -2627,7 +2627,12 @@ def woc_cleanup_full(D, keep=True):
     file is gone goes with it once its named original hashes unchanged, so finish
     finds no orphan record. Round folders that fail the lstat plus realpath checks
     are listed, never touched. Records (lock, returns.json, attempts) stay for
-    audit. Prints CLEANUP-INCOMPLETE with leftover paths when anything remains.
+    audit. A .sf-orig record is not data: it holds one sha256 and one path, so it
+    is kept and named (CLEANUP-KEPT) when its named original moved, is on cloud or
+    online-only, or cannot be read. A file named .sf-orig that does not parse as a
+    hash and a path is not a record: it may hold anything, so it stays a leftover.
+    Prints CLEANUP-INCOMPLETE with leftover paths when anything remains, and
+    CLEANUP-KEPT with the records it kept.
     Returns (work-order id, clean)."""
     D = pathlib.Path(D)
     try:
@@ -2639,6 +2644,7 @@ def woc_cleanup_full(D, keep=True):
     if st is not None:
         bundled = {n[len("folder/checks/"):]: s for n, s in st[0].items() if n.startswith("folder/checks/")}
     left = woc_cleanup_rounds(wid, bundled) if wid else []
+    kept = []          # records that are not data: one hash and one path
     got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
     if got:
         left.append(got)
@@ -2745,23 +2751,27 @@ def woc_cleanup_full(D, keep=True):
                 if ost is None:
                     pass
                 elif not stat.S_ISREG(ost.st_mode) or placeholder(path):
-                    left.append(str(p))
+                    kept.append(str(p))
                     continue
                 else:
                     try:
                         same = sha_file(op) == sha
                     except OSError:
-                        same = False
+                        kept.append(f"{p} [the original could not be read]")
+                        continue
                     if not same:
-                        left.append(str(p))
+                        kept.append(str(p))
                         continue
                 try:
                     p.unlink()
                 except OSError:
                     left.append(str(p))
     left = sorted(set(left))
+    kept = sorted(set(kept))
     if left:
         print(f"CLEANUP-INCOMPLETE {' '.join(left)} (personal data may remain: delete these by hand)")
+    if kept:
+        print(f"CLEANUP-KEPT {' '.join(kept)} (a record holds a hash and a path, no data)")
     return wid, not left
 
 
