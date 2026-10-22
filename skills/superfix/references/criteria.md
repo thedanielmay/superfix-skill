@@ -2345,22 +2345,32 @@ def cmd_wo_scan_comment(a):
         print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
         return 1
     digest = hashlib.sha256(raw).hexdigest()
-    pathlib.Path(D, "scan-" + digest + ".txt").write_text(digest + "\n" + pathlib.Path(a.comment).name + "\n")
+    receipt = pathlib.Path(D, "scan-" + digest + ".txt")
+    if not D.is_dir():
+        print("SCAN-NO-RUN-FOLDER (the run folder does not exist)")
+        return 1
     comment = raw.decode("utf-8", errors="replace")
     values = woc_distinctive_values(woc_comment_corpus(D))
     hits = woc_comment_value_hits(comment, values)
     if hits:
         for n, kind, value in hits:
             print(f"SCAN-VALUE {kind} (comment line {n})")
+        try:
+            receipt.unlink()
+        except OSError:
+            pass
         return 1
+    receipt.write_text(digest + "\n" + pathlib.Path(a.comment).name + "\n")
     print("SCAN-VALUES-CLEAN")
     return 0
 
 
 def cmd_wo_post(a):
     """POST-GATE: allow posting a comment file only after wo-scan-comment
-    recorded a receipt for its exact bytes. Prints POST-OK (rc 0) or
-    POST-REFUSED (rc 1). Never posts, never calls gh, never uses the network."""
+    recorded a receipt for its exact bytes (a receipt exists only for a
+    clean scan: a scan that found a value leaves no receipt, so the post
+    is refused). Prints POST-OK (rc 0) or POST-REFUSED (rc 1). Never posts,
+    never calls gh, never uses the network."""
     try:
         raw = pathlib.Path(a.comment).read_bytes()
     except OSError:

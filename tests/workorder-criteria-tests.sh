@@ -778,8 +778,14 @@ t wo-post-refuses-without-scan 'POST-REFUSED.*wo-scan-comment.*--run' 1 python3 
 t wo-post-passes-after-scan 'POST-OK' 0 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$I_RD"'
 cp "$T/normal-comment.md" "$T/other-comment.md"; printf 'Extra line 99.\n' >> "$T/other-comment.md"
 t wo-post-refuses-other-file 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-post --comment "$T/other-comment.md" --run "$I_RD"'
-t wo-post-receipt-holds-no-text 'RECEIPT-CLEAN' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; S="$(shasum -a 256 "$T/leak-comment.md" | cut -d" " -f1)"; R="$I_RD/scan-$S.txt"; test -f "$R" && ! grep -q "Quixotic" "$R" && grep -q "$S" "$R" && grep -q "leak-comment.md" "$R" && echo RECEIPT-CLEAN'
+t wo-post-receipt-holds-no-text 'RECEIPT-CLEAN' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD" >/dev/null 2>&1; S="$(shasum -a 256 "$T/normal-comment.md" | cut -d" " -f1)"; R="$I_RD/scan-$S.txt"; test -f "$R" && ! grep -q "duplicates" "$R" && grep -q "$S" "$R" && grep -q "normal-comment.md" "$R" && echo RECEIPT-CLEAN'
 t wo-scan-comment-still-refuses 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD"
+# ---- FIX 93 ROUND 2: a receipt means a clean scan (no receipt on a hit) ----
+t wo-scan-hit-leaves-no-receipt 'NO-RECEIPT' sh -c 'rm -f "$I_RD"/scan-*.txt; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; S="$(shasum -a 256 "$T/leak-comment.md" | cut -d" " -f1)"; test ! -e "$I_RD/scan-$S.txt" && echo NO-RECEIPT'
+t wo-post-refused-after-hit-scan 'POST-REFUSED' 1 sh -c 'rm -f "$I_RD"/scan-*.txt; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/leak-comment.md" --run "$I_RD"'
+t wo-scan-hit-removes-stale-receipt 'NO-RECEIPT' sh -c 'S="$(shasum -a 256 "$T/leak-comment.md" | cut -d" " -f1)"; printf "%s\nleak-comment.md\n" "$S" > "$I_RD/scan-$S.txt"; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; test ! -e "$I_RD/scan-$S.txt" && echo NO-RECEIPT'
+t wo-scan-missing-run-folder-word 'SCAN-NO-RUN-FOLDER' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/no-such-run-xyz"
+t wo-scan-missing-run-folder-no-receipt 'NO-RECEIPT' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/no-such-run-xyz" >/dev/null 2>&1; test ! -e "$T/no-such-run-xyz" && echo NO-RECEIPT'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-roundchk-wo thedanielmay+superfix-testbed+roundchk-wo1 "$T/src/members-export.csv" work/members-export.csv R2)"
 [ -n "$R2_RD" ] || { echo "CANNOT RUN: round checks rig build failed"; exit 2; }
 export R2_RD R2_RF R2_RCRC R2_DEST R2_BODYDEC
