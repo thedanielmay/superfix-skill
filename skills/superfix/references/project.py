@@ -63,6 +63,7 @@ def rows_of(text):
 
 
 def refused_key(key):
+    key = key.lower()
     return any(word in key for word in REFUSED)
 
 
