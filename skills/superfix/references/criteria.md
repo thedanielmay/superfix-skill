@@ -2340,10 +2340,13 @@ def cmd_wo_scan_comment(a):
     (rc 1) or SCAN-VALUES-CLEAN."""
     D = pathlib.Path(a.run)
     try:
-        comment = pathlib.Path(a.comment).read_text(errors="replace")
+        raw = pathlib.Path(a.comment).read_bytes()
     except OSError:
         print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
         return 1
+    digest = hashlib.sha256(raw).hexdigest()
+    pathlib.Path(D, "scan-" + digest + ".txt").write_text(digest + "\n" + pathlib.Path(a.comment).name + "\n")
+    comment = raw.decode("utf-8", errors="replace")
     values = woc_distinctive_values(woc_comment_corpus(D))
     hits = woc_comment_value_hits(comment, values)
     if hits:
@@ -2352,6 +2355,23 @@ def cmd_wo_scan_comment(a):
         return 1
     print("SCAN-VALUES-CLEAN")
     return 0
+
+
+def cmd_wo_post(a):
+    """POST-GATE: allow posting a comment file only after wo-scan-comment
+    recorded a receipt for its exact bytes. Prints POST-OK (rc 0) or
+    POST-REFUSED (rc 1). Never posts, never calls gh, never uses the network."""
+    try:
+        raw = pathlib.Path(a.comment).read_bytes()
+    except OSError:
+        print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
+        return 1
+    digest = hashlib.sha256(raw).hexdigest()
+    if pathlib.Path(a.run, "scan-" + digest + ".txt").is_file():
+        print(f"POST-OK {digest}")
+        return 0
+    print(f"POST-REFUSED (no scan for this comment: run wo-scan-comment --comment {a.comment} --run \"{a.run}\" first)")
+    return 1
 
 
 def woc_returns(D):
@@ -4115,6 +4135,7 @@ def main():
     s = p("wo-cleanup", cmd_wo_cleanup, "run")
     s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
     s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
+    s = p("wo-post", cmd_wo_post, "run"); s.add_argument("--comment", required=True)
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
     s = p("sendcheck", cmd_sendcheck, "log", "repo"); s.add_argument("--gap-repo", action="append"); s.add_argument("--allow-dir", action="append")
