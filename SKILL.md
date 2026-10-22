@@ -71,6 +71,8 @@ means `superfix:awaiting-decision`, "Fixing" means `superfix:approved`, else nei
 Status change run journal.md's label commands; each prints one word, never silenced. Copy LABELS-NOW
 into the `Labels:` field. Failed or skipped: never stop; the field reads `not set (<word>); marker
 superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
+When the owner says the pull request is merged, set the Status to "Done" and run the label
+commands, so a closed issue keeps no label.
 
 ## Classification Rules
 ### Coverage check (before type and tier)
@@ -180,6 +182,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    No issue was given and the repo has a GitHub remote: the LAST numbered question is always
    the create-issue question (journal.md). Never leave it out or move it.
+   The request's "use gh to read it" is not a read-only instruction: posting this comment on the issue is required, not optional.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
    references/briefs.md, or start any Phase 2 or 3 step until a go arrives.
