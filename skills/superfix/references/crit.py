@@ -1861,9 +1861,11 @@ def woc_lock_state(D):
 
 
 def woc_distinctive_values(paths):
-    """Distinctive cell values from data files: (kind, value) pairs. Headers,
-    date-ish fields and short numbers are never distinctive: counts, amounts
-    and row numbers the checks report must stay allowed."""
+    """Distinctive cell values from data files: (kind, value) pairs. A first
+    row of more than one column (the header), a bare month or weekday name and
+    a number under five digits are never distinctive: counts, amounts and row
+    numbers the checks report must stay allowed. A date is kept (it reads as
+    an id)."""
     day_month = {"monday", "tuesday", "wednesday", "thursday", "friday",
                  "saturday", "sunday", "january", "february", "march", "april",
                  "may", "june", "july", "august", "september", "october",
@@ -1883,7 +1885,9 @@ def woc_distinctive_values(paths):
         except OSError:
             continue
         try:
-            rows = list(csv.reader(text.splitlines()))
+            lines = text.splitlines()
+            delim = "\t" if (lines and "\t" in lines[0] and "," not in lines[0]) else ","
+            rows = list(csv.reader(lines, delimiter=delim))
         except csv.Error:
             continue
         for n, row in enumerate(rows):
@@ -1912,10 +1916,19 @@ def woc_distinctive_values(paths):
     return found
 
 
+def woc_scan_marker():
+    """The end marker of a whole scan receipt: its last line, so a receipt cut
+    short is refused."""
+    return "SCAN-END"
+
+
 def woc_comment_value_hits(comment, values):
     """(line number, kind, value) for each comment line holding a distinctive
     value. Multi-word values and emails match case-insensitively; single
-    tokens match case-sensitively on word boundaries."""
+    tokens match case-sensitively on word boundaries. The run's own hash
+    records (the Internal: lines that carry a sha) are skipped: they hold the
+    run's records, not data. Every other line is scanned, the AI detail
+    included."""
     hits = []
     for n, line in enumerate(comment.splitlines(), 1):
         s = line.strip()
@@ -1932,28 +1945,115 @@ def woc_comment_value_hits(comment, values):
     return hits
 
 
-def woc_comment_corpus(D):
-    """Data files to scan comments against: the locked original plus the run
-    work copies (records excluded)."""
+def woc_comment_name_hits(name, values):
+    """(kind, value) for each distinctive value the comment's file name holds.
+    The name is compared with the non-alphanumerics folded to spaces, so a
+    slugified name (Quixotic-Zanzibar.md) still holds Quixotic Zanzibar."""
+    s = re.sub(r"[^0-9A-Za-z]+", " ", name).lower()
+    hits = []
+    for kind, value in values:
+        if kind == "name" and " " not in value:
+            continue    # an ordinary word (Active, Pending) is not a file name
+        v = re.sub(r"[^0-9A-Za-z]+", " ", value).lower()
+        if not v:
+            continue
+        if " " in value or "@" in value:
+            matched = v in s
+        else:
+            matched = re.search(r"\b" + re.escape(v) + r"\b", s) is not None
+        if matched:
+            hits.append((kind, value))
+    return hits
+
+
+def woc_comment_corpus(D, extra=None):
+    """(trusted, extra): the data files the scan must compare, and the ones it compares
+    when it can.
+
+    trusted: the files the caller names with --data, plus the locked original (the data
+    the run locked). A trusted file that cannot be read refuses the scan: the run must
+    name a data file it can read, or say that it holds none.
+    extra: the run work copies and the originals the run's own .sf-orig records name. They
+    widen the comparison when they can be read and are skipped when they cannot."""
     st = woc_lock_state(D)
-    files = []
-    if st is not None:
-        opath = st[2]
-        if opath:
-            files.append(pathlib.Path(opath))
+    trusted, others = [], []
+    if st is not None and st[2]:
+        trusted.append(pathlib.Path(st[2]))
     w = pathlib.Path(D) / "work"
     if w.is_dir():
-        for p in sorted(w.iterdir()):
-            if p.suffix == ".sf-orig":
+        for q in sorted(w.iterdir()):
+            if q.suffix == ".sf-orig":
+                try:
+                    m = re.fullmatch(r"([0-9a-f]{64}) (/[^\n]+)\n", q.read_text(errors="replace"))
+                except OSError:
+                    m = None
+                if m:
+                    others.append(pathlib.Path(m.group(2)))
                 continue
-            files.append(p)
-    return files
+            others.append(q)
+    for q in (extra or []):
+        trusted.append(pathlib.Path(q))
+    return trusted, others
+
+
+def woc_drop_receipt(receipt):
+    """Withdraw a receipt: a scan that refused leaves none behind, so an old
+    receipt for the same bytes cannot open the gate."""
+    try:
+        receipt.unlink()
+    except OSError:
+        pass
+
+
+def woc_readable_data(path):
+    """Whether the scan can compare this file: a regular file (a symlink is not
+    one, and the value reader skips anything else) under the size cap."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    if not stat.S_ISREG(st.st_mode) or st.st_size > 8000000:
+        return False
+    return True
+
+
+def woc_write_receipt(receipt, digest, name, basis):
+    """Write the scan receipt whole or not at all: a temporary file in the same
+    folder and a rename, so a receipt cut short by a crash never opens the
+    gate. The receipt holds the digest, the comment's name, what was compared
+    and an end marker."""
+    tmp = receipt.with_name(receipt.name + ".part")
+    tmp.write_text(f"{digest}\n{name}\n{basis}\n{woc_scan_marker()}\n")
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, receipt)
+
+
+def woc_drop_scan_receipts(D):
+    """Delete the scan receipts in the run folder: they are working files of the
+    comment gate, not records, and they pile up while the run goes on. Returns the
+    paths it could not delete, so the cleanup can name them."""
+    left = []
+    try:
+        for p in sorted(pathlib.Path(D).glob("scan-*.txt*")):
+            if p.is_symlink() or not p.is_file():
+                continue
+            try:
+                p.unlink()
+            except OSError:
+                left.append(str(p))
+    except OSError:
+        pass
+    return left
 
 
 def cmd_wo_scan_comment(a):
-    """SCAN-COMMENT: flag any distinctive cell value from the original or the
-    working copies that appears in a comment body. Prints SCAN-VALUE lines
-    (rc 1) or SCAN-VALUES-CLEAN."""
+    """SCAN-COMMENT: flag any distinctive cell value from the data files the run names
+    that appears in a comment body or in the comment's file name. Prints SCAN-VALUE lines
+    (rc 1) or SCAN-VALUES-CLEAN (rc 0). With no data file to compare (the run names none
+    and the run folder holds no locked original) it prints SCAN-NO-DATA, exits 1 and writes
+    no receipt, so the post is refused: a scan that compared nothing cannot open the gate.
+    With --no-data the caller declares that the run holds no data file: the receipt records
+    that basis and the scan prints SCAN-NO-DATA-DECLARED (rc 0)."""
     D = pathlib.Path(a.run)
     try:
         raw = pathlib.Path(a.comment).read_bytes()
@@ -1965,38 +2065,119 @@ def cmd_wo_scan_comment(a):
     if not D.is_dir():
         print("SCAN-NO-RUN-FOLDER (the run folder does not exist)")
         return 1
+    asked = getattr(a, "asked", False)
+    named = [pathlib.Path(q) for q in (getattr(a, "data", None) or [])]
+    for q in named:
+        if placeholder(q) and not asked:
+            woc_drop_receipt(receipt)
+            print(f"ASK-FIRST {q} (a cloud or online-only file: reading it can download it; ask the owner, then add --asked)")
+            return 1
+        if not woc_readable_data(q):
+            woc_drop_receipt(receipt)
+            print(f"SCAN-NO-FILE {q} (the data file cannot be read: pass the file the run read, or --no-data when the run holds none)")
+            return 1
     comment = raw.decode("utf-8", errors="replace")
-    values = woc_distinctive_values(woc_comment_corpus(D))
+    trusted, others = woc_comment_corpus(D, named)
+    usable = []
+    for q in trusted:
+        if q in named:
+            usable.append(q)
+            continue
+        if not q.exists():
+            continue    # the original moved away: it holds nothing to compare now
+        if placeholder(q) and not asked:
+            woc_drop_receipt(receipt)
+            print(f"ASK-FIRST {q} (a cloud or online-only file: reading it can download it; ask the owner, then add --asked)")
+            return 1
+        if not woc_readable_data(q):
+            woc_drop_receipt(receipt)
+            print(f"SCAN-NO-FILE {q} (the locked original cannot be read: pass the file the run read with --data)")
+            return 1
+        usable.append(q)
+    if not usable:
+        if getattr(a, "no_data", False):
+            woc_write_receipt(receipt, digest, pathlib.Path(a.comment).name,
+                              "no data declared (the run named no data file)")
+            print("SCAN-NO-DATA-DECLARED (this run names no data file: the comment was not compared)")
+            return 0
+        woc_drop_receipt(receipt)
+        print("SCAN-NO-DATA (there is no data file to compare: pass --data <the data file the run read>, "
+              "or --no-data when the run holds none)")
+        return 1
+    corpus = []
+    for q in usable + others:
+        if q in corpus:
+            continue
+        if not q.exists() or q.is_dir():
+            continue
+        if placeholder(q) and not asked:
+            continue    # a cloud extra is not downloaded behind the owner's back
+        if not woc_readable_data(q):
+            continue    # an extra that cannot be read is skipped, not a blocker
+        corpus.append(q)
+    values = woc_distinctive_values(corpus)
     hits = woc_comment_value_hits(comment, values)
-    if hits:
+    name_hits = woc_comment_name_hits(pathlib.Path(a.comment).name, values)
+    if hits or name_hits:
         for n, kind, value in hits:
             print(f"SCAN-VALUE {kind} (comment line {n})")
-        try:
-            receipt.unlink()
-        except OSError:
-            pass
+        for kind, value in name_hits:
+            print(f"SCAN-VALUE {kind} (the comment file name)")
+        woc_drop_receipt(receipt)
         return 1
-    receipt.write_text(digest + "\n" + pathlib.Path(a.comment).name + "\n")
-    print("SCAN-VALUES-CLEAN")
+    uniq = sorted(set(corpus), key=lambda z: str(z))
+    basis = "values from " + "; ".join(f"{q}:{sha_file(q)}" for q in uniq)
+    woc_write_receipt(receipt, digest, pathlib.Path(a.comment).name, basis)
+    print(f"SCAN-VALUES-CLEAN (compared {len(uniq)} file(s): {', '.join(q.name for q in uniq)})")
     return 0
 
 
 def cmd_wo_post(a):
     """POST-GATE: allow posting a comment file only after wo-scan-comment
-    recorded a receipt for its exact bytes (a receipt exists only for a
-    clean scan: a scan that found a value leaves no receipt, so the post
-    is refused). Prints POST-OK (rc 0) or POST-REFUSED (rc 1). Never posts,
-    never calls gh, never uses the network."""
+    recorded a whole receipt for its exact bytes (a receipt exists only for a
+    scan that compared something, or for a declared no-data run: a scan that
+    found a value, or had nothing to compare, leaves no receipt, so the post is
+    refused). Prints POST-OK (rc 0), POST-OK-DECLARED (rc 0, a run that names
+    no data file) or POST-REFUSED (rc 1). Never posts, never calls gh, never
+    uses the network."""
     try:
         raw = pathlib.Path(a.comment).read_bytes()
     except OSError:
         print("SCAN-COMMENT-NOFILE (the comment file cannot be read)")
         return 1
     digest = hashlib.sha256(raw).hexdigest()
-    if pathlib.Path(a.run, "scan-" + digest + ".txt").is_file():
+    receipt = pathlib.Path(a.run, "scan-" + digest + ".txt")
+    try:
+        lines = receipt.read_text().splitlines()
+    except OSError:
+        lines = []
+    if (len(lines) == 4 and lines[0] == digest
+            and lines[1] == pathlib.Path(a.comment).name and lines[3] == woc_scan_marker()):
+        if lines[2].startswith("no data declared"):
+            print(f"POST-OK-DECLARED {digest} (this run names no data file: the comment was not compared)")
+            return 0
+        if not lines[2].startswith("values from "):
+            print("POST-REFUSED (the scan receipt for this comment does not say what it compared: run wo-scan-comment again)")
+            return 1
+        for part in lines[2][len("values from "):].split("; "):
+            path, _, sha = part.rpartition(":")
+            if not path or not sha:
+                continue
+            found = pathlib.Path(path)
+            if not found.exists():
+                continue    # the file is gone: there is nothing left to compare
+            try:
+                if sha_file(found) != sha:
+                    print("POST-REFUSED (the data changed since the scan: run wo-scan-comment again)")
+                    return 1
+            except OSError:
+                continue
         print(f"POST-OK {digest}")
         return 0
-    print(f"POST-REFUSED (no scan for this comment: run wo-scan-comment --comment {a.comment} --run \"{a.run}\" first)")
+    if lines:
+        print("POST-REFUSED (the scan receipt for this comment is not whole: run wo-scan-comment again)")
+        return 1
+    print(f"POST-REFUSED (no scan receipt for this comment: run wo-scan-comment --comment {a.comment} --run \"{a.run}\" first)")
     return 1
 
 
@@ -2635,6 +2816,7 @@ def woc_cleanup_full(D, keep=True):
     CLEANUP-KEPT with the records it kept.
     Returns (work-order id, clean)."""
     D = pathlib.Path(D)
+    keep_receipts = keep     # the caller's flag, before keep becomes the set of copies
     try:
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
     except OSError:
@@ -2766,6 +2948,10 @@ def woc_cleanup_full(D, keep=True):
                     p.unlink()
                 except OSError:
                     left.append(str(p))
+    if not keep_receipts:
+        # the scan receipts are working files of the comment gate, not records: a stop
+        # deletes them, a pass keeps them (the final comment is scanned after it)
+        left.extend(woc_drop_scan_receipts(D))
     left = sorted(set(left))
     kept = sorted(set(kept))
     if left:
@@ -2830,7 +3016,12 @@ def cmd_wo_cleanup(a):
     no-progress paths run the same cleanup themselves)."""
     D = pathlib.Path(a.run)
     if not woc_run_is_criteria(D):
-        print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/)")
+        left = woc_drop_scan_receipts(D)
+        if left:
+            print("CLEANUP-INCOMPLETE " + " ".join(left) + " (personal data may remain: delete these by hand)")
+            return 1
+        print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/); "
+              "its scan receipts are deleted")
         return 1
     wid, ok = woc_cleanup_full(D, keep=False)
     if not wid:
@@ -3771,6 +3962,8 @@ def main():
     s = p("wo-cleanup", cmd_wo_cleanup, "run")
     s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
     s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
+    s.add_argument("--data", action="append"); s.add_argument("--no-data", action="store_true")
+    s.add_argument("--asked", action="store_true")
     s = p("wo-post", cmd_wo_post, "run"); s.add_argument("--comment", required=True)
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
