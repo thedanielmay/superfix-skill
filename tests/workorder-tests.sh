@@ -252,6 +252,8 @@ t skill-no-read-no-work-order 'No workorder.md read, no work order: run as norma
 t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-stop-gate-post-required 'posting this comment on the issue is required' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-stop-gate-post-required-root 'posting this comment on the issue is required' cat "$ROOT/SKILL.md"
+t skill-label-done-after-merge 'set the Status to "Done" and run the label' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-label-done-after-merge-root 'set the Status to "Done" and run the label' cat "$ROOT/SKILL.md"
 LC="$(awk '/the lines check: before posting/{f=1} f&&/^```bash$/{g=1;next} g&&/^```$/{exit} g' "$ROOT/skills/superfix/references/journal.md")"
 printf '%s\n' '> **In plain English:** x.' '' '1. a' '---' 'Pictures: NONE (no screen: cli)' 'Labels: none (no issue)' 'Diagram: NONE (Simple)' 'Gap note: NONE (supported)' > "$T/c-no-wo.md"
 cp "$T/c-no-wo.md" "$T/c-wo.md"; echo 'Work order: NONE (normal run)' >> "$T/c-wo.md"

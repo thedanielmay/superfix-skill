@@ -71,6 +71,8 @@ means `superfix:awaiting-decision`, "Fixing" means `superfix:approved`, else nei
 Status change run journal.md's label commands; each prints one word, never silenced. Copy LABELS-NOW
 into the `Labels:` field. Failed or skipped: never stop; the field reads `not set (<word>); marker
 superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
+When the owner says the pull request is merged, set the Status to "Done" and run the label
+commands, so a closed issue keeps no label.
 
 ## Classification Rules
 ### Coverage check (before type and tier)
