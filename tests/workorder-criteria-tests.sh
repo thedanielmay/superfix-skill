@@ -82,7 +82,7 @@ t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$R
 t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
 t wo-process-scope-wording 'PROCESS-SCOPE' sh -c 'grep -q "process held in a file" "$ROOT/skills/superfix/SKILL.md" && grep -q "process held in a file" "$ROOT/skills/superfix/references/workorder.md" && echo PROCESS-SCOPE'
 t wo-post-stop-wording 'POST-STOP' sh -c 'grep -q "every outcome, a stop included, is posted as in item 5" "$ROOT/skills/superfix/references/workorder.md" && echo POST-STOP'
-t wo-cleanup-docs 'DOCS-OK' sh -c 'grep -q "a stop deletes everything" "$ROOT/skills/superfix/references/criteria.md" && grep -q "a stop deletes everything" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-INCOMPLETE" "$ROOT/skills/superfix/references/workorder.md" && echo DOCS-OK'
+t wo-cleanup-docs 'DOCS-OK' sh -c 'grep -q "a stop deletes every data copy and keeps the records" "$ROOT/skills/superfix/references/criteria.md" && grep -q "a stop deletes every data copy and keeps the records" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-KEPT" "$ROOT/skills/superfix/references/criteria.md" && grep -q "CLEANUP-KEPT" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-INCOMPLETE" "$ROOT/skills/superfix/references/workorder.md" && echo DOCS-OK'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
@@ -304,6 +304,24 @@ mkdir -p "$N_RD/work/neg/sub"; cp "$T/src/members-export.csv" "$N_RD/work/neg/ne
 t wo-cleanup-ok 'CLEANUP-OK' python3 -I "$N_RD/crit.py" wo-cleanup --run "$N_RD"
 t wo-cleanup-cleans 'NO-DATA' python3 "$T/nodata.py" "$N_RD" "$N_DEST"
 
+# ---- FIX 94: a stop ends CLEANUP-OK and the .sf-orig record is a kept record, not a leftover ----
+mkdir -p "$T/src2"; cp "$T/src/members-export.csv" "$T/src2/members-export.csv"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-rec-wo thedanielmay+superfix-testbed+rec-wo1 "$T/src2/members-export.csv" work/members-export.csv R3)"
+[ -n "$R3_RD" ] || { echo "CANNOT RUN: record rig build failed"; exit 2; }
+export R3_RD R3_RF R3_RCRC R3_DEST R3_BODYDEC
+python3 -I "$R3_RD/crit.py" wo-lock --run "$R3_RD" --folder "$R3_RF" --dest "$R3_DEST" --body "$R3_BODYDEC" >/dev/null 2>&1
+# the original changes under the lock (the V6 shape): the record can no longer be verified
+python3 - "$T/src2/members-export.csv" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); lines = p.read_text().splitlines(True)
+f = lines[1].split(","); f[4] = "46"; lines[1] = ",".join(f)
+p.write_text("".join(lines))
+PYEOF
+t wo-cleanup-record-is-kept 'CLEANUP-OK' 0 python3 -I "$R3_RD/crit.py" wo-cleanup --run "$R3_RD"
+t wo-cleanup-record-stays-on-disk 'RECORD-KEPT' sh -c 'ls "$R3_RD/work" | grep -q "members-export.csv.sf-orig" && echo RECORD-KEPT'
+t wo-cleanup-record-named 'CLEANUP-KEPT.*members-export.csv.sf-orig' python3 -I "$R3_RD/crit.py" wo-cleanup --run "$R3_RD"
+t wo-cleanup-record-no-data 'NO-DATA' python3 "$T/nodata.py" "$R3_RD" "$R3_DEST"
+
 # ---- CLEANUP-HARDENING (links never followed, permissions fail loud, records hashed) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-sym-wo thedanielmay+superfix-testbed+sym-wo1 "$T/src/members-export.csv" work/members-export.csv Y)"
 [ -n "$Y_RD" ] || { echo "CANNOT RUN: symlink rig build failed"; exit 2; }
@@ -325,7 +343,7 @@ eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph-wo thedanielmay+sup
 [ -n "$O_RD" ] || { echo "CANNOT RUN: orphan rig build failed"; exit 2; }
 export O_RD O_RF O_RCRC O_DEST O_BODYDEC
 python3 -I "$O_RD/crit.py" wo-lock --run "$O_RD" --folder "$O_RF" --dest "$O_DEST" --body "$O_BODYDEC" >/dev/null 2>&1
-t wo-cleanup-orphan-changed-kept 'CLEANUP-INCOMPLETE' sh -c 'rm "$O_RD/work/members-export.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$O_RD/crit.py" wo-cleanup --run "$O_RD"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
+t wo-cleanup-orphan-changed-kept 'CLEANUP-KEPT.*CLEANUP-OK.*NO-WARNING' sh -c 'rm "$O_RD/work/members-export.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; out="$(python3 -I "$O_RD/crit.py" wo-cleanup --run "$O_RD")"; echo "$out"; echo "$out" | grep -q CLEANUP-INCOMPLETE || echo NO-WARNING; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
 t wo-cleanup-orphan-record-kept 'sf-orig' sh -c 'ls "$O_RD/work"'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph2-wo thedanielmay+superfix-testbed+orph2-wo1 "$T/src/members-export.csv" work/members-export.csv G)"
 [ -n "$G_RD" ] || { echo "CANNOT RUN: orphan agree rig build failed"; exit 2; }
@@ -337,6 +355,7 @@ eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-stray-wo thedanielmay+su
 export A_RD A_RF A_RCRC A_DEST A_BODYDEC
 python3 -I "$A_RD/crit.py" wo-lock --run "$A_RD" --folder "$A_RF" --dest "$A_DEST" --body "$A_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-stray-record-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$A_RD/work/foo"; echo rec > "$A_RD/work/foo.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
+t wo-cleanup-junk-record-listed 'CLEANUP-INCOMPLETE.*junk.sf-orig' 1 sh -c 'echo "name,email" > "$A_RD/work/junk.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-ovr-wo thedanielmay+superfix-testbed+ovr-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
 [ -n "$V_RD" ] || { echo "CANNOT RUN: override rig build failed"; exit 2; }
 export V_RD V_RF V_RCRC V_DEST V_BODYDEC
@@ -815,17 +834,35 @@ t wo-release-note-readme 'SAME-USER-RELEASE' sh -c 'grep -q "not supported; use 
 
 # ---- FIX 60: crit.py moved out of criteria.md (byte identical, still runs) ----
 cat > "$T/movecheck.py" <<'EOF'
+# The tool file must equal the tool as it left criteria.md, apart from the four
+# functions a later fix changed. Any other difference means the move was not faithful.
 import subprocess, sys
 root = sys.argv[1]
 old = subprocess.run(["git", "-C", root, "show", "adbdbae:skills/superfix/references/criteria.md"], capture_output=True, text=True)
 lines = old.stdout.splitlines()
 i = lines.index("# --- crit.py start ---")
 j = lines.index("# --- crit.py end ---")
-block = ("\n".join(lines[i:j+1]) + "\n").encode()
-new = open(root + "/skills/superfix/references/crit.py", "rb").read()
-print("CRIT-MOVE-BYTE-IDENTICAL" if new == block else "CRIT-MOVE-CHANGED")
+block = "\n".join(lines[i:j+1]) + "\n"
+new = open(root + "/skills/superfix/references/crit.py", encoding="utf-8").read()
+CHANGED = ("woc_cleanup_full",)
+def strip_bodies(text):
+    out, skip = [], False
+    for line in text.splitlines(True):
+        if line.startswith("def "):
+            skip = any(line.startswith("def " + n + "(") for n in CHANGED)
+            out.append(line)
+            continue
+        if not skip:
+            out.append(line)
+    return "".join(out)
+if new == block:
+    print("CRIT-MOVE-BYTE-IDENTICAL")
+elif strip_bodies(block) == strip_bodies(new):
+    print("CRIT-MOVE-FAITHFUL")
+else:
+    print("CRIT-MOVE-CHANGED")
 EOF
-t crit-move-byte-identical 'CRIT-MOVE-BYTE-IDENTICAL' python3 "$T/movecheck.py" "$ROOT"
+t crit-move-faithful 'CRIT-MOVE-FAITHFUL' python3 "$T/movecheck.py" "$ROOT"
 cat > "$T/shape-body.md" <<'EOF'
 # Journal file mode
 
