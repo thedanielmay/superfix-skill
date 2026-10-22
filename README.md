@@ -44,6 +44,8 @@ Reads the full issue - body, labels, all comments - and classifies it:
 
 Before the type, it runs a coverage check (below). The Problem Profile is not posted on its own: it goes into the one decision message at the stop. The issue body stays a living spec, with a Status line on top and the reporter's text kept under `## Original report`. Without an issue, the same record goes in a local file at `~/.superfix/journal/`, outside the repo.
 
+Repo settings (1.6.3): a repo can carry `.superfix/project.md` naming its base branch, PR base, checks, rules and do-not-edit folders, so a run does not repeat them every time. `references/project.py` reads it in Phase 0, refuses any key that would relax a safeguard and any checks command outside a narrow allowlist, and puts the applied settings in the `Settings:` line of the Profile for you to approve with everything else. Rules in `references/project.md`.
+
 ### Explore and diagnose (Phase 1)
 
 Runs type-aware exploration before writing any code, inside a diagnosis method (`references/diagnose.md`): a check that fails on the reported symptom first, then 3 to 5 ranked guesses at the cause, each tested. "Confirmed" needs a test that tells the guesses apart. Before approval nothing is written except the journal and a scratch folder outside the repo. The exploration skills by type:
@@ -240,6 +242,8 @@ skills/
       criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts (1.5.0)
       crit.py                   The criteria and work order tool, run from the run folder (1.5.0; its own file since 1.6.2)
       workorder.md              Work orders: the template, the checks, the hand-off and the return (1.6.0)
+      project.md                Repo settings file: the five keys, the refusals, the output contract (1.6.3)
+      project.py                The settings reader, run in Phase 0 before the type is chosen (1.6.3)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
       inventory.md              Every skill used, with its opencode name or fallback
