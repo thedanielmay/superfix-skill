@@ -1,3 +1,4 @@
+# --- crit.py start ---
 # superfix 1.5.0 criteria mode. Written into the run folder from
 # references/criteria.md. Standard library only; run it with python3 -I.
 # Every command prints word lines; silence is never a pass. It never prints
@@ -3779,3 +3780,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+# --- crit.py end ---

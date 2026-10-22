@@ -821,7 +821,7 @@ old = subprocess.run(["git", "-C", root, "show", "adbdbae:skills/superfix/refere
 lines = old.stdout.splitlines()
 i = lines.index("# --- crit.py start ---")
 j = lines.index("# --- crit.py end ---")
-block = ("\n".join(lines[i + 1:j]) + "\n").encode()
+block = ("\n".join(lines[i:j+1]) + "\n").encode()
 new = open(root + "/skills/superfix/references/crit.py", "rb").read()
 print("CRIT-MOVE-BYTE-IDENTICAL" if new == block else "CRIT-MOVE-CHANGED")
 EOF

@@ -59,8 +59,17 @@ def block(text):
 
 
 def tool_text(text):
-    m = re.search(r"(?ms)^# --- crit.py start ---\n(.*)^# --- crit.py end ---$", text)
-    return m.group(1) if m else text
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "# --- crit.py start ---":
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "# --- crit.py end ---":
+        lines = lines[:-1]
+    stripped = "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    if "# --- crit.py start ---" in stripped:
+        m = re.search(r"(?ms)^# --- crit.py start ---\n(.*)^# --- crit.py end ---$", stripped)
+        if m:
+            return m.group(1)
+    return stripped
 
 
 def tree_of(py):

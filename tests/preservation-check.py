@@ -68,7 +68,8 @@ def places(text, fname):
     A crit.py block inside an .md file counts as one synthetic line
     holding the block's sha256, so the moved tool (Fix 60) is one moved
     line; any byte change inside it changes the sha and shows up as an
-    unjustified change. The markers themselves are part of the unit.
+    unjustified change. The unit runs from the start marker through the
+    end marker, markers included, to match the whole new crit.py file.
     """
     heading, fence, seen = "(start of file)", None, Counter()
     lines = text.splitlines()
@@ -80,12 +81,14 @@ def places(text, fname):
         if not s:
             continue
         if s == CRIT_START:
-            block = []
+            unit = [CRIT_START]
             while k < len(lines) and lines[k].strip() != CRIT_END:
-                block.append(lines[k])
+                unit.append(lines[k])
                 k += 1
-            k += 1
-            h = hashlib.sha256(("\n".join(block) + "\n").encode()).hexdigest()
+            if k < len(lines):
+                unit.append(CRIT_END)
+                k += 1
+            h = hashlib.sha256(("\n".join(unit) + "\n").encode()).hexdigest()
             yield f"crit.py-sha256:{h}", f"{fname} > {heading}"
             continue
         if s == CRIT_END:
