@@ -180,6 +180,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    No issue was given and the repo has a GitHub remote: the LAST numbered question is always
    the create-issue question (journal.md). Never leave it out or move it.
+   The request's "use gh to read it" is not a read-only instruction: posting this comment on the issue is required, not optional.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
    references/briefs.md, or start any Phase 2 or 3 step until a go arrives.
