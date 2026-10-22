@@ -71,6 +71,8 @@ means `superfix:awaiting-decision`, "Fixing" means `superfix:approved`, else nei
 Status change run journal.md's label commands; each prints one word, never silenced. Copy LABELS-NOW
 into the `Labels:` field. Failed or skipped: never stop; the field reads `not set (<word>); marker
 superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
+When the owner says the pull request is merged, set the Status to "Done" and run the label
+commands, so a closed issue keeps no label.
 
 ## Classification Rules
 ### Coverage check (before type and tier)
@@ -180,6 +182,8 @@ Every tier, every run, unless the fast lane was asked for in this run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    No issue was given and the repo has a GitHub remote: the LAST numbered question is always
    the create-issue question (journal.md). Never leave it out or move it.
+   The request's "use gh to read it" is not a read-only instruction: posting this comment on the issue is required, not optional.
+   Every comment you post from the run (this one, a work order's final comment, a stop, a budget or plan notice) goes through `wo-scan-comment --comment <the file you post> --run "<D>" --data <the data file the run read>` and then `wo-post --comment <the file you post> --run "<D>"`, and you post it only when wo-post prints POST-OK (or POST-OK-DECLARED, when the run holds no data file and says so with --no-data): a scan with no data file to compare prints SCAN-NO-DATA and writes no receipt, so a run that holds data names that file with --data (a cloud data file prints ASK-FIRST: ask the owner, then add --asked), and a run that holds none says so with --no-data.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
    references/briefs.md, or start any Phase 2 or 3 step until a go arrives.

@@ -12,7 +12,7 @@ git -C "$X" fetch -q --tags origin 2>/dev/null
 # X's origin becomes a local copy: wo-return asks origin for a pushed branch, and the fake HOME below has no git login
 git clone -q --bare "$X" "$T/origin.git"; git -C "$X" remote set-url origin "$T/origin.git"
 export HOME="$T/home"; mkdir -p "$HOME"; D="$HOME/.superfix/runs/thedanielmay+superfix-testbed+109"; mkdir -p "$D/workorder"; echo k > "$D/key"
-awk '/^# --- crit.py start ---$/{f=1} f{print} /^# --- crit.py end ---$/{f=0}' "$ROOT/skills/superfix/references/criteria.md" > "$D/crit.py"
+cp "$ROOT/skills/superfix/references/crit.py" "$D/crit.py"
 C="python3 -I $D/crit.py"; pass=0; fail=0
 trap 'rm -rf "$T"' EXIT
 t() { local name="$1" want="$2" rc=""; shift 2; if [[ "$1" =~ ^[0-9]+$ ]]; then rc="$1"; shift; fi; local out rcgot; out="$("$@" 2>&1)"; rcgot=$?
@@ -250,6 +250,17 @@ t doc-post-every-outcome 'Every outcome below is posted on the issue before the 
 t skill-work-order-two-kinds 'or every problem is a criteria-mode file' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-stop-gate-post-required 'posting this comment on the issue is required' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-stop-gate-post-required-root 'posting this comment on the issue is required' cat "$ROOT/SKILL.md"
+t skill-label-done-after-merge 'set the Status to "Done" and run the label' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-label-done-after-merge-root 'set the Status to "Done" and run the label' cat "$ROOT/SKILL.md"
+# the gate tools in tests/gates/ must parse and must carry no em dash or en dash
+gatesok() { local f rc=0 n=0; for f in "$ROOT"/tests/gates/*; do [ -f "$f" ] || continue; n=$((n+1));
+  case "$f" in *.sh) sh2="$(head -1 "$f")"; case "$sh2" in *zsh) zsh -n "$f" >/dev/null 2>&1;; *) bash -n "$f" >/dev/null 2>&1;; esac; [ $? = 0 ] || { echo "SYNTAX-FAIL $f"; rc=1; };; *.py) python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$f" >/dev/null 2>&1 || { echo "SYNTAX-FAIL $f"; rc=1; };; *.md) : ;; *) echo "UNKNOWN-KIND $f"; rc=1;; esac
+  if LC_ALL=C grep -q -e $'\xe2\x80\x94' -e $'\xe2\x80\x93' "$f"; then echo "DASH-FAIL $f"; rc=1; fi
+  if LC_ALL=C grep -q -e "/Users/" -e "/private/tmp/claude-" "$f"; then echo "PERSONAL-PATH-FAIL $f"; rc=1; fi; done
+  [ "$n" -gt 0 ] || { echo "NO-GATE-TOOLS"; rc=1; }; [ "$rc" = 0 ] && echo "GATES-OK $n files"; }
+t gates-tools-parse-and-no-dashes 'GATES-OK' gatesok
 LC="$(awk '/the lines check: before posting/{f=1} f&&/^```bash$/{g=1;next} g&&/^```$/{exit} g' "$ROOT/skills/superfix/references/journal.md")"
 printf '%s\n' '> **In plain English:** x.' '' '1. a' '---' 'Pictures: NONE (no screen: cli)' 'Labels: none (no issue)' 'Diagram: NONE (Simple)' 'Gap note: NONE (supported)' > "$T/c-no-wo.md"
 cp "$T/c-no-wo.md" "$T/c-wo.md"; echo 'Work order: NONE (normal run)' >> "$T/c-wo.md"
