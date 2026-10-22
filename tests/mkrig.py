@@ -11,7 +11,7 @@ Usage: mkrig.py <home> <run-key> <work-id> <orig-csv> <stub-rel> [--cut] [--owne
   --cut       the stub copy holds only row,email,joined (BASE is the cut sha)
   --owner     the body also holds a P2 owner criterion (a process/guide job: drafts allowed)
 Prints shell assignments: RD= RCRC= RF= DEST= BODYDEC= (eval them).
-Needs: ROOT env (checkout whose crit.py to extract), SEED env (seed15 dir), CRITBIN env (python3 crit path? no: uses RD/crit.py).
+Needs: ROOT env (checkout whose crit.py to copy), SEED env (seed15 dir), CRITBIN env (python3 crit path? no: uses RD/crit.py).
 """
 import hashlib
 import os
@@ -54,16 +54,8 @@ def sh(*args):
 
 
 def extract_crit():
-    src = pathlib.Path(ROOT) / "skills" / "superfix" / "references" / "criteria.md"
-    txt, on, out = src.read_text().splitlines(), False, []
-    for l in txt:
-        if l.startswith("# --- crit.py start ---"):
-            on = True
-        if on:
-            out.append(l)
-        if l.startswith("# --- crit.py end ---"):
-            on = False
-    (D / "crit.py").write_text("\n".join(out) + "\n")
+    src = pathlib.Path(ROOT) / "skills" / "superfix" / "references" / "crit.py"
+    (D / "crit.py").write_bytes(src.read_bytes())
 
 
 extract_crit()

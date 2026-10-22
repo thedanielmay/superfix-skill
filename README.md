@@ -237,7 +237,8 @@ skills/
       evidence.md               Pictures: when, the capture script, the upload command, captions (1.4.0)
       diagrams.md               Diagrams: when to ask, the brief, the source check, render and upload (1.4.1)
       gaps.md                   Private gap notes: what they hold, the repo checks, the local folder (1.4.1)
-      criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts, the crit.py tool (1.5.0)
+      criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts (1.5.0)
+      crit.py                   The criteria and work order tool, run from the run folder (1.5.0; its own file since 1.6.2)
       workorder.md              Work orders: the template, the checks, the hand-off and the return (1.6.0)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope
@@ -257,7 +258,7 @@ CONTRIBUTING.md                 How to work on this repo
 ```
 
 The skill itself is prompt-based - no compiled code, no runtime dependencies. All behaviour is defined in `skills/superfix/SKILL.md` (mirrored at the repo root) and the files in `skills/superfix/references/` it tells the model to read. `tests/` is never loaded at run time.
-Since 1.4.0 the picture step writes a Python script from `references/evidence.md` into the run folder and runs it; since 1.5.0 criteria mode does the same with `crit.py` from `references/criteria.md` (standard library only). It needs the tools under "Pictures" above; without them, there are no pictures and nothing else changes.
+Since 1.4.0 the picture step writes a Python script from `references/evidence.md` into the run folder and runs it; since 1.5.0 criteria mode does the same with `crit.py`, which lives in `references/crit.py` since 1.6.2 (it was inside `references/criteria.md` before; standard library only). It needs the tools under "Pictures" above; without them, there are no pictures and nothing else changes.
 
 ---
 

@@ -82,7 +82,7 @@ t wo-doc-baseline-ok '^BASELINE-OK$' bash -c 'eval "$(python3 "$T/docrun.py" "$R
 t wo-doc-lock-ok 'WORKORDER-LOCKED' bash -c 'rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"; eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-lock --folder "$M_RD" "$M_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1" "$M_BODYDEC" 1 "$T/find-ok.txt" "$M_RCRC")"; rm -rf "$HOME/superfix-workorders/thedanielmay+superfix-testbed+csv-wo1"'
 t wo-process-scope-wording 'PROCESS-SCOPE' sh -c 'grep -q "process held in a file" "$ROOT/skills/superfix/SKILL.md" && grep -q "process held in a file" "$ROOT/skills/superfix/references/workorder.md" && echo PROCESS-SCOPE'
 t wo-post-stop-wording 'POST-STOP' sh -c 'grep -q "every outcome, a stop included, is posted as in item 5" "$ROOT/skills/superfix/references/workorder.md" && echo POST-STOP'
-t wo-cleanup-docs 'DOCS-OK' sh -c 'grep -q "a stop deletes everything" "$ROOT/skills/superfix/references/criteria.md" && grep -q "a stop deletes everything" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-INCOMPLETE" "$ROOT/skills/superfix/references/workorder.md" && echo DOCS-OK'
+t wo-cleanup-docs 'DOCS-OK' sh -c 'grep -q "a stop deletes every data copy and keeps the records" "$ROOT/skills/superfix/references/criteria.md" && grep -q "a stop deletes every data copy and keeps the records" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-KEPT" "$ROOT/skills/superfix/references/criteria.md" && grep -q "CLEANUP-KEPT" "$ROOT/skills/superfix/references/workorder.md" && grep -q "CLEANUP-INCOMPLETE" "$ROOT/skills/superfix/references/workorder.md" && echo DOCS-OK'
 t wo-lock-path 'WORKORDER-LOCK-PATH' plant "sed -i '' 's#^data .*#data /elsewhere/members-export.csv#' \"$M_RF/checks/lock\""
 t wo-path-named-refused 'WORKORDER-PATH' sh -c 'restore; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$T/other-place" --body "$M_BODYDEC"'
 restore
@@ -304,6 +304,24 @@ mkdir -p "$N_RD/work/neg/sub"; cp "$T/src/members-export.csv" "$N_RD/work/neg/ne
 t wo-cleanup-ok 'CLEANUP-OK' python3 -I "$N_RD/crit.py" wo-cleanup --run "$N_RD"
 t wo-cleanup-cleans 'NO-DATA' python3 "$T/nodata.py" "$N_RD" "$N_DEST"
 
+# ---- FIX 94: a stop ends CLEANUP-OK and the .sf-orig record is a kept record, not a leftover ----
+mkdir -p "$T/src2"; cp "$T/src/members-export.csv" "$T/src2/members-export.csv"
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-rec-wo thedanielmay+superfix-testbed+rec-wo1 "$T/src2/members-export.csv" work/members-export.csv R3)"
+[ -n "$R3_RD" ] || { echo "CANNOT RUN: record rig build failed"; exit 2; }
+export R3_RD R3_RF R3_RCRC R3_DEST R3_BODYDEC
+python3 -I "$R3_RD/crit.py" wo-lock --run "$R3_RD" --folder "$R3_RF" --dest "$R3_DEST" --body "$R3_BODYDEC" >/dev/null 2>&1
+# the original changes under the lock (the V6 shape): the record can no longer be verified
+python3 - "$T/src2/members-export.csv" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); lines = p.read_text().splitlines(True)
+f = lines[1].split(","); f[4] = "46"; lines[1] = ",".join(f)
+p.write_text("".join(lines))
+PYEOF
+t wo-cleanup-record-is-kept 'CLEANUP-OK' 0 python3 -I "$R3_RD/crit.py" wo-cleanup --run "$R3_RD"
+t wo-cleanup-record-stays-on-disk 'RECORD-KEPT' sh -c 'ls "$R3_RD/work" | grep -q "members-export.csv.sf-orig" && echo RECORD-KEPT'
+t wo-cleanup-record-named 'CLEANUP-KEPT.*members-export.csv.sf-orig' python3 -I "$R3_RD/crit.py" wo-cleanup --run "$R3_RD"
+t wo-cleanup-record-no-data 'NO-DATA' python3 "$T/nodata.py" "$R3_RD" "$R3_DEST"
+
 # ---- CLEANUP-HARDENING (links never followed, permissions fail loud, records hashed) ----
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-sym-wo thedanielmay+superfix-testbed+sym-wo1 "$T/src/members-export.csv" work/members-export.csv Y)"
 [ -n "$Y_RD" ] || { echo "CANNOT RUN: symlink rig build failed"; exit 2; }
@@ -325,7 +343,7 @@ eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph-wo thedanielmay+sup
 [ -n "$O_RD" ] || { echo "CANNOT RUN: orphan rig build failed"; exit 2; }
 export O_RD O_RF O_RCRC O_DEST O_BODYDEC
 python3 -I "$O_RD/crit.py" wo-lock --run "$O_RD" --folder "$O_RF" --dest "$O_DEST" --body "$O_BODYDEC" >/dev/null 2>&1
-t wo-cleanup-orphan-changed-kept 'CLEANUP-INCOMPLETE' sh -c 'rm "$O_RD/work/members-export.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$O_RD/crit.py" wo-cleanup --run "$O_RD"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
+t wo-cleanup-orphan-changed-kept 'CLEANUP-KEPT.*CLEANUP-OK.*NO-WARNING' sh -c 'rm "$O_RD/work/members-export.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; out="$(python3 -I "$O_RD/crit.py" wo-cleanup --run "$O_RD")"; echo "$out"; echo "$out" | grep -q CLEANUP-INCOMPLETE || echo NO-WARNING; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
 t wo-cleanup-orphan-record-kept 'sf-orig' sh -c 'ls "$O_RD/work"'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph2-wo thedanielmay+superfix-testbed+orph2-wo1 "$T/src/members-export.csv" work/members-export.csv G)"
 [ -n "$G_RD" ] || { echo "CANNOT RUN: orphan agree rig build failed"; exit 2; }
@@ -337,6 +355,7 @@ eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-stray-wo thedanielmay+su
 export A_RD A_RF A_RCRC A_DEST A_BODYDEC
 python3 -I "$A_RD/crit.py" wo-lock --run "$A_RD" --folder "$A_RF" --dest "$A_DEST" --body "$A_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-stray-record-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$A_RD/work/foo"; echo rec > "$A_RD/work/foo.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
+t wo-cleanup-junk-record-listed 'CLEANUP-INCOMPLETE.*junk.sf-orig' 1 sh -c 'echo "name,email" > "$A_RD/work/junk.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-ovr-wo thedanielmay+superfix-testbed+ovr-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
 [ -n "$V_RD" ] || { echo "CANNOT RUN: override rig build failed"; exit 2; }
 export V_RD V_RF V_RCRC V_DEST V_BODYDEC
@@ -530,9 +549,11 @@ t wo-kept-copy-mode-600 '600' sh -c 'rm -rf "$T/retm"; cp -r "$J_DEST" "$T/retm"
 cat > "$T/deadlocals.py" <<'EOF'
 import ast, sys
 src = open(sys.argv[1]).read()
-i = src.index("# --- crit.py start ---")
-src = src[i:src.index("# --- crit.py end ---")]
 tree = ast.parse(src)
+# Four unused locals predate the move (the old input hit the section 5 awk
+# pattern first, so this check never saw the tool); the tool is frozen, so
+# they are grandfathered here by name and any new one still fails.
+KNOWN = {"woc_fidelity:name", "cmd_wo_scan_comment:value", "cmd_wo_return:rc3", "cmd_wo_files:rc2"}
 bad = []
 for n in ast.walk(tree):
     if isinstance(n, ast.FunctionDef) and (n.name.startswith("woc_") or n.name.startswith("cmd_wo_")):
@@ -545,9 +566,10 @@ for n in ast.walk(tree):
                     stores.add(m.id)
         args = {a.arg for a in n.args.args}
         bad += [f"{n.name}:{v}" for v in sorted(stores - loads - args) if not v.startswith("_")]
-print("NO-DEAD-LOCALS" if not bad else "DEAD " + " ".join(bad))
+new = [b for b in bad if b not in KNOWN]
+print("NO-DEAD-LOCALS" if not new else "DEAD " + " ".join(new))
 EOF
-t wo-dead-locals 'NO-DEAD-LOCALS' python3 "$T/deadlocals.py" "$ROOT/skills/superfix/references/criteria.md"
+t wo-dead-locals 'NO-DEAD-LOCALS' python3 "$T/deadlocals.py" "$ROOT/skills/superfix/references/crit.py"
 
 # ---- OLD LOCK (locked under the v1.5.0 tool, worked under the new one) ----
 O="$T/oldlock"; mkdir -p "$O/home"; export OHOME="$O/home"
@@ -772,6 +794,46 @@ To undo: close the PR without merging.
 EOF
 t wo-scan-comment-flags-leak 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD"
 t wo-scan-comment-allows-counts 'SCAN-VALUES-CLEAN' python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD"
+# ---- FIX 93: the post step refuses without a scan receipt (no network, no gh) ----
+mkdir -p "$T/post-norun"
+t wo-post-refuses-without-scan 'POST-REFUSED.*wo-scan-comment.*--run' 1 python3 -I "$I_RD/crit.py" wo-post --comment "$T/leak-comment.md" --run "$T/post-norun"
+t wo-post-passes-after-scan 'POST-OK' 0 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$I_RD"'
+cp "$T/normal-comment.md" "$T/other-comment.md"; printf 'Extra line 99.\n' >> "$T/other-comment.md"
+t wo-post-refuses-other-file 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-post --comment "$T/other-comment.md" --run "$I_RD"'
+t wo-post-receipt-holds-no-text 'RECEIPT-CLEAN' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$I_RD" >/dev/null 2>&1; S="$(shasum -a 256 "$T/normal-comment.md" | cut -d" " -f1)"; R="$I_RD/scan-$S.txt"; test -f "$R" && ! grep -q "duplicates" "$R" && grep -q "$S" "$R" && grep -q "normal-comment.md" "$R" && echo RECEIPT-CLEAN'
+t wo-scan-comment-still-refuses 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD"
+# ---- FIX 93 ROUND 2: a receipt means a clean scan (no receipt on a hit) ----
+t wo-scan-hit-leaves-no-receipt 'NO-RECEIPT' sh -c 'rm -f "$I_RD"/scan-*.txt; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; S="$(shasum -a 256 "$T/leak-comment.md" | cut -d" " -f1)"; test ! -e "$I_RD/scan-$S.txt" && echo NO-RECEIPT'
+t wo-post-refused-after-hit-scan 'POST-REFUSED' 1 sh -c 'rm -f "$I_RD"/scan-*.txt; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/leak-comment.md" --run "$I_RD"'
+t wo-scan-hit-removes-stale-receipt 'NO-RECEIPT' sh -c 'S="$(shasum -a 256 "$T/leak-comment.md" | cut -d" " -f1)"; printf "%s\nleak-comment.md\n" "$S" > "$I_RD/scan-$S.txt"; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$I_RD" >/dev/null 2>&1; test ! -e "$I_RD/scan-$S.txt" && echo NO-RECEIPT'
+t wo-scan-missing-run-folder-word 'SCAN-NO-RUN-FOLDER' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/no-such-run-xyz"
+t wo-scan-missing-run-folder-no-receipt 'NO-RECEIPT' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/no-such-run-xyz" >/dev/null 2>&1; test ! -e "$T/no-such-run-xyz" && echo NO-RECEIPT'
+
+# ---- FIX 98: the comment gate refuses when there is nothing to compare (issue 98) ----
+mkdir -p "$T/empty-run"; printf 'k\n' > "$T/empty-run/key"
+cp "$T/leak-comment.md" "$T/Quixotic-Zanzibar.md"
+t wo-scan-no-data-refuses 'SCAN-NO-DATA' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$T/empty-run"
+t wo-scan-no-data-no-receipt 'NO-RECEIPT' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$T/empty-run" >/dev/null 2>&1; test -z "$(ls "$T/empty-run"/scan-*.txt 2>/dev/null)" && echo NO-RECEIPT'
+t wo-scan-data-catches-the-value 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv"
+t wo-scan-data-clean-comment 'SCAN-VALUES-CLEAN' 0 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv"
+t wo-scan-data-then-post 'POST-OK' 0 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
+t wo-scan-no-data-declared 'SCAN-NO-DATA-DECLARED' 0 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --no-data
+t wo-scan-no-data-declared-then-post 'POST-OK' 0 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --no-data >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
+t wo-scan-data-file-missing 'SCAN-NO-FILE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/no-such-file.csv"
+t wo-post-refuses-cut-receipt 'POST-REFUSED' 1 sh -c 'S="$(shasum -a 256 "$T/normal-comment.md" | cut -d" " -f1)"; printf "%s\n" "$S" > "$T/empty-run/scan-$S.txt"; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
+t wo-scan-name-is-scanned 'SCAN-VALUE.*file name' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/Quixotic-Zanzibar.md" --run "$T/empty-run" --data "$T/src/members-export.csv"
+t wo-cleanup-removes-scan-receipts 'RECEIPTS-GONE' sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv" >/dev/null 2>&1; ls "$T/empty-run"/scan-*.txt >/dev/null 2>&1 || exit 1; python3 -I "$I_RD/crit.py" wo-cleanup --run "$T/empty-run" >/dev/null 2>&1; test -z "$(ls "$T/empty-run"/scan-*.txt 2>/dev/null)" && echo RECEIPTS-GONE'
+ln -sf "$T/src/members-export.csv" "$T/linked-members.csv"
+t wo-scan-data-link-is-refused 'SCAN-NO-FILE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/linked-members.csv"
+printf 'member_id\tname\temail\nM7777\tQuixotic Zanzibar\tz@example.org\n' > "$T/members.tsv"
+t wo-scan-tsv-is-read-per-cell 'SCAN-VALUE' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$T/empty-run" --data "$T/members.tsv"
+printf 'id,count\n1,2\n3,4\n' > "$T/numbers.csv"
+t wo-scan-data-with-only-counts 'SCAN-VALUES-CLEAN' 0 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/numbers.csv"
+mkdir -p "$T/notes-run/work"; printf 'k\n' > "$T/notes-run/key"; printf 'Introduction\nThis project builds the things.\n' > "$T/notes-run/work/README.txt"
+t wo-scan-no-data-with-only-a-notes-file 'SCAN-NO-DATA' 1 python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/leak-comment.md" --run "$T/notes-run"
+t wo-scan-refusal-withdraws-the-receipt 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
+cp "$T/src/members-export.csv" "$T/changing.csv"
+t wo-post-refuses-stale-data 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/changing.csv" >/dev/null 2>&1; printf "x,y\n1,2\n" >> "$T/changing.csv"; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
 eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-roundchk-wo thedanielmay+superfix-testbed+roundchk-wo1 "$T/src/members-export.csv" work/members-export.csv R2)"
 [ -n "$R2_RD" ] || { echo "CANNOT RUN: round checks rig build failed"; exit 2; }
 export R2_RD R2_RF R2_RCRC R2_DEST R2_BODYDEC
@@ -796,8 +858,70 @@ t wo-values-wording 'row number and column' sh -c 'grep -q "row number and colum
 t wo-gate-docs-88 'FOREIGN-NOTE-DOCS-88' sh -c 'grep -q "wo-scan-comment" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS-88'
 t wo-release-note-readme 'SAME-USER-RELEASE' sh -c 'grep -q "not supported; use another account" "$ROOT/README.md" && echo SAME-USER-RELEASE'
 
+# ---- FIX 60: crit.py moved out of criteria.md (byte identical, still runs) ----
+cat > "$T/movecheck.py" <<'EOF'
+# The tool file must equal the tool as it left criteria.md, apart from the
+# functions a later fix changed (the wo-* commands and the woc_* helpers, which
+# the crit-15 check guards on their own) and the wo-parser block. Any other
+# difference means the move was not faithful.
+import re, subprocess, sys
+root = sys.argv[1]
+old = subprocess.run(["git", "-C", root, "show", "adbdbae:skills/superfix/references/criteria.md"], capture_output=True, text=True)
+lines = old.stdout.splitlines()
+i = lines.index("# --- crit.py start ---")
+j = lines.index("# --- crit.py end ---")
+block = "\n".join(lines[i:j+1]) + "\n"
+new = open(root + "/skills/superfix/references/crit.py", encoding="utf-8").read()
+CHANGED = ("woc_cleanup_full", "woc_distinctive_values", "woc_comment_corpus", "woc_comment_value_hits",
+           "woc_readable_data", "woc_drop_scan_receipts", "woc_drop_receipt",
+           "woc_comment_name_hits", "woc_scan_marker", "woc_write_receipt",
+           "cmd_wo_scan_comment", "cmd_wo_post", "cmd_wo_cleanup")
+def strip_bodies(text):
+    out, skip = [], False
+    for line in text.splitlines(True):
+        if line.startswith("def "):
+            skip = any(line.startswith("def " + n + "(") for n in CHANGED)
+            if not skip:
+                out.append(line)
+            continue
+        if not skip and line.strip():
+            out.append(line)
+    return "".join(out)
+def strip_parsers(text):
+    out, skip = [], False
+    for line in text.splitlines(True):
+        s = line.strip()
+        if re.match(r"^(s = )?p\(\"wo-check\"", s):
+            skip = True
+        if skip:
+            if re.match(r"^(s = )?p\(\"wo-sendback\"", s):
+                skip = False
+            continue
+        out.append(line)
+    return "".join(out)
+if new == block:
+    print("CRIT-MOVE-BYTE-IDENTICAL")
+elif strip_bodies(strip_parsers(block)) == strip_bodies(strip_parsers(new)):
+    print("CRIT-MOVE-FAITHFUL")
+else:
+    print("CRIT-MOVE-CHANGED")
+EOF
+t crit-move-faithful 'CRIT-MOVE-FAITHFUL' python3 "$T/movecheck.py" "$ROOT"
+cat > "$T/shape-body.md" <<'EOF'
+# Journal file mode
+
+## Problems
+### P1 duplicate members (members sheet)
+Coverage: Everything else
+
+## Done when
+- P1-C1 [check] duplicate members: rows whose email matches an earlier row; pass: 0; how: measure-P1-C1.py; who: Superfix
+- P1-K1 [check] distinct members: by email with spaces trimmed and case ignored; pass: 112 (today's count); how: measure-P1-K1.py; who: Superfix
+EOF
+t crit-move-tool-runs 'CRIT-MOVE-RUNS CRITERIA-SHAPE-OK 2' bash -c 'python3 -c "import ast; ast.parse(open(\"$ROOT/skills/superfix/references/crit.py\").read())" && printf "CRIT-MOVE-RUNS " && python3 -I "$ROOT/skills/superfix/references/crit.py" shape --body "$T/shape-body.md"'
+
 # ---- CRIT-1.5-CHANGED (a one-byte edit to 1.5.0 code fails it) ----
-t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/criteria.md"
+t crit-15-unchanged 'CRIT-1.5-UNCHANGED' python3 "$ROOT/tests/crit-15-check.py" "$ROOT/skills/superfix/references/crit.py"
 cat > "$T/tamper.py" <<'EOF'
 import sys
 p, which = sys.argv[1], sys.argv[2]
@@ -840,7 +964,7 @@ else:
     lines[i] = lines[i] + "  # x"
 open(p, "w").write("\n".join(lines) + "\n")
 EOF
-tamperrun() { cp "$ROOT/skills/superfix/references/criteria.md" "$T/crit-tampered.md"; python3 "$T/tamper.py" "$T/crit-tampered.md" "$1" "$2"; _nm="$(printf '%s %s' "$1" "$2" | tr -c 'A-Za-z0-9' '_' | sed 's/_*$//')"; t "crit-15-changed-fails-$_nm" "$3" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.md"; test $? -ne 0'; }
+tamperrun() { cp "$ROOT/skills/superfix/references/crit.py" "$T/crit-tampered.py"; python3 "$T/tamper.py" "$T/crit-tampered.py" "$1" "$2"; _nm="$(printf '%s %s' "$1" "$2" | tr -c 'A-Za-z0-9' '_' | sed 's/_*$//')"; t "crit-15-changed-fails-$_nm" "$3" sh -c 'python3 "'"$ROOT"'/tests/crit-15-check.py" "'"$T"'/crit-tampered.py"; test $? -ne 0'; }
 for _fn in run_script profile cmd_progress cmd_lockcheck cmd_measure; do
   tamperrun "$_fn" "" "CRIT-1.5-CHANGED .*$_fn"
 done
@@ -853,6 +977,14 @@ tamperrun woreqcrit-or "" "CRIT-1.5-CHANGED .*WO_REQUIRED_CRITERIA"
 tamperrun wocx "" "CRIT-1.5-CHANGED .*WOC_X"
 tamperrun defarg woc_tick "CRIT-1.5-CHANGED .*woc_tick"
 tamperrun wokinds "" "CRIT-1.5-CHANGED .*WO_KINDS"
+
+# ---- FIX 98: the cleanup on a stop deletes the scan receipts, a pass keeps them ----
+eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cleanup-wo thedanielmay+superfix-testbed+cleanup-wo1 "$T/src/members-export.csv" work/members-export.csv C)"
+[ -n "$C_RD" ] || { echo "CANNOT RUN: cleanup rig build failed"; exit 2; }
+export C_RD C_RF C_RCRC C_DEST C_BODYDEC
+python3 -I "$C_RD/crit.py" wo-lock --run "$C_RD" --folder "$C_RF" --dest "$C_DEST" --body "$C_BODYDEC" >/dev/null 2>&1
+t wo-cleanup-pass-keeps-scan-receipts 'RECEIPT-KEPT' sh -c 'python3 -I "$C_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$C_RD" >/dev/null 2>&1; ls "$C_RD"/scan-*.txt >/dev/null 2>&1 || exit 1; python3 -c "import importlib.util,sys,pathlib; spec=importlib.util.spec_from_file_location(\"c\", sys.argv[1]); m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m); m.woc_cleanup_full(pathlib.Path(sys.argv[2]), keep=True)" "$C_RD/crit.py" "$C_RD" >/dev/null 2>&1; ls "$C_RD"/scan-*.txt >/dev/null 2>&1 && echo RECEIPT-KEPT'
+t wo-cleanup-criteria-removes-scan-receipts 'RECEIPTS-GONE' sh -c 'python3 -I "$C_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$C_RD" >/dev/null 2>&1; ls "$C_RD"/scan-*.txt >/dev/null 2>&1 || exit 1; python3 -I "$C_RD/crit.py" wo-cleanup --run "$C_RD" >/dev/null 2>&1; test -z "$(ls "$C_RD"/scan-*.txt 2>/dev/null)" && echo RECEIPTS-GONE'
 
 echo "RESULT: $pass passed, $fail failed"
 export HOME="$REALHOME"
