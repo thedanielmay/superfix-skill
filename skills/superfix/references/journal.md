@@ -110,6 +110,8 @@ Stopped: <plain reason> | Ready for review: PR <link> | Waiting for you to
 publish | Done
 1.5.0, criteria mode (references/criteria.md): Waiting for you: re-check on <date> | Waiting for you: sign-off on <name> | Waiting for you: put it back and give me an export
 1.6.0, work order mode (references/workorder.md): Waiting for you: hand the work order to someone (<where>) | Waiting for you: hand the work order back (<where>)
+- Never write a time or a duration into an issue from memory; run `date` and compute it.
+- When a permission check blocks one step of a run, end in `Stopped: blocked by a permission check at <step>` with the exact remaining commands listed for a human. Never write an exception the owner did not give.
 
 **Closing verify (Phase 4)**
 After the PR merges, read `closingIssuesReferences` on the PR and the issue state. A closing keyword in the PR body does not always close the issue, so verify; if the issue is still open, close it by hand with a comment. Post the comment with `gh issue comment` first, then `gh issue close`, because `close --comment` silently drops the comment when a keyword already closed the issue.

@@ -132,7 +132,7 @@ If a security signal and another type both match (for example "XSS error"), `sec
 | **Complex** | Architectural impact, unclear scope, cross-cutting concerns, or risky changes |
 
 **Complexity can be upgraded** (Simple→Moderate, Moderate→Complex) after exploration reveals more scope. It cannot be downgraded.
-**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
+**Already-fixed escape hatch:** If exploration reveals the issue is already resolved on current `main`, or the filed defect cannot occur (read the writer first), post the repro evidence showing it already works and ask the user before closing. Never close someone's issue on agent judgement alone - do not run the pipeline for a non-issue until the user confirms.
 
 ## Phase 1 - Explore and Diagnose
 Run before writing a single line of code. Exploration is type-aware.
@@ -279,7 +279,7 @@ Criteria mode budget: time, at most 5 attempts per epoch (fixed in criteria.md's
 Measure before every commit (main thread or fix agent):
   commits: git rev-list --count <approval-sha>..HEAD -- . ':(exclude)docs/superpowers/plans'
   files:   git diff --name-only <approval-sha>...HEAD   (any file not named = over)
-  time:    date, minus the approval time in ## Decision
+  time:    date, minus the approval time in ## Decision, counting active time only; waits for locks, queues and reviews are logged apart
   Qik:     draft writes made as part of the fix (writes made only to verify do not count)
 The journal is outside the repo, and plan commits are excluded, so neither counts.
 Over any limit: stop. A fix agent returns a message whose first line is exactly

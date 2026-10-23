@@ -20,6 +20,8 @@ Plan must document:
 - Key design decisions made
 - What is explicitly NOT in scope
 - For performance: baseline measurement and target
+- For turning a warning into a refusal, the safe order: (1) fix the documented workflow so a correct session never trips it, (2) make the underlying record robust with no exit-code change, (3) switch the failure on with a remedy message that names the exact command
+- For narrowing a gate: fail closed by exempting only the named prose uses and keeping everything else flagged, with the old-vs-new table over both directions before the pattern is chosen
 
 ### Context file
 After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
@@ -137,6 +139,11 @@ criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through crite
 - Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
 - Impacted tests re-run after `simplify`, before review starts
 - `code-security-audit` always runs after `code-reviewer`, not instead of it
+- Scale review depth to the diff: a small Simple fix does not run the whole chain; any skipped review goes under Not tested with why
+- Loose ends the review finds in things the change itself made are not scope creep: fix them and report them
+- Checklist for move-only refactors: move verbatim, re-import every name in the old module, prove byte identity per name AND whole-file identity, prove every global a moved function reads is bound in the new module, check `dir(module)` identical and import order; import-time side effects go under Not tested
+- When a reviewer keeps finding new wordings, the rule is at the wrong level: look for the structure the defect lives in instead of widening an exclusion list
+- Every fix round needs a regression probe against the PREVIOUS head (whatever warned there must still warn), not only the new red tests
 
 ### Test scope
 
@@ -146,8 +153,31 @@ criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through crite
 - After pictures: SKILL.md Solved check and references/evidence.md
 - Labels, diagrams, gap notes: SKILL.md, journal.md, diagrams.md, gaps.md
 - Criteria mode: SKILL.md, criteria.md, journal.md
+- Select impacted tests from the changed-file list and run those files by name, never `-k <word>`
+- A corpus comparison reports how many corpus items exercise the changed path: the hit count, each hit line, and a persistent copy under /private/tmp that a reviewer can use
+- Clear `__pycache__` and set `PYTHONDONTWRITEBYTECODE=1` before any mutant run
+- A new test row that pins a gate or a check must kill a mutant: delete or widen the thing it claims to pin and show the row goes red, in a table. Other rows need only red on base.
+
+### Tests-only changes
+
+A tests-only change (new characterisation tests with no code change) replaces the solved check with negative controls: mutate the code, show the right test goes red, and revert. Keep at least one code-reviewer pass even on tests-only diffs.
+
+### Shell and worktree
+
+- Create worktrees with `git -C <repo> worktree add`, never assuming the session cwd is the repo; take the repo path as input.
+- In a worktree flow, run `git branch --show-current` first and never create a branch the orchestrator already made.
+- Never stash in a worktree flow; copy new files aside before any stash.
+- Run a commit that may outlast the 600 s Bash limit with run_in_background from the start and wait for the exit notification.
+- Never run two suites in one worktree at once.
+- Quote for zsh: `$T` is not word-split (use `${=T}`) and `$T:lib` parses as a modifier (use `${T}:lib`). Write skill scripts for zsh, or run them through `bash -c`.
+
+### Proof output and PR body
+
+- Tee full check output to a file and quote the tail; a pipe through `head` drops the pass/fail lines.
+- Generate the red-on-base list by running the head test file against base and paste the output; take the main sha and receipt from the same locked step. PR body fields (counts, line numbers, shas) come from command output, never memory.
 
 ### Merged tree (Phase 4)
 
 - Before opening the PR, `git fetch origin` and compare with the proof: if origin/main moved after the solved check, merge main into the branch and re-prove (solved check runs 1 to 3 again on the merged tree).
 - If the tree is not re-proved, write "merged tree not re-tested" under Not tested in the PR body and the final comment, naming the new main sha.
+- Merge commits are exempt from the session-trailer rule.
