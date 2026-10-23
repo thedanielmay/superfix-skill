@@ -121,3 +121,19 @@ Return: 1. facts, each with the command or tool that showed it. 2. inferences, s
 ### Output: the evidence note
 
 End of Phase 1, every tier: write `## Problems` in the issue body (or the file-mode journal), using the template in `references/journal.md`. Per problem: symptom, failing check and its output, baseline numbers (performance), cause (confirmed with its row, or suspected), Ruled out (how), Siblings. Then "Seen, not diagnosed", then the `Tools used:` line. Later steps (context file, solved check, restart) read the evidence from here.
+
+### Issue claims are hypotheses
+
+Every count, line number and earlier-issue claim in the issue is a hypothesis, never a fact. List each one (counts of tests, lines, files; `file:line` citations; claims about what an earlier issue did) and re-derive each against the repo with the command that produced it. Where the measurement differs, write "issue said X, measured Y" with both commands. A `file:line` citation is a hint: name the function as well, because numbers go stale within a day.
+
+### The issue's own control
+
+Run the issue's stated negative control before relying on it, and say in ## Problems when it is replaced and why. A control must fail through the stated guard: when a control passes on the unfixed code, check which guard fired, because a control that fails elsewhere proves nothing.
+
+### Enumerate readers
+
+Before changing or deleting anything widely used, enumerate its readers with counts: import statements, basenames, path joins, `.claude/skills`, `~/.claude/commands` and the like, not only the repo tree. When a consumer cannot be scanned (for example Drive-resident files the rules forbid reading), name the closest in-repo proxy, check it, and say so in the PR. Rely on the suite as the net.
+
+### Positive control for every scan
+
+Every scan carries a positive control that must return a known nonzero count. A scan whose control returns nothing is broken, not clean: fix the scan (quoting, regex flavour, word splitting) before trusting its result.

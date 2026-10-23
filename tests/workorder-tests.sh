@@ -237,10 +237,10 @@ t files-round2-attempts 'RETURN-FILES 7 H [0-9a-f]{40} attempts 2$' printf '%s' 
 t files-round2-builds-on-last '^on$' bash -c "git -C '$X' merge-base --is-ancestor '$SON' '$HF2' && echo on"
 
 # ---- redaction: a planted token is caught before the work order is written ----
-PAT="$(grep -F 'H="$( { grep -H -n -E -i' "$ROOT/skills/superfix/references/redaction.md")"
+RED="python3 -I $ROOT/skills/superfix/references/redact-check.py --run $D --"
 sed 's/^## What this is for$/## What this is for\nUse token ghp_abcdefghijklmnopqrstuvwxyz0123456789 for the clone./' "$T/example.md" > "$T/token.md"
-t redaction-blocks-planted-token 'PATTERN-HITS' bash -c "${PAT//<files>/$T/token.md}"
-t redaction-example-only-sha-lines '^PATTERN-HITS [^|]*[|][^|]*example.md:(9|35)[|][^|]*example.md:(9|35)$' bash -c "${PAT//<files>/$T/example.md}"
+t redaction-blocks-planted-token 'PATTERN-HITS' bash -c "$RED $T/token.md"
+t redaction-example-only-sha-lines '^NO-LIST[|]PATTERN-HITS [^|]*[|][^|]*example.md:(9|35)[|][^|]*example.md:(9|35)$' bash -c "$RED $T/example.md"
 
 # ---- size, SKILL.md and the journal lines check (normal runs carry Work order:) ----
 t workorder-md-under-cap '^ok$' bash -c "[ \$(wc -l < '$ROOT/skills/superfix/references/workorder.md') -le 250 ] && echo ok"
