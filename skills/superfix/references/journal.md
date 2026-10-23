@@ -111,6 +111,9 @@ publish | Done
 1.5.0, criteria mode (references/criteria.md): Waiting for you: re-check on <date> | Waiting for you: sign-off on <name> | Waiting for you: put it back and give me an export
 1.6.0, work order mode (references/workorder.md): Waiting for you: hand the work order to someone (<where>) | Waiting for you: hand the work order back (<where>)
 
+**Closing verify (Phase 4)**
+After the PR merges, read `closingIssuesReferences` on the PR and the issue state. A closing keyword in the PR body does not always close the issue, so verify; if the issue is still open, close it by hand with a comment. Post the comment with `gh issue comment` first, then `gh issue close`, because `close --comment` silently drops the comment when a keyword already closed the issue.
+
 **Progress comments = timestamped changelog**
 Each significant phase transition gets a progress comment, not an edit to the body, except the Status line and ## Decision, which are body updates by design. Comments accumulate as a readable audit trail of what happened and when.
 
@@ -197,25 +200,25 @@ umask 077; D="$HOME/.superfix/runs/<run-key>"; R='<owner>/<repo>'; ME="$(gh api 
 Ensure the label exists (prints `LABEL-EXISTS`, `LABEL-CREATED` or `LABEL-CREATE-FAILED`; GitHub's own "Not Found (HTTP 404)" line before `LABEL-CREATED` is normal). Write `L`, `C` and `T` from the colours above:
 
 ```bash
-R='<owner>/<repo>'; L='superfix:awaiting-decision'; C='FBCA04'; T='Superfix is waiting for you'; E="$(printf '%s' "$L" | sed 's/:/%3A/')"; if gh api "repos/$R/labels/$E" -q .name >/dev/null; then echo "LABEL-EXISTS $L"; elif gh label create "$L" --repo "$R" --color "$C" --description "$T"; then echo "LABEL-CREATED $L"; else echo "LABEL-CREATE-FAILED $L"; fi
+R='<owner>/<repo>'; L='superfix:awaiting-decision'; C='FBCA04'; T='Superfix is waiting for you'; E="$(printf '%s' "$L" | sed 's/:/%3A/')"; if gh api "repos/$R/labels/$E" -q .name >/dev/null; then echo "LABEL-EXISTS $L"; elif gh label create "$L" --repo "$R" --color "$C" --description "$T"; then echo "LABEL-CREATED $L"; else echo "LABEL-CREATE-FAILED $L"; exit 1; fi
 ```
 
 Add (prints `LABEL-ADDED` or `LABEL-ADD-FAILED`):
 
 ```bash
-R='<owner>/<repo>'; L='<label>'; if gh issue edit <N> --repo "$R" --add-label "$L"; then echo "LABEL-ADDED $L"; else echo "LABEL-ADD-FAILED $L"; fi
+R='<owner>/<repo>'; L='<label>'; if gh issue edit <N> --repo "$R" --add-label "$L"; then echo "LABEL-ADDED $L"; else echo "LABEL-ADD-FAILED $L"; exit 1; fi
 ```
 
 Remove (reads first; never calls `--remove-label` on a label the issue lacks; prints `LABEL-REMOVED`, `LABEL-REMOVE-FAILED` or `LABEL-NOT-PRESENT`). For the record (1.4.1 probe): a raw `--remove-label` exits 0 when the label exists in the repo but not on the issue, and 1 when the repo has no such label.
 
 ```bash
-R='<owner>/<repo>'; L='<label>'; if ! V="$(gh issue view <N> --repo "$R" --json labels -q '.labels[].name')"; then echo "LABEL-REMOVE-FAILED $L (could not read the labels)"; elif printf '%s\n' "$V" | grep -qxF "$L"; then if gh issue edit <N> --repo "$R" --remove-label "$L"; then echo "LABEL-REMOVED $L"; else echo "LABEL-REMOVE-FAILED $L"; fi; else echo "LABEL-NOT-PRESENT $L"; fi
+R='<owner>/<repo>'; L='<label>'; if ! V="$(gh issue view <N> --repo "$R" --json labels -q '.labels[].name')"; then echo "LABEL-REMOVE-FAILED $L (could not read the labels)"; exit 1; elif printf '%s\n' "$V" | grep -qxF "$L"; then if gh issue edit <N> --repo "$R" --remove-label "$L"; then echo "LABEL-REMOVED $L"; else echo "LABEL-REMOVE-FAILED $L"; exit 1; fi; else echo "LABEL-NOT-PRESENT $L"; fi
 ```
 
 Read back (prints `LABELS-NOW <list>`, `LABELS-NOW none`, or `LABELS-READ-FAILED`):
 
 ```bash
-R='<owner>/<repo>'; if S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then echo "LABELS-NOW ${S:-none}"; else echo LABELS-READ-FAILED; fi
+R='<owner>/<repo>'; if S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then echo "LABELS-NOW ${S:-none}"; else echo LABELS-READ-FAILED; exit 1; fi
 ```
 
 ### Decision message (posted at the Stop gate)

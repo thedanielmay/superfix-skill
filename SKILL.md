@@ -352,14 +352,14 @@ Criteria mode: criteria.md's three runs instead (the original, the change, and a
 <s1>, <s3> are new folders outside the repo (`mktemp -d`), written out in full.
   Run 1, base fails: `git worktree add --detach <s1> <approval-sha>`, then
      `git -C <s1> checkout <branch> -- <new or changed test paths>`; run the
-     failing check from ## Problems in <s1>.
+     failing check from ## Problems in <s1>; name the expected failing guard and check its line fired.
   Run 2, fix passes: the same check on the branch.
      Run 2 also takes the after picture of each problem that had a before
      picture: same page and size, green box, same number (evidence.md).
      Same page AREA: `retake` reuses the before area; on CROP-WIDENED or CROP-DIFFERENT the caption says so.
   Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
-     `git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R`;
-     run the check in <s3>, expect failure. The branch is never touched.
+     `git -C <s3> checkout <approval-sha> -- <fix files, named, no test paths>`;
+     run the check in <s3>, expect failure through the same named guard. The branch is never touched.
   After each run, and whenever a step fails: `git worktree remove --force <path>; git worktree prune`.
 Run 2 must also show the owner's description quoted in ## Done when no longer
 holds.
@@ -382,7 +382,8 @@ These are in `references/execute.md`. Read it in full before implementing (see t
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. The PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 Criteria mode: the PR body says `Refs #<N>`, not `Closes`, when any non-code problem has a `later` or `owner` criterion, is a process, or still matches the owner's description; it says what is not yet measured.
-If the repo has CI, run `gh pr checks <PR> --watch`. Fix red checks under the same review rules (two passes, then escalate).
+If the repo has CI, run `gh pr checks <PR> --watch`; zero registered checks is NOT green. Run the `checks` commands from `python3 references/project.py <repo>` before the PR. Fix red checks under the same review rules (two passes, then escalate).
+Merged tree and closing verify: `references/execute.md` (merged tree) and `references/journal.md` (closing state).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
 The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.

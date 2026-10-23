@@ -146,3 +146,8 @@ criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through crite
 - After pictures: SKILL.md Solved check and references/evidence.md
 - Labels, diagrams, gap notes: SKILL.md, journal.md, diagrams.md, gaps.md
 - Criteria mode: SKILL.md, criteria.md, journal.md
+
+### Merged tree (Phase 4)
+
+- Before opening the PR, `git fetch origin` and compare with the proof: if origin/main moved after the solved check, merge main into the branch and re-prove (solved check runs 1 to 3 again on the merged tree).
+- If the tree is not re-proved, write "merged tree not re-tested" under Not tested in the PR body and the final comment, naming the new main sha.
