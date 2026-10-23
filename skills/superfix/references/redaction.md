@@ -11,6 +11,7 @@ Rules that hold everywhere:
 - Criteria mode prints its own words too (criteria.md): CRITERIA-*, MEASURE, ITEMS, DATA-SHA, ERROR. Silence is never a pass.
 - Criteria mode comments also get criteria.md's personal-data scan (`CRITERIA-PII`: an e-mail address, a phone-like number, a link other than this run's own issue and PR links, 9 or more digits in a row outside the numbers the tool validated, a value after a label such as `Name:`) over EVERY line, fenced text included; a hit blocks the post, with no "you decide". A diff to be committed in criteria mode gets the same scan (`scan`, `SCAN-PII`), and a hit keeps the files local.
 - The exact-string check on session credentials BLOCKS. A pattern hit is REPORTED, and you decide (below).
+- A gate exits nonzero on failure: the script exits 1 on BLOCKED, ERROR and NO-RUN-FOLDER, and every label, diagram and gap gate snippet exits 1 on its failure words. Run the guarded post in a new call only after the printed pass word; never chain a check and the post it guards in one command. A gate written during a run gets a failing-input test (missing files, a planted secret, no run folder).
 - Every post uses `--body-file`. Never pass `--body "..."` inline. A `--title` from chat text is written to a file and checked first, then passed as `--title "$(cat <title file>)"`.
 
 ### Run folder (one per run, survives a restart)
@@ -72,7 +73,7 @@ umask 077; D="$HOME/.superfix/runs/<run-key>"; git diff <approval-sha>..HEAD > "
 ### Exact-string check (blocks; catches a password with no keyword)
 
 ```bash
-D="$HOME/.superfix/runs/<run-key>"; L="$D/secrets"; if [ ! -f "$D/key" ]; then echo "NO-RUN-FOLDER $D"; else P="$(grep -v '^[[:space:]]*$' "$L" 2>/dev/null)"; if [ -z "$P" ]; then echo NO-LIST; else H="$(printf '%s\n' "$P" | grep -F -l -f - <files>)"; rc=$?; if [ $rc -gt 1 ]; then echo "ERROR: a file could not be read"; elif [ -n "$H" ]; then echo "BLOCKED $H"; else echo CLEAN; fi; fi; fi
+python3 -I '<skill dir>/references/redact-check.py' --run "$HOME/.superfix/runs/<run-key>" -- <files>
 ```
 
 - `CLEAN`: no session credential in those files.
@@ -83,9 +84,7 @@ D="$HOME/.superfix/runs/<run-key>"; L="$D/secrets"; if [ ! -f "$D/key" ]; then e
 
 ### Pattern check (reports; you decide)
 
-```bash
-H="$( { grep -H -n -E -i '(password|passwd|pwd|secret|token|api[_-]?key|auth|bearer|cookie|session)[[:space:]]*[:=][[:space:]]*[^[:space:]]+' <files> | grep -v 'Claude-Session: https://claude.ai/code/session_'; grep -H -n -E '(^|[^A-Za-z0-9])(sk-[A-Za-z0-9]|ghp_|gho_|github_pat_)|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|-----BEGIN [A-Z ]*KEY-----|://[^/[:space:]:@]+:[^/[:space:]@]+@' <files>; perl -ne 'while (/(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])/g) { my $s=$1; next unless $s=~/[A-Za-z]/ && $s=~/[0-9]/; next if $s=~/^[0-9a-f]{40}$/i; next if $s=~/^[0-9a-f]{64}$/i && /sha256/i; print "$ARGV:$.:\n" } close ARGV if eof' <files>; } | cut -d: -f1,2 | sort -u )"; if [ -n "$H" ]; then echo "PATTERN-HITS (file:line, read each one, then decide):"; echo "$H"; else echo PATTERN-CLEAN; fi
-```
+The same script command above prints the pattern lines right after the exact word. Do not run an inline pipe.
 
 What it looks for:
 - keyword forms: `password`, `passwd`, `pwd`, `secret`, `token`, `api_key`, `auth`, `bearer`, `cookie`, `session`, followed by `:` or `=` and a value (any case)
