@@ -358,7 +358,7 @@ Criteria mode: criteria.md's three runs instead (the original, the change, and a
      picture: same page and size, green box, same number (evidence.md).
      Same page AREA: `retake` reuses the before area; on CROP-WIDENED or CROP-DIFFERENT the caption says so.
   Run 3, revert fails: `git worktree add --detach <s3> HEAD`, then
-     `git -C <s3> checkout <approval-sha> -- <fix files, named, no test paths>`;
+     `git -C <s3> checkout <approval-sha> -- <fix files that existed, no test paths>; git -C <s3> rm -q -f -- <files the fix added>`;
      run the check in <s3>, expect failure through the same named guard. The branch is never touched.
   After each run, and whenever a step fails: `git worktree remove --force <path>; git worktree prune`.
 Run 2 must also show the owner's description quoted in ## Done when no longer

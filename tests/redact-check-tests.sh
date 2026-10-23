@@ -32,6 +32,14 @@ t no-run-folder '^NO-RUN-FOLDER' 1 $RC --run "$T/nope" -- "$T/clean.txt"
 t clean-input '^NO-LIST[|]PATTERN-CLEAN$' 0 $RC --run "$T/run" -- "$T/clean.txt"
 # positive control: a planted token pattern hits and the run decides
 t positive-control-token '^NO-LIST[|]PATTERN-HITS' 0 $RC --run "$T/run" -- "$T/token.md"
+# the session trailer is excluded from the keyword group only: a token on that line still hits
+printf 'Claude-Session: https://claude.ai/code/session_abc then ghp_abcdefghijklmnopqrstuvwxyz0123456789\n' > "$T/trailer-token.md"
+printf 'Claude-Session: https://claude.ai/code/session_01NbsQYHppYAWe6CgtgQwJm1\n' > "$T/trailer.md"
+t trailer-plus-token-hits '^NO-LIST[|]PATTERN-HITS' 0 $RC --run "$T/run" -- "$T/trailer-token.md"
+t trailer-alone-clean '^NO-LIST[|]PATTERN-CLEAN$' 0 $RC --run "$T/run" -- "$T/trailer.md"
+# the self-test notices a broken long-token group
+sed 's/^LONG = re.compile(.*/LONG = re.compile(r"(?!)")/' "$ROOT/skills/superfix/references/redact-check.py" > "$T/broken.py"
+t selftest-catches-broken-long '^SELF-TEST-FAIL$' 1 python3 -I "$T/broken.py" --self-test
 # the gate snippets exit 1 on their failure words
 t redaction-gate-rule '^FOUND$' has "$ROOT/skills/superfix/references/redaction.md" "exits 1 on BLOCKED, ERROR and NO-RUN-FOLDER"
 t label-add-exits-1 '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" 'LABEL-ADD-FAILED $L"; exit 1'

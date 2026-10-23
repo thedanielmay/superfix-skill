@@ -31,21 +31,22 @@ LONG = re.compile(r"(?<![A-Za-z0-9])([A-Za-z0-9]{32,})(?![A-Za-z0-9])")
 HEX40 = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
 TRAILER = "Claude-Session: https://claude.ai/code/session_"
 
-# Positive control: every pattern group must fire on this text.
-SELFTEST_TEXT = (
-    "password: hunter2-value\n"
-    "api_key=AbCdEfGh1234567890AbCdEfGh1234567890\n"
-    "Use token ghp_abcdefghijklmnopqrstuvwxyz0123456789 for the clone.\n"
+# Positive control: each pattern group fires on its own line (keyword, prefix, long
+# token), and the session trailer line alone does not.
+SELFTEST_HITS = (
+    "password: hunter2-value",
+    "Use ghp_abcdefghijklmnopqrstuvwxyz0123456789 for the clone.",
+    "value Zk3j9Qw2Xr8Tn5Vb1Lm7Hc4Yd6Fg0Ps2Ak9 end",
+    TRAILER + "abc then ghp_abcdefghijklmnopqrstuvwxyz0123456789",
 )
+SELFTEST_CLEAN = (TRAILER + "01NbsQYHppYAWe6CgtgQwJm1",)
 
 
 def pattern_hits(path, text):
     """Line numbers (1-based) in text that hit any pattern group."""
     hits = set()
     for n, line in enumerate(text.splitlines(), 1):
-        if TRAILER in line:
-            continue
-        if KEYWORD.search(line):
+        if TRAILER not in line and KEYWORD.search(line):
             hits.add(n)
             continue
         if PREFIX.search(line):
@@ -65,8 +66,9 @@ def pattern_hits(path, text):
 
 
 def self_test():
-    hits = pattern_hits("<self-test>", SELFTEST_TEXT)
-    if len(hits) >= 3:
+    if all(pattern_hits("<self-test>", l) == [1] for l in SELFTEST_HITS) and not any(
+        pattern_hits("<self-test>", l) for l in SELFTEST_CLEAN
+    ):
         print("SELF-TEST-OK")
         return 0
     print("SELF-TEST-FAIL")
