@@ -44,5 +44,11 @@ t x95-loose-ends '^FOUND$' has "$D/execute.md" "are not scope creep"
 t x129-mutant '^FOUND$' has "$D/execute.md" "must kill a mutant"
 t x86-merge-exempt '^FOUND$' has "$D/execute.md" "Merge commits are exempt from the session-trailer rule"
 
+# issue 121, the trimmed Red Flags: a line budget on SKILL.md, one change-pipeline ban, and the two kept bullets
+count_where() { bash -c "$2" "$1"; }
+t i121-lines '^MAX-424-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 424 ]; then echo MAX-424-OK; else echo "MAX-424-FAIL $n"; fi'
+t i121-ban-once '^BAN-ONCE-OK$' count_where "$S" 'n=$(grep -c change-pipeline "$0"); if [ "$n" -eq 1 ]; then echo BAN-ONCE-OK; else echo "BAN-ONCE-FAIL $n"; fi'
+t i121-two-bullets '^BULLETS-2$' count_where "$S" 'n=$(awk "/^## Red Flags/,/^## Out of Scope/" "$0" | grep -c "^- "); echo "BULLETS-$n"'
+
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]
