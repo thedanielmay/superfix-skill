@@ -145,6 +145,22 @@ criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through crite
 - When a reviewer keeps finding new wordings, the rule is at the wrong level: look for the structure the defect lives in instead of widening an exclusion list
 - Every fix round needs a regression probe against the PREVIOUS head (whatever warned there must still warn), not only the new red tests
 
+### Independent review (gate, prompt and Moderate/Complex changes)
+- When: after the PR is open, before `gh pr checks`, for Moderate and Complex, and for any diff that touches a gate or a prompt: `crit.py`, `redact-check.py`, `project.py`, `project.md`, any `tests/` script, `SKILL.md`, or a `references/*.md` file.
+- The reviewer reads two things only: the PR number and the owner's own words from `## Problems`. Not the plan, the context file, the brief, the journal, or the diff.
+- It runs `gh pr view <N> --json title,body,files` and `gh pr diff <N>` itself, so everything it knows comes through the PR.
+- One verdict comment on the PR: `INDEPENDENT-REVIEW PASS|FAIL <n> findings`, then its findings with confidence, and the same review header as the code review rules above.
+- FAIL blocks ready for review. A second pass is allowed; after that, escalate as the code review rules say.
+- The main thread records the verdict's URL in the final comment, and a missing verdict goes under Not tested.
+
+Limits:
+- Nothing records what the reviewer was given, so a run can say it passed only the PR number and the owner's words and do otherwise.
+- Independence means a fresh context with no plan or diff, not a separate account or a different model.
+- A PASS cannot be proven deserved: the comment proves a reviewer posted, not that it read anything.
+- Anyone with write access to the repo can post the verdict line.
+- The path half of the trigger over-triggers on small `references/` edits and cannot tell a prompt edit from a typo fix.
+- Passes cannot be counted from comments, because a comment can be edited or a second one posted elsewhere.
+
 ### Test scope
 
 - Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`

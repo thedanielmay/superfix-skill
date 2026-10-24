@@ -382,6 +382,11 @@ These are in `references/execute.md`. Read it in full before implementing (see t
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. Unless `closing: refs` is set, the PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 Criteria mode: the PR body says `Refs #<N>`, not `Closes`, when any non-code problem has a `later` or `owner` criterion, is a process, or still matches the owner's description; it says what is not yet measured. `closing: closes` makes the closing keyword required, `closing: refs` forbids it, and `python3 references/project.py --pr-body <body file> --issue <N> <repo>` must print `CLOSING-OK` before the PR is opened.
+### Independent review (Moderate, Complex, or any gate or prompt text change)
+After the PR is open, dispatch one reviewer that gets the PR number and the owner's own words, and nothing else: no plan, no diff, no brief, no journal.
+It opens the PR itself, reads it, and posts one verdict comment with its confidence.
+The verdict line reads `INDEPENDENT-REVIEW PASS|FAIL <n> findings`; FAIL blocks the ready-for-review status.
+Mechanics in `references/execute.md` (Independent review).
 If the repo has CI, run `gh pr checks <PR> --watch`; zero registered checks is NOT green. Run the `checks` commands from `python3 references/project.py <repo>` before the PR. Fix red checks under the same review rules (two passes, then escalate).
 Merged tree and closing verify: `references/execute.md` (merged tree) and `references/journal.md` (closing state).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
