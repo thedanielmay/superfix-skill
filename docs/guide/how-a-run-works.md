@@ -35,7 +35,9 @@ The coverage check runs before the type. It decides which kind of problem this i
 | Qik configuration | a Qik interface, section, form, role, workflow, definition, a qik.dev link | diagnose and fix in the draft only, marked provisional |
 | Everything else | prose files when the problem is only how they are written; documents, process, sheets, business | diagnose; criteria mode for a data or document clean-up; a process gets a draft only |
 
-Then the type, in priority order: security, bug, performance, ux, architecture, feature. A report with two types sets a primary and a secondary type and merges their skill lists.
+Then the type, in priority order: security, research, bug, performance, ux, architecture, feature. A report with two types sets a primary and a secondary type and merges their skill lists. `research` sits second because an explicit "do not fix it" has to win over "broken" or "error" in the same request.
+
+A `research` run asks questions and changes nothing: no branch and no PR. Its output is a report on the issue, and one validation agent checks every claim in it first, as `CONFIRMED`, `CORRECTED` or `REFUTED`. The rules are in `references/research.md`.
 
 The complexity tier is provisional here and confirmed after exploration: Simple, Moderate or Complex. It can be upgraded, never downgraded.
 
