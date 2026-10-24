@@ -413,7 +413,6 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 - Declaring done without checking the original goal was actually achieved
 - Upgrading Simple→Moderate/Complex after implementation has started - stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then send a decision request with the new budget and wait
 - Closing a GitHub issue without confirming the PR is merged
-- Invoking `change-pipeline` - it is superseded; do not use
 - Updating only GitHub comments but never the issue body - the body is the living spec; let it drift and the issue becomes unreadable out of context
 - Editing the issue body for progress updates instead of adding a comment - body = current state, comments = history (except the Status line and ## Decision, which are body updates by design)
 - Starting any fix, branch or tracked-file edit on any tier before the Stop gate gets a go
