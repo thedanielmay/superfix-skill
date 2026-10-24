@@ -26,7 +26,7 @@ t run3-reverts-modified-and-added '^REVERTED-BOTH$' run3
 t merged-tree-reprove '^FOUND$' has "$ROOT/skills/superfix/references/execute.md" "merge main into the branch and re-prove"
 t merged-tree-not-tested '^FOUND$' has "$ROOT/skills/superfix/references/execute.md" "merged tree not re-tested"
 # item 4: zero registered checks is not green, via the 1.6.3 checks key
-t zero-checks-not-green '^NEVER-FOUND$' has "$ROOT/SKILL.md" "zero registered checks is NOT green"
+t zero-checks-not-green '^FOUND$' has "$ROOT/SKILL.md" "zero registered checks is NOT green"
 t checks-key-pointer '^FOUND$' has "$ROOT/SKILL.md" "python3 references/project.py <repo>"
 # item 5: closing verify lives in journal.md
 t closing-refs '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" "closingIssuesReferences"
