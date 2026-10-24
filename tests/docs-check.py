@@ -10,7 +10,7 @@ for f in files:
     if not f.exists():
         bad.append(f"{f}: missing"); continue
     t = f.read_text()
-    n = t.count("–") + t.count("—")
+    n = t.count("\u2013") + t.count("\u2014")
     if n: bad.append(f"{f.name}: {n} em/en dashes")
     for m in re.finditer(r"\]\(([^)#\s]+)(#[^)]*)?\)", t):
         u = m.group(1)
