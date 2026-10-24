@@ -173,7 +173,7 @@ Three safeguards that used to be instructions are now real checks that fail loud
 - Solved check run 3 reverts only the fix's own files: modified files are restored from the approval commit, files the fix added are removed, and the expected failing guard is named. A fix that adds a new file used to revert nothing, so the check passed wrongly.
 - If main moved after the proof, the run records "merged tree not re-tested". The closing state is verified after the merge.
 - Skill text: issue claims are hypotheses; the issue's own control is run; readers are listed with counts; every scan needs a positive control; tests-only work gets a one-paragraph type; review depth scales with the diff; the budget counts active time; loose ends found in review are not scope creep; the mutant rule applies only to rows that pin a gate or check; merge commits are exempt from the trailer.
-- Known limits: the 29 skill-text tests check that the new wording is present, not that the rules work. The three new test scripts are not in CI, as with the work order tests.
+- Known limits: the 29 skill-text tests check that the new wording is present, not that the rules work. The three new test scripts run in CI on every pull request (from 1.6.5); the work order suites do not.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -353,4 +353,4 @@ The line since 1.5.0:
 
 The 1.6.4 release note reports 115 work order, 240 criteria, 52 settings, 16 redaction, 11 solved check and 29 skill-text tests, 18 removed lines in the preservation record all justified, and `SKILL.md` at 439 of 440 lines.
 
-Known limits: Qik configuration support is provisional. Pictures of Qik draft pages are untested (they need the one-time saved login above). The 29 skill-text tests check that the new wording is present, not that the rules work. The redaction, solved check and skill text test scripts are not in CI, as with the work order tests.
+Known limits: Qik configuration support is provisional. Pictures of Qik draft pages are untested (they need the one-time saved login above). The 29 skill-text tests check that the new wording is present, not that the rules work. The redaction, solved check and skill text test scripts run in CI on every pull request; the two work order suites still run only on this Mac, because they need `sandbox-exec` and local fixtures.
