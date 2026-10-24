@@ -7,6 +7,7 @@ The file is named for the release it compares against, not the release it lands 
 Check: `python3 tests/preservation-check.py "$PWD"` must print `0 unjustified` and exit 0.
 
 ## Justifications
+- skills/superfix/SKILL.md > Phase 0 - Problem Profile :: Primary type:    [bug | performance | ux | architecture | security | feature] :: `research` joins the list of types, so the line gained one word and the type table below it carries the new row (1.7.0 part two)
 
 - skills/superfix/SKILL.md > Red Flags :: - Classifying from title alone - always read full body, labels, and all comments first :: the same rule is stated at skills/superfix/SKILL.md:46 (Read the full input before classifying, never from the title alone); cut in the 1.6.6 trim, see out-triage/redflags-map.md
 - skills/superfix/SKILL.md > Red Flags :: - Triaging complexity before exploring the codebase :: the same rule is stated at skills/superfix/SKILL.md:127 (Complexity tier: provisional from issue text, confirmed after exploration); cut in the 1.6.6 trim, see out-triage/redflags-map.md
