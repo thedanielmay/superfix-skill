@@ -7,6 +7,8 @@ on:
       - 'skills/superfix/references/**'
       - 'references'
       - 'tests/**'
+      - 'README.md'
+      - 'docs/**'
       - '.claude-plugin/plugin.json'
 jobs:
   sync:
@@ -22,3 +24,7 @@ jobs:
       - run: n=$(wc -l < skills/superfix/references/criteria.md); if [ "$n" -gt 390 ]; then echo "CRITERIA-TOO-LONG $n"; exit 1; fi; echo "criteria.md $n lines"
       - run: python3 tests/crit-15-check.py skills/superfix/references/crit.py
       - run: bash tests/project-tests.sh
+      - run: python3 tests/docs-check.py .
+      - run: bash tests/redact-check-tests.sh
+      - run: bash tests/solved-close-tests.sh
+      - run: bash tests/skill-text-tests.sh

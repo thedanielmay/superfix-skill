@@ -4,7 +4,7 @@
 # Usage: bash tests/redact-check-tests.sh
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-T="$(mktemp -d /private/tmp/redact-tests.XXXX)"
+T="$(mktemp -d "${TMPDIR:-/tmp}/redact-tests.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 RC="python3 -I $ROOT/skills/superfix/references/redact-check.py"
 pass=0; fail=0

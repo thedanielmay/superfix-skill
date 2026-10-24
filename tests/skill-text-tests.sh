@@ -28,7 +28,7 @@ t e105-no-stash '^FOUND$' has "$D/execute.md" "Never stash in a worktree flow"
 t e118-safe-order '^FOUND$' has "$D/execute.md" "the safe order"
 t j121-blocked '^FOUND$' has "$D/journal.md" "blocked by a permission check at <step>"
 t e122-moves '^FOUND$' has "$D/execute.md" "Checklist for move-only refactors"
-t e123-zsh '^FOUND$' has "$D/execute.md" "use \`${=T}\`"
+t e123-zsh '^FOUND$' has "$D/execute.md" 'use `${=T}`'
 t e124-wrong-level '^FOUND$' has "$D/execute.md" "the rule is at the wrong level"
 t e128-prev-head '^FOUND$' has "$D/execute.md" "against the PREVIOUS head"
 t e130-fail-closed '^FOUND$' has "$D/execute.md" "fail closed"
