@@ -87,7 +87,7 @@ Before a comment goes onto the issue, `wo-scan-comment` scans it and `wo-post` r
 - The scan needs `--data <file>` (the owner's original) or `--no-data`. With neither, or with an empty list, it stops with `SCAN-NO-DATA`, writes no receipt, and the post is refused.
 - The receipt is written whole and records the sha of the comment and of the data file. `wo-post` refuses a cut-short receipt, a changed comment and a changed data file.
 - The comment's own file name is scanned, and each cell of a tab separated file is read on its own.
-- The Stop gate comment and the final comment of a code work order go through the same two commands.
+- The Stop gate comment and the final comment of either work order kind go through the same two commands.
 
 The post is allowed only when `wo-post` prints `POST-OK`, or `POST-OK-DECLARED` when the run holds no data file and says so with `--no-data`. Scan first, post second, clean up third: a cleanup between the scan and the post takes the receipt away and the post is refused.
 
