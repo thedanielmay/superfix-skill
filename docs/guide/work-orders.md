@@ -26,7 +26,7 @@ Any other `CHECKS-KIND` prints `WORKORDER-KIND <value>` when writing and `RETURN
 For code:
 
 - `workorder.md`: the header lines, the steps as a tick list, the loop, and the `CHECKS` block between `# BEGIN CHECKS` and `# END CHECKS`.
-- The check.sh script, made from the checks block exactly. Its sha is the `CHECKS-SHA` line.
+- The checks block in `workorder.md`; the executor's Step 0 writes it to check.sh in the folder. Its sha is the `CHECKS-SHA` line.
 - The held-back checks. They stay with Superfix, never in the folder, and the executor never sees them.
 - `report.md`, where the executor ticks the checklist, records each attempt and writes the result.
 - `return.bundle` when the executor returns.
@@ -80,7 +80,7 @@ sequenceDiagram
 
 Rule 0 comes before anything: in the folder, `shasum -a 256 workorder.md` must print the `WORKORDER-SHA` line the executor was given separately. If it differs, or the executor has none, the result is `RETURNED CHECKS-CHANGED`. Never edit `workorder.md` or check.sh.
 
-Step 0 is one bash block. It checks the folder, clones the repo at `REPO`, checks out `BASE` on `BRANCH`, checks that every file in `FILES` exists and every file marked `(new)` does not, extracts the checks block to check.sh, compares its sha with `CHECKS-SHA`, and resumes from `return.bundle` when there is one. It prints `START-OK`, or a `RESULT: RETURNED <word>` line and stops.
+Step 0 is one bash block. It checks the folder, clones the repo at `REPO`, checks out `BASE` on `BRANCH`, checks that every file in `FILES` that is not marked `(new)` is present, extracts the checks block to check.sh, compares its sha with `CHECKS-SHA`, and resumes from `return.bundle` when there is one. It prints `START-OK`, or a `RESULT: RETURNED <word>` line and stops.
 
 One run of check.sh is one attempt, and every attempt is one commit. The loop is:
 
