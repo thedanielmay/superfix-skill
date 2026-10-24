@@ -17,7 +17,7 @@ echo "hello world" > "$T/clean.txt"
 printf 'Use token ghp_abcdefghijklmnopqrstuvwxyz0123456789 for the clone.\n' > "$T/token.md"
 
 # the script with its positive control
-t self-test '^SELF-TEST-OK$' 0 $RC --self-test
+t self-test '^SELF-TEST-NEVER$' 0 $RC --self-test
 # failing input: all input files missing is ERROR, never PATTERN-CLEAN
 t missing-files-error '^ERROR' 1 $RC --run "$T/run" -- /tmp/does-not-exist-aaa /tmp/does-not-exist-bbb
 t missing-files-no-false-clean '^NO-FALSE-PASS$' 0 bash -c "$RC --run '$T/run' -- /tmp/does-not-exist-aaa | grep -q PATTERN-CLEAN && echo FALSE-PASS || echo NO-FALSE-PASS"
