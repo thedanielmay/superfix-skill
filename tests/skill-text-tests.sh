@@ -19,7 +19,7 @@ t d65-positive-control '^FOUND$' has "$D/diagnose.md" "Every scan carries a posi
 # item 7 (execute.md, journal.md, SKILL.md)
 t e10-worktree '^FOUND$' has "$D/execute.md" "git -C <repo> worktree add"
 t e13-background '^FOUND$' has "$D/execute.md" "run_in_background from the start"
-t e38-tail '^NEVER-FOUND$' has "$D/execute.md" "quote the tail"
+t e38-tail '^FOUND$' has "$D/execute.md" "quote the tail"
 t e52-no-k '^FOUND$' has "$D/execute.md" "never \`-k <word>\`"
 t e58-show-current '^FOUND$' has "$D/execute.md" "git branch --show-current"
 t j73-date '^FOUND$' has "$D/journal.md" "run \`date\` and compute it"
