@@ -1,8 +1,24 @@
 # Versions
 
-One entry per tagged release from 1.1.0 to 1.6.5. The details come from the GitHub release notes where one was published. Ten of the tags in this range have no GitHub release note; for those the entry records the tag date and the tag's commit subject, and says that the release contents are not documented.
+One entry per tagged release from 1.1.0 to 1.7.0. The details come from the GitHub release notes where one was published. Ten of the tags in this range have no GitHub release note; for those the entry records the tag date and the tag's commit subject, and says that the release contents are not documented.
 
-The current release is 1.6.5, tagged on 24 October 2026.
+The current release is 1.7.0, tagged on 24 October 2026.
+
+## 1.7.0
+
+Tag date: 2026-10-24. Release note: [Superfix 1.7.0](https://github.com/thedanielmay/superfix-skill/releases/tag/v1.7.0).
+
+In plain words: a reviewer who sees only the PR now checks the risky changes, the settings file gains three keys, the comment gate can enforce a no dashes rule, and a new `research` type answers a question without changing code.
+
+- An independent review stage: after the PR is open, Moderate, Complex and any change to a gate or prompt text get one reviewer that sees only the PR number and the owner's own description, and posts `INDEPENDENT-REVIEW PASS|FAIL <n> findings`. A FAIL blocks the ready-for-review status.
+- The settings file now has eight keys. `closing:` (`auto`, `closes` or `refs`) controls the PR body's issue reference and is checked with `CLOSING-OK` or `CLOSING-BAD <why>`; `Closes #12`, `Closes owner/repo#12` and `Closes` followed by an issue URL all count, and a markdown link after the keyword is refused with `link-form-does-not-close`. `model:` (`sonnet`, `opus` or `default`) sets the fix stage default. `side-findings:` (`list` or `file`) says whether a finding outside the job is only listed or filed as a labelled, assigned issue, at most 5 a run.
+- The comment gate reads a repo `rules:` line that says "no em or en dashes" or "no dashes", and a comment holding such a dash fails with `STYLE-DASH <line>` and writes no receipt. Other rules lines print as `STYLE-RULE` and are never enforced.
+- A `research` issue type, detected second after `security`, makes no branch and no PR. One validation agent returns `CONFIRMED`, `CORRECTED` or `REFUTED` for every claim before the report is posted, and a report with no validated claim cannot be posted as a conclusion.
+- The Red Flags list in `SKILL.md` was cut from 24 bullets to 2, each cut rule having a home line elsewhere, and CI now runs the docs check and the redaction, solved check and skill text scripts on every pull request.
+
+Known limits in the release note: the style check is a fixed phrase list and a dash inside a code fence still fails; a research report is checked by one agent on the same model family, so it is a filter and not proof; the independent review sees only the PR and the owner's description.
+
+Tests reported: settings 103, redaction 16, style check 15, solved check 11, skill text 61, cleanup 15, work order dedupe 11, work order kinds 11, work order 115 and criteria 240. Preservation: 31 removed and 10 moved lines, all justified. `SKILL.md` 427 of 430 lines.
 
 ## 1.6.5
 
