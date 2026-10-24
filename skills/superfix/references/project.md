@@ -58,6 +58,9 @@ A keyword counts in three forms only: `Closes #12`, `Closes owner/repo#12` or
 `Closes https://github.com/owner/repo/issues/12`, and the same three after `Refs`. A keyword followed
 by a markdown link, `Closes [label](https://github.com/owner/repo/issues/12)`, closes nothing on
 GitHub, so `closes` and `refs` refuse it with `CLOSING-BAD link-form-does-not-close <line>`.
+Qualified references must match this clone's GitHub `origin` repository, read from local Git
+metadata (including linked worktrees); if it cannot be identified, they are refused. Unqualified
+`#<N>` references still refer to this repository without needing remote metadata.
 
 `model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still
 raise it for a Complex or architecture step, so it is not "always use this model". `default` means the

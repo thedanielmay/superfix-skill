@@ -4,7 +4,7 @@
 Usage: python3 references/project.py [REPO]      (REPO defaults to the current folder)
 
 Standard library only. It never runs, expands or fetches anything: it reads one
-file and judges it. The format and the keys are in references/project.md.
+settings file and judges it. The format and the keys are in references/project.md.
 
 Output, one line per item, the status line first:
   PROJECT-OK                     every setting applied
@@ -21,7 +21,7 @@ Exit 0 for OK and UNKNOWN-KEY (the run continues), 1 for the three stops.
 With --pr-body <file> --issue <n> it reads closing: from the settings and checks
 the PR body instead: CLOSING-OK, or CLOSING-BAD <why> and exit 1.
 """
-import pathlib, re, sys
+import configparser, pathlib, re, sys
 
 FILE = ".superfix/project.md"
 SINGLE = ("base-branch", "pr-base", "closing", "model", "side-findings")
@@ -52,8 +52,8 @@ REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
 # The three forms a closing keyword or a refs line may name an issue in. A markdown
 # link is not one of them: GitHub does not read it as a closing keyword.
 OWNER_REPO = r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+"
-ISSUE = (r"(?:https?://github\.com/" + OWNER_REPO + r"/issues/(\d+)\b|"
-         + OWNER_REPO + r"#(\d+)\b|#?(\d+)\b)")
+ISSUE = (r"(?:https?://github\.com/(?P<url_repo>" + OWNER_REPO + r")/issues/(?P<url_num>\d+)\b|"
+         r"(?P<repo>" + OWNER_REPO + r")#(?P<num>\d+)\b|#(?P<local_num>\d+)\b)")
 LINK_FORM = re.compile(
     r"^\s*(%s)\s*:?\s*\[[^\]]*\]\(\s*https?://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/issues/\d+\s*\)"
     % "|".join(CLOSING_WORDS + ("refs",)),
@@ -205,7 +205,7 @@ def body_lines(text):
 
 
 def keyword_hits(lines, words):
-    """(line number, issue number) for each line that opens with one of the words and
+    """(line number, repository or None, issue number) for each keyword line that
     names the issue as #<n>, <owner>/<repo>#<n> or
     https://github.com/<owner>/<repo>/issues/<n>."""
     pat = re.compile(r"^\s*(%s)\s*:?\s*%s" % ("|".join(words), ISSUE), re.I)
@@ -213,8 +213,36 @@ def keyword_hits(lines, words):
     for n, raw in lines:
         m = pat.match(raw)
         if m:
-            out.append((n, int(m.group(2) or m.group(3) or m.group(4))))
+            out.append((n, m.group("url_repo") or m.group("repo"),
+                        int(m.group("url_num") or m.group("num") or m.group("local_num"))))
     return out
+
+
+def repository_name(root):
+    """Read origin's GitHub owner/repository locally, including linked worktrees.
+
+    No Git command or config include is executed. Unknown metadata returns None,
+    so a qualified reference cannot pass on its number alone.
+    """
+    try:
+        gitdir = root / ".git"
+        if gitdir.is_file():
+            marker = gitdir.read_text(encoding="utf-8").strip()
+            if not marker.startswith("gitdir: "):
+                return None
+            gitdir = root / marker[len("gitdir: "):]
+        common = gitdir / "commondir"
+        if common.is_file():
+            gitdir = gitdir / common.read_text(encoding="utf-8").strip()
+        config = configparser.ConfigParser(interpolation=None, strict=False)
+        config.read(gitdir / "config", encoding="utf-8")
+        url = config.get('remote "origin"', "url", fallback="")
+    except (OSError, UnicodeError, configparser.Error):
+        return None
+    match = re.fullmatch(
+        r"(?:https?://github\.com/|ssh://git@github\.com/|git@github\.com:)(%s)/?"
+        % OWNER_REPO, url, re.I)
+    return match.group(1).lower().removesuffix(".git") if match else None
 
 
 def link_form_hits(lines):
@@ -245,7 +273,10 @@ def closing_check(root, body_path, issue):
     closes = keyword_hits(body, CLOSING_WORDS)
     refs = keyword_hits(body, ("refs",))
     n = int(issue)
-    wrong = [num for _, num in closes if num != n]
+    repository = repository_name(root)
+    wrong = [f"{repo}#{num}" if repo and repo.lower() != repository else num
+             for _, repo, num in closes
+             if num != n or (repo and repo.lower() != repository)]
     if wanted == "closes":
         if not closes:
             return ["CLOSING-BAD no-closing-keyword"], 1
@@ -255,7 +286,8 @@ def closing_check(root, body_path, issue):
     if wanted == "refs":
         if closes:
             return [f"CLOSING-BAD closing-keyword line {closes[0][0]}"], 1
-        if n not in [num for _, num in refs]:
+        if not any(num == n and (repo is None or repo.lower() == repository)
+                   for _, repo, num in refs):
             return ["CLOSING-BAD no-refs-line"], 1
         return ["CLOSING-OK"], 0
     if wrong:

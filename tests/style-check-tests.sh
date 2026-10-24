@@ -9,7 +9,7 @@
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 T="$(mktemp -d "${TMPDIR:-/tmp}/style-check-tests.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
-C="python3 -I $ROOT/skills/superfix/references/crit.py"
+C=(python3 -I "$ROOT/skills/superfix/references/crit.py")
 RUN="$T/run"; REPO="$T/repo"; SET="$REPO/.superfix"
 mkdir -p "$RUN" "$SET"
 EN="$(printf '\xe2\x80\x93')"; EM="$(printf '\xe2\x80\x94')"
@@ -18,8 +18,8 @@ t() { local name="$1" want="$2"; shift 2; local out rcgot; out="$("$@" 2>&1)"; r
   if printf '%s' "$out" | tr '\n' '|' | grep -qE "$want"; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: want /$want/ got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-300) (rc $rcgot)"; fi; }
 rules() { printf '%b\n' "$1" > "$SET/project.md"; }
 comment() { printf '%b\n' "$2" > "$T/$1.md"; }
-scan() { $C wo-scan-comment --run "$RUN" --comment "$T/$1.md" --repo "$REPO" --no-data; }
-post() { $C wo-post --run "$RUN" --comment "$T/$1.md"; }
+scan() { "${C[@]}" wo-scan-comment --run "$RUN" --comment "$T/$1.md" --repo "$REPO" --no-data; }
+post() { "${C[@]}" wo-post --run "$RUN" --comment "$T/$1.md"; }
 
 # 1. no rules file: nothing to enforce, the comment passes and no style line appears
 rm -f "$SET/project.md"

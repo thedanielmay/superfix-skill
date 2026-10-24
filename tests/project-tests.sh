@@ -167,6 +167,8 @@ issue_run() { $P --pr-body "$T/pr-body.md" --issue 125 "$R"; }
 w 'closing: closes'
 pb 'Body.\n\nCloses #125'
 t closing-body-closes-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nCloses 125'
+t closing-body-bare-number '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 pb 'Body.\n\nRefs #125'
 t closing-body-closes-missing '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 pb 'Body.\n\nCloses #999'
@@ -185,6 +187,8 @@ t closing-body-missing-file '^CLOSING-BAD no-body-file$' 1 $P --pr-body "$T/nope
 t closing-no-issue '^CLOSING-BAD no-issue$' 1 $P --pr-body "$T/pr-body.md" "$R"
 
 # ---- the three forms a keyword may name an issue in, and the link form GitHub ignores (superfix-skill#127) ----
+mkdir -p "$R/.git"
+printf '[remote "origin"]\nurl = https://github.com/thedanielmay/superfix-skill.git\n' > "$R/.git/config"
 w 'closing: closes'
 pb 'Body.\n\nCloses https://github.com/thedanielmay/superfix-skill/issues/125'
 t closing-body-url-ok '^CLOSING-OK$' 0 issue_run
@@ -201,6 +205,42 @@ pb 'Body.\n\nRefs https://github.com/thedanielmay/superfix-skill/issues/125'
 t closing-body-refs-url-ok '^CLOSING-OK$' 0 issue_run
 pb 'Body.\n\nRefs [the issue](https://github.com/thedanielmay/superfix-skill/issues/125)'
 t closing-body-refs-link-form '^CLOSING-BAD link-form-does-not-close 3$' 1 issue_run
+
+# ---- qualified references must name this repository, even when numbers match ----
+for mode in closes auto; do
+  w "closing: $mode"
+  for ref in 'elsewhere/other#125' 'https://github.com/elsewhere/other/issues/125'; do
+    pb "Body.\n\nCloses $ref"
+    t "closing-$mode-other-repo-$ref" '^CLOSING-BAD closing-keyword-for elsewhere/other#125$' 1 issue_run
+  done
+  pb 'Body.\n\nCloses #125\nCloses elsewhere/other#125'
+  t "closing-$mode-mixed-repos" '^CLOSING-BAD closing-keyword-for elsewhere/other#125$' 1 issue_run
+done
+w 'closing: refs'
+for ref in 'elsewhere/other#125' 'https://github.com/elsewhere/other/issues/125' '125'; do
+  pb "Body.\n\nRefs $ref"
+  t "closing-refs-other-repo-or-bare-$ref" '^CLOSING-BAD no-refs-line$' 1 issue_run
+done
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
+t closing-refs-owner-repo-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nRefs elsewhere/other#125\nRefs #125'
+t closing-refs-mixed-repos-ok '^CLOSING-OK$' 0 issue_run
+w 'closing: closes'
+pb 'Body.\n\nCloses TheDanielMay/Superfix-Skill#125'
+for remote in 'https://github.com/thedanielmay/superfix-skill.git' 'git@github.com:thedanielmay/superfix-skill.git' 'ssh://git@github.com/thedanielmay/superfix-skill.git'; do
+  printf '[remote "origin"]\nurl = %s\n' "$remote" > "$R/.git/config"
+  t "closing-repo-identity-$remote" '^CLOSING-OK$' 0 issue_run
+done
+# Linked worktrees use a gitdir file and a commondir pointing at the shared config.
+mv "$R/.git" "$R/common.git"
+mkdir -p "$R/common.git/worktrees/test"
+printf 'gitdir: common.git/worktrees/test\n' > "$R/.git"
+printf '../..\n' > "$R/common.git/worktrees/test/commondir"
+t closing-repo-identity-worktree '^CLOSING-OK$' 0 issue_run
+rm "$R/.git"
+t closing-qualified-without-repo '^CLOSING-BAD closing-keyword-for TheDanielMay/Superfix-Skill#125$' 1 issue_run
+pb 'Body.\n\nCloses #125'
+t closing-unqualified-without-repo '^CLOSING-OK$' 0 issue_run
 
 # ---- model: the fix stage default (1.7.0 part one, superfix-skill#125) ----
 for v in sonnet opus default; do

@@ -293,7 +293,7 @@ With `side-findings: file`, the owner's yes to the `Settings:` line at the Stop 
 - Label `superfix:side-finding`, colour `1D76DB`, description "Found while working on another issue": ensure it exists with the same ensure command shape as the labels above, then the same add and read-back commands.
 - Assignee: the main issue's assignee, or else the user `gh` is logged in as (`gh api user -q .login`).
 - Title: the finding in one plain line, with no value from the data.
-- Body: it starts "Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)", an explicit markdown link labelled `<owner>/<repo>#<N>`, never a bare number and never in backticks; then the evidence: the file and line, and the command output that showed it.
+- Body: it starts "Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)", an explicit markdown link labelled `<owner>/<repo>#<N>`, never a bare number and never in backticks; then the evidence: the file and line, and the command output that showed it. Replace output containing values from the owner's data with a value-free excerpt or omit it; if the finding cannot be safely redacted, keep it under `## Not tested` only.
 - A create that fails is reported with its output and never retried blindly; the rest of the run carries on.
 - In the final comment, each `## Not tested` bullet that was filed ends "filed as <link>".
 - No issue (file-mode journal): nothing is filed, and the findings stay under `## Not tested`.
