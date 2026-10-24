@@ -2089,6 +2089,46 @@ def woc_drop_scan_receipts(D):
     return left
 
 
+def woc_rules_lines(repo):
+    """The repo's `rules:` lines from <repo>/.superfix/project.md, read the way
+    references/project.py reads them: a key and a value, with a leading list dash or
+    bold markers ignored. No repo, no file, or an unreadable file reads as no rules."""
+    if not repo:
+        return []
+    try:
+        text = (pathlib.Path(repo) / ".superfix" / "project.md").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    out = []
+    for raw in text.splitlines():
+        s = raw.strip()
+        if not s or s.startswith("#") or ":" not in s:
+            continue
+        key, value = s.split(":", 1)
+        key = key.strip().lower()
+        if key.startswith(("- ", "* ")):
+            key = key[2:]
+        if key.strip().strip("*`").strip() == "rules" and value.strip():
+            out.append(value.strip())
+    return out
+
+
+def woc_style_check(comment, rules):
+    """The fixed style list, kept short on purpose: it does not read free text. A rules
+    line that says no em or en dashes, or no dashes, makes a comment holding U+2013 or
+    U+2014 fail. Every rules line is shown; only that phrase is enforced. Returns the
+    lines to print and the exit code."""
+    shown = [f"STYLE-RULE {r}" for r in rules]
+    dash = [r for r in rules if "no em or en dashes" in r.lower() or "no dashes" in r.lower()]
+    if not dash:
+        return shown, 0
+    low, high = chr(8211), chr(8212)
+    bad = [n for n, line in enumerate(comment.splitlines(), 1) if low in line or high in line]
+    if bad:
+        return shown + [f"STYLE-DASH {bad[0]} (this repo's rules say no dashes: fix the comment, then scan again)"], 1
+    return shown + ["STYLE-CLEAN"], 0
+
+
 def cmd_wo_scan_comment(a):
     """SCAN-COMMENT: flag any distinctive cell value from the data files the run names
     that appears in a comment body or in the comment's file name. Prints SCAN-VALUE lines
@@ -2096,7 +2136,9 @@ def cmd_wo_scan_comment(a):
     and the run folder holds no locked original) it prints SCAN-NO-DATA, exits 1 and writes
     no receipt, so the post is refused: a scan that compared nothing cannot open the gate.
     With --no-data the caller declares that the run holds no data file: the receipt records
-    that basis and the scan prints SCAN-NO-DATA-DECLARED (rc 0)."""
+    that basis and the scan prints SCAN-NO-DATA-DECLARED (rc 0). The fixed style list runs
+    first: with --repo, a rules line saying no dashes makes a comment holding U+2013 or
+    U+2014 fail with STYLE-DASH <line> and no receipt, so wo-post refuses it."""
     D = pathlib.Path(a.run)
     try:
         raw = pathlib.Path(a.comment).read_bytes()
@@ -2120,6 +2162,12 @@ def cmd_wo_scan_comment(a):
             print(f"SCAN-NO-FILE {q} (the data file cannot be read: pass the file the run read, or --no-data when the run holds none)")
             return 1
     comment = raw.decode("utf-8", errors="replace")
+    style, style_rc = woc_style_check(comment, woc_rules_lines(getattr(a, "repo", None)))
+    for line in style:
+        print(line)
+    if style_rc:
+        woc_drop_receipt(receipt)
+        return style_rc
     trusted, others = woc_comment_corpus(D, named)
     usable = []
     for q in trusted:
@@ -4017,7 +4065,7 @@ def main():
     s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
     s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
     s.add_argument("--data", action="append"); s.add_argument("--no-data", action="store_true")
-    s.add_argument("--asked", action="store_true")
+    s.add_argument("--asked", action="store_true"); s.add_argument("--repo")
     s = p("wo-post", cmd_wo_post, "run"); s.add_argument("--comment", required=True)
     s = p("wo-sendback", cmd_wo_sendback, "run", "dest", body=True); s.add_argument("--clone"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("sandbox", cmd_sandbox, "cwd"); s.add_argument("--timeout", type=int, default=300); s.add_argument("argv", nargs=argparse.REMAINDER)
