@@ -9,6 +9,7 @@ New in 1.5.0 ([superfix-skill#54](https://github.com/thedanielmay/superfix-skill
 - No checkable criterion: when Superfix cannot draft one and the owner gives none (strategy, business prose, a judgement call), the problem stops at diagnosis, as before 1.5.0, and gets a gap note of kind "no checkable criterion" (section 20).
 - Roadmap issues [superfix-skill#35](https://github.com/thedanielmay/superfix-skill/issues/35), [superfix-skill#36](https://github.com/thedanielmay/superfix-skill/issues/36) and [superfix-skill#37](https://github.com/thedanielmay/superfix-skill/issues/37) are optional helpers; their output can be a `how:`. A library of recurring criteria is LATER, not in 1.5.0.
 - Criteria mode never applies to Code or Qik problems. They keep their own path, solved check and rules.
+- The work order's `KINDS:` line makes the rule mechanical: `wo-check` and `wo-lock` print `WORKORDER-KIND-REFUSED` for `qik`, `live`, `sheet`, `doc` or any kind outside code and criteria, and for a code plus criteria mix, before any copy of the data is made (workorder.md).
 
 ### 2. Criterion lines in ## Done when
 
