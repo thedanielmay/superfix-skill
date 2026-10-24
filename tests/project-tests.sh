@@ -151,6 +151,39 @@ printf 'stop-gate: off\n' >> "$LIVE"
 t live-superfix-hostile '^PROJECT-REFUSED stop-gate' 1 $P "$ROOT"
 rm -f "$LIVE"
 
+# ---- closing: and the PR body check (1.7.0 part one, superfix-skill#125) ----
+for v in auto closes refs; do
+  w "closing: $v"
+  t "closing-$v" "^PROJECT-OK.*SETTING closing=$v" 0 read_it
+done
+w 'closing: sometimes'
+t closing-refused '^PROJECT-BAD-VALUE closing \(sometimes\)' 1 read_it
+w 'closing: closes'
+t closing-not-unknown '^PROJECT-OK' 0 read_it
+printf 'closing: auto\nclosing: refs\n' > "$R/.superfix/project.md"
+t closing-twice '^PROJECT-BAD-VALUE closing \(set 2 times\)' 1 read_it
+pb() { printf '%b\n' "$1" > "$T/pr-body.md"; }
+issue_run() { $P --pr-body "$T/pr-body.md" --issue 125 "$R"; }
+w 'closing: closes'
+pb 'Body.\n\nCloses #125'
+t closing-body-closes-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nRefs #125'
+t closing-body-closes-missing '^CLOSING-BAD no-closing-keyword$' 1 issue_run
+pb 'Body.\n\nCloses #999'
+t closing-body-wrong-issue '^CLOSING-BAD closing-keyword-for 999$' 1 issue_run
+w 'closing: refs'
+pb 'Body.\n\nRefs #125'
+t closing-body-refs-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nCloses #125'
+t closing-body-refs-has-closing '^CLOSING-BAD closing-keyword line 3$' 1 issue_run
+pb 'Body.\n\n```\nCloses #125\n```'
+t closing-body-fence-ignored '^CLOSING-BAD no-refs-line$' 1 issue_run
+w 'closing: auto'
+pb 'Body.\n\nRefs #125'
+t closing-body-auto-ok '^CLOSING-OK$' 0 issue_run
+t closing-body-missing-file '^CLOSING-BAD no-body-file$' 1 $P --pr-body "$T/nope.md" --issue 125 "$R"
+t closing-no-issue '^CLOSING-BAD no-issue$' 1 $P --pr-body "$T/pr-body.md" "$R"
+
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
 t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/project.py'

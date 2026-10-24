@@ -17,13 +17,19 @@ Output, one line per item, the status line first:
   IGNORED <key>                  one per unknown key
   SETTINGS-NONE                  the file is absent or holds no settings
 Exit 0 for OK and UNKNOWN-KEY (the run continues), 1 for the three stops.
+
+With --pr-body <file> --issue <n> it reads closing: from the settings and checks
+the PR body instead: CLOSING-OK, or CLOSING-BAD <why> and exit 1.
 """
 import pathlib, re, sys
 
 FILE = ".superfix/project.md"
-SINGLE = ("base-branch", "pr-base")
+SINGLE = ("base-branch", "pr-base", "closing")
 MULTI = ("checks", "rules", "do-not-edit")
 ALLOWED = SINGLE + MULTI
+# closing: what the PR body says about the issue.
+CLOSING = ("auto", "closes", "refs")
+CLOSING_WORDS = ("closes", "fixes", "resolves")
 # A key holding one of these words is trying to loosen a safeguard, so the run stops.
 REFUSED = ("gate", "secre", "redact", "merge", "push", "budget", "approv", "bypass",
            "allow", "skip", "permission", "credential", "token", "password", "dest",
@@ -144,6 +150,9 @@ def read(root):
         if key == "rules" and refused_key(value):
             refused.append(key)
             continue
+        if key == "closing" and value not in CLOSING:
+            values.append((key, value))
+            continue
         if not value or refused_value(value) or (key in SINGLE and not ok_ref(value)):
             values.append((key, value))
             continue
@@ -160,8 +169,89 @@ def read(root):
     return status + (body or ["SETTINGS-NONE"]), 0
 
 
+def body_lines(text):
+    """(line number, line) for a PR body, with fenced code blocks dropped."""
+    out, fence = [], None
+    for n, raw in enumerate(text.splitlines(), 1):
+        s = raw.strip()
+        if fence is None and s.startswith(("```", "~~~")):
+            fence = s[:3]
+            continue
+        if fence is not None:
+            if s.startswith(fence):
+                fence = None
+            continue
+        out.append((n, raw))
+    return out
+
+
+def keyword_hits(lines, words):
+    """(line number, issue number) for each line that opens with one of the words."""
+    pat = re.compile(r"^\s*(%s)\s*:?\s*#?(\d+)\b" % "|".join(words), re.I)
+    out = []
+    for n, raw in lines:
+        m = pat.match(raw)
+        if m:
+            out.append((n, int(m.group(2))))
+    return out
+
+
+def closing_check(root, body_path, issue):
+    """The one line verdict for a PR body against the repo's closing: setting."""
+    lines, code = read(root)
+    if code:
+        return [f"CLOSING-BAD settings {lines[0]}"], 1
+    wanted = "auto"
+    for line in lines:
+        if line.startswith("SETTING closing="):
+            wanted = line.split("=", 1)[1]
+    if not issue or not str(issue).isdigit():
+        return ["CLOSING-BAD no-issue"], 1
+    path = pathlib.Path(body_path)
+    if not path.is_file():
+        return ["CLOSING-BAD no-body-file"], 1
+    body = body_lines(path.read_text(encoding="utf-8", errors="replace"))
+    closes = keyword_hits(body, CLOSING_WORDS)
+    refs = keyword_hits(body, ("refs",))
+    n = int(issue)
+    wrong = [num for _, num in closes if num != n]
+    if wanted == "closes":
+        if not closes:
+            return ["CLOSING-BAD no-closing-keyword"], 1
+        if wrong:
+            return [f"CLOSING-BAD closing-keyword-for {wrong[0]}"], 1
+        return ["CLOSING-OK"], 0
+    if wanted == "refs":
+        if closes:
+            return [f"CLOSING-BAD closing-keyword line {closes[0][0]}"], 1
+        if n not in [num for _, num in refs]:
+            return ["CLOSING-BAD no-refs-line"], 1
+        return ["CLOSING-OK"], 0
+    if wrong:
+        return [f"CLOSING-BAD closing-keyword-for {wrong[0]}"], 1
+    return ["CLOSING-OK"], 0
+
+
 def main(argv):
-    root = pathlib.Path(argv[1] if len(argv) > 1 else ".")
+    args = argv[1:]
+    body = issue = None
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--pr-body" and i + 1 < len(args):
+            body = args[i + 1]
+            i += 2
+        elif args[i] == "--issue" and i + 1 < len(args):
+            issue = args[i + 1]
+            i += 2
+        else:
+            rest.append(args[i])
+            i += 1
+    root = pathlib.Path(rest[0] if rest else ".")
+    if body is not None:
+        lines, code = closing_check(root, body, issue)
+        print("\n".join(lines))
+        return code
     lines, code = read(root)
     print("\n".join(lines))
     return code
