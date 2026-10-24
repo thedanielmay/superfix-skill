@@ -4,7 +4,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 
 ## Where things live
 
-- This clone: `~/projects/skills-dev/superfix-skill`. Keep it on `main`: opencode reads it. Edit in a worktree of it (see Making a change).
+- This clone: `~/projects/agent-tools/skills/superfix-skill`. Keep it on `main`: opencode reads it. Edit in a worktree of it (see Making a change).
 - `~/.agents/skills/superfix` is a symlink to this clone. opencode and anything else reading that path sees your checkout directly. Do not edit through it, edit here.
 - `~/.claude/plugins/cache/thedanielmay/superfix/` is Claude Code's installed copy. Never edit it. A plugin update overwrites it.
 - Work is tracked in GitHub issues. Start from the epic labelled `epic`.
@@ -32,7 +32,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `SKILL
 ## Testing a change before release
 
 - opencode: type `superfix: <small task>`. It reads the repo file through the symlink, so it is live on your current branch.
-- Claude Code: `claude --plugin-dir ~/projects/skills-dev/superfix-<short-slug>` (the worktree). This loads that checkout for that one session only, without releasing anything.
+- Claude Code: `claude --plugin-dir ~/projects/agent-tools/skills/superfix-<short-slug>` (the worktree). This loads that checkout for that one session only, without releasing anything.
 - Try one Simple task and one Moderate task. Check the thing you changed actually happened.
 - Pictures (1.4.0): the capture script `shot.py` lives inside `skills/superfix/references/evidence.md`, between the lines `# --- shot.py start ---` and `# --- shot.py end ---`. Edit it there, never as a separate file. To try it, write it out with the `awk` command in evidence.md into a scratch folder that holds a `key` file, then run it against the testbed tag `seed-1.4` (`public/pricing.html`, `public/account.html`) with an interpreter that has the playwright module (on this Mac `/usr/bin/python3`; Homebrew's `python3` has none). Never upload while testing; `tests/prompts.md` lists the release tests.
 
