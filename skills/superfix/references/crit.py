@@ -1731,22 +1731,38 @@ def woc_base_name(t):
     return pathlib.Path(fs[0]).name
 
 
-def woc_check(a, t):
-    """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
-    lines, bad = t.splitlines(), []
-    for k in WO_REQUIRED_CRITERIA:
+def woc_missing_keys(lines, keys):
+    """The required header keys that are missing or repeated, as problem lines."""
+    bad = []
+    for k in keys:
         n = sum(1 for l in lines if l.startswith(k + ": "))
         if n != 1:
             bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
-    h = wo_head(t)
+    return bad
+
+
+def woc_not_fresh(t, skip_prefixes):
+    """The placeholder, ticked box and unticked step problems, as problem lines.
+    The placeholder exclusion list is the caller's: the code kind skips shell
+    fragments (r(){, o=, t=), where the criteria kind skips a checklist line."""
+    bad = []
     rep = t.find("\n## Report")
     for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
-        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "- [ ]")):
+        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(skip_prefixes):
             bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
         if re.search(r"^\s*- \[[xX]\]", l):
             bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
     if not re.search(r"(?m)^- \[ \] ", t):
         bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    return bad
+
+
+def woc_check(a, t):
+    """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
+    lines, bad = t.splitlines(), []
+    bad += woc_missing_keys(lines, WO_REQUIRED_CRITERIA)
+    bad += woc_not_fresh(t, ("#", "- [ ]"))
+    h = wo_head(t)
     F = real(pathlib.Path(a.wo).parent)
     appr = woc_approved(F)
     ticks = woc_tick(t)
@@ -3155,22 +3171,12 @@ def cmd_wo_check(a):
     if wo_head(t).get("CHECKS-KIND") == "criteria":
         return woc_check(a, t)
     lines, bad = t.splitlines(), []
-    for k in WO_REQUIRED:
-        n = sum(1 for l in lines if l.startswith(k + ": "))
-        if n != 1:
-            bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
+    bad += woc_missing_keys(lines, WO_REQUIRED)
     h = wo_head(t)
     if h.get("CHECKS-KIND") and h["CHECKS-KIND"] not in WO_KINDS:
         print(f"WORKORDER-KIND {h['CHECKS-KIND']}")
         return 1
-    rep = t.find("\n## Report")
-    for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
-        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "r(){", "o=", "t=")):
-            bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
-        if re.search(r"^\s*- \[[xX]\]", l):
-            bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
-    if not re.search(r"(?m)^- \[ \] ", t):
-        bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    bad += woc_not_fresh(t, ("#", "r(){", "o=", "t="))
     blk = wo_block(t)
     locked = pathlib.Path(a.check).read_text() if a.check else None
     if blk is None or sha_text(blk) != h.get("CHECKS-SHA") or (locked is not None and sha_text(locked) != h.get("CHECKS-SHA")):
