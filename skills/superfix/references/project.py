@@ -47,6 +47,15 @@ FLAGS = ("-I", "-u", "-B", "-n")
 SCRIPT_EXT = (".py", ".sh", ".js")
 SHELL_META = set('|&;$`<>(){}!*?#~\\"\'')
 REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+# The three forms a closing keyword or a refs line may name an issue in. A markdown
+# link is not one of them: GitHub does not read it as a closing keyword.
+OWNER_REPO = r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+"
+ISSUE = (r"(?:https?://github\.com/" + OWNER_REPO + r"/issues/(\d+)\b|"
+         + OWNER_REPO + r"#(\d+)\b|#?(\d+)\b)")
+LINK_FORM = re.compile(
+    r"^\s*(%s)\s*:?\s*\[[^\]]*\]\(\s*https?://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/issues/\d+\s*\)"
+    % "|".join(CLOSING_WORDS + ("refs",)),
+    re.I)
 
 
 def rows_of(text):
@@ -191,14 +200,23 @@ def body_lines(text):
 
 
 def keyword_hits(lines, words):
-    """(line number, issue number) for each line that opens with one of the words."""
-    pat = re.compile(r"^\s*(%s)\s*:?\s*#?(\d+)\b" % "|".join(words), re.I)
+    """(line number, issue number) for each line that opens with one of the words and
+    names the issue as #<n>, <owner>/<repo>#<n> or
+    https://github.com/<owner>/<repo>/issues/<n>."""
+    pat = re.compile(r"^\s*(%s)\s*:?\s*%s" % ("|".join(words), ISSUE), re.I)
     out = []
     for n, raw in lines:
         m = pat.match(raw)
         if m:
-            out.append((n, int(m.group(2))))
+            out.append((n, int(m.group(2) or m.group(3) or m.group(4))))
     return out
+
+
+def link_form_hits(lines):
+    """(line number) for each line that opens with a keyword and a markdown link. The
+    link closes nothing on GitHub, so the checker says so instead of reporting a missing
+    keyword the body does not have."""
+    return [n for n, raw in lines if LINK_FORM.match(raw)]
 
 
 def closing_check(root, body_path, issue):
@@ -216,6 +234,9 @@ def closing_check(root, body_path, issue):
     if not path.is_file():
         return ["CLOSING-BAD no-body-file"], 1
     body = body_lines(path.read_text(encoding="utf-8", errors="replace"))
+    links = link_form_hits(body)
+    if links and wanted in ("closes", "refs"):
+        return [f"CLOSING-BAD link-form-does-not-close {links[0]}"], 1
     closes = keyword_hits(body, CLOSING_WORDS)
     refs = keyword_hits(body, ("refs",))
     n = int(issue)

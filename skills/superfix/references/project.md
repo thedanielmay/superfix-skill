@@ -53,6 +53,11 @@ keyword inside a code fence does not count, and a closing keyword naming a diffe
 The checker is `python3 references/project.py --pr-body <file> --issue <N> <repo>`, which prints
 `CLOSING-OK` or `CLOSING-BAD <why>` and exits 1.
 
+A keyword counts in three forms only: `Closes #12`, `Closes owner/repo#12` or
+`Closes https://github.com/owner/repo/issues/12`, and the same three after `Refs`. A keyword followed
+by a markdown link, `Closes [label](https://github.com/owner/repo/issues/12)`, closes nothing on
+GitHub, so `closes` and `refs` refuse it with `CLOSING-BAD link-form-does-not-close <line>`.
+
 `model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still
 raise it for a Complex or architecture step, so it is not "always use this model". `default` means the
 policy alone decides.

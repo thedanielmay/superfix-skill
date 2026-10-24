@@ -184,6 +184,24 @@ t closing-body-auto-ok '^CLOSING-OK$' 0 issue_run
 t closing-body-missing-file '^CLOSING-BAD no-body-file$' 1 $P --pr-body "$T/nope.md" --issue 125 "$R"
 t closing-no-issue '^CLOSING-BAD no-issue$' 1 $P --pr-body "$T/pr-body.md" "$R"
 
+# ---- the three forms a keyword may name an issue in, and the link form GitHub ignores (superfix-skill#127) ----
+w 'closing: closes'
+pb 'Body.\n\nCloses https://github.com/thedanielmay/superfix-skill/issues/125'
+t closing-body-url-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
+t closing-body-owner-repo-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nCloses https://github.com/thedanielmay/superfix-skill/issues/999'
+t closing-body-url-wrong-issue '^CLOSING-BAD closing-keyword-for 999$' 1 issue_run
+pb 'Body.\n\nCloses [the issue](https://github.com/thedanielmay/superfix-skill/issues/125)'
+t closing-body-link-form '^CLOSING-BAD link-form-does-not-close 3$' 1 issue_run
+pb 'Body.\n\n```\nCloses #125\n```'
+t closing-body-fence-closes '^CLOSING-BAD no-closing-keyword$' 1 issue_run
+w 'closing: refs'
+pb 'Body.\n\nRefs https://github.com/thedanielmay/superfix-skill/issues/125'
+t closing-body-refs-url-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nRefs [the issue](https://github.com/thedanielmay/superfix-skill/issues/125)'
+t closing-body-refs-link-form '^CLOSING-BAD link-form-does-not-close 3$' 1 issue_run
+
 # ---- model: the fix stage default (1.7.0 part one, superfix-skill#125) ----
 for v in sonnet opus default; do
   w "model: $v"
