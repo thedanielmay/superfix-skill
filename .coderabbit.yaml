@@ -1,0 +1,9 @@
+# CodeRabbit settings for this repository.
+#
+# Fix comments is off. In Superfix only the run writes to its own branch: a bot
+# commit lands outside the comment gate, the solved check and the preservation
+# justifications, so a review that ships code would skip all three.
+reviews:
+  finishing_touches:
+    autofix:
+      enabled: false
