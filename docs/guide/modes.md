@@ -110,7 +110,7 @@ It applies only when every problem is row Code, or every problem is a criteria-m
 
 ### What the folder holds
 
-For code, `workorder.md` carries the header lines, the steps as a tick list, the loop and a `CHECKS` block. The folder also holds the check.sh script (the checks block exactly), the `WORKORDER-SHA` line given to the executor separately, and the held-back checks, which stay with Superfix. The executor changes only the files in `FILES`, runs `bash check.sh` for each attempt, commits one attempt at a time, and returns `return.bundle`.
+For code, `workorder.md` carries the header lines, the steps as a tick list, the loop and a `CHECKS` block. The executor's Step 0 writes the checks block to check.sh. The `WORKORDER-SHA` line is given to the executor separately and is not in the folder. The held-back checks stay with Superfix and never go in the folder. The executor changes only the files in `FILES`, runs `bash check.sh` for each attempt, commits one attempt at a time, and returns `return.bundle`.
 
 For a criteria file, the folder holds a copy of the file under `work/`, the locked measure scripts under `checks/`, the lock, the attempts stub, the done-when file with the approved lines, and the same `workorder.md`. The copy goes in only after an explicit yes to the data question; the original is never in the folder. The executor runs each measure script and compares the number with the tick list, and returns the whole folder.
 
