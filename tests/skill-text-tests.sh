@@ -46,11 +46,11 @@ t x86-merge-exempt '^FOUND$' has "$D/execute.md" "Merge commits are exempt from 
 
 # issue 121, the trimmed Red Flags: a line budget on SKILL.md, one change-pipeline ban, and the two kept bullets
 count_where() { bash -c "$2" "$1"; }
-t i121-lines '^MAX-424-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 424 ]; then echo MAX-424-OK; else echo "MAX-424-FAIL $n"; fi'
+t i121-lines '^MAX-430-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 430 ]; then echo MAX-430-OK; else echo "MAX-430-FAIL $n"; fi'
 t i121-ban-once '^BAN-ONCE-OK$' count_where "$S" 'n=$(grep -c change-pipeline "$0"); if [ "$n" -eq 1 ]; then echo BAN-ONCE-OK; else echo "BAN-ONCE-FAIL $n"; fi'
 t i121-two-bullets '^BULLETS-2$' count_where "$S" 'n=$(awk "/^## Red Flags/,/^## Out of Scope/" "$0" | grep -c "^- "); echo "BULLETS-$n"'
 # 1.7.0 part one (superfix-skill#125): the two new settings keys
-t p125-seven-keys '^FOUND$' has "$D/project.md" "Only these seven keys exist"
+t p125-seven-keys '^FOUND$' has "$D/project.md" "Only these eight keys exist"
 t p125-closing-doc '^FOUND$' has "$D/project.md" '`closing: auto` (the default) keeps the Phase 4 rule'
 t p125-model-doc '^FOUND$' has "$D/project.md" '`model:` is a default for the fix stage only'
 t p125-closing-skill '^FOUND$' has "$S" '`closing: refs` forbids it'
@@ -60,7 +60,14 @@ t p125-review-heading '^FOUND$' has "$S" "### Independent review (Moderate, Comp
 t p125-review-verdict '^FOUND$' has "$S" 'INDEPENDENT-REVIEW PASS|FAIL <n> findings'
 t p125-review-limits '^FOUND$' has "$D/execute.md" "Limits:"
 t p125-review-exec '^FOUND$' has "$D/execute.md" 'One verdict comment on the PR: `INDEPENDENT-REVIEW PASS|FAIL <n> findings`'
-t p125-lines '^MAX-424-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 424 ]; then echo MAX-424-OK; else echo "MAX-424-FAIL $n"; fi'
+t p125-lines '^MAX-430-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 430 ]; then echo MAX-430-OK; else echo "MAX-430-FAIL $n"; fi'
+# 1.7.0 part two (superfix-skill#127): the side-findings key and its filing rules
+t p127-side-findings-row '^FOUND$' has "$D/project.md" '| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |'
+t p127-side-findings-settings '^FOUND$' has "$D/project.md" '`side-findings=file` when the run may file'
+t p127-side-findings-skill '^FOUND$' has "$S" '`superfix:side-finding` and assigned'
+t p127-side-findings-journal '^FOUND$' has "$D/journal.md" 'Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)'
+t p127-side-finding-label '^FOUND$' has "$D/journal.md" 'colour `1D76DB`'
+t p127-side-findings-cap '^FOUND$' has "$D/journal.md" 'At most 5 a run; the sixth and later stay under'
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

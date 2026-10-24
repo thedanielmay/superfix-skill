@@ -29,6 +29,7 @@ same); inline comments are not stripped, so keep a `#` on its own line.
 | `do-not-edit` | a file or folder the run never edits | yes, in file order |
 | `closing` | `auto`, `closes` or `refs`; what the PR body says about the issue | no |
 | `model` | `sonnet`, `opus` or `default`; a default for the fix stage only | no |
+| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |
 
 ````
 # .superfix/project.md
@@ -40,7 +41,7 @@ rules: no em or en dashes anywhere
 do-not-edit: skills/superfix/references/crit.py
 ````
 
-Only these seven keys exist. `work-clone` was dropped from v1: a repo-local file must not choose
+Only these eight keys exist. `work-clone` was dropped from v1: a repo-local file must not choose
 where the run works.
 
 ## closing and model
@@ -53,9 +54,30 @@ keyword inside a code fence does not count, and a closing keyword naming a diffe
 The checker is `python3 references/project.py --pr-body <file> --issue <N> <repo>`, which prints
 `CLOSING-OK` or `CLOSING-BAD <why>` and exits 1.
 
+A keyword counts in three forms only: `Closes #12`, `Closes owner/repo#12` or
+`Closes https://github.com/owner/repo/issues/12`, and the same three after `Refs`. A keyword followed
+by a markdown link, `Closes [label](https://github.com/owner/repo/issues/12)`, closes nothing on
+GitHub, so `closes` and `refs` refuse it with `CLOSING-BAD link-form-does-not-close <line>`.
+Qualified references must match this clone's GitHub `origin` repository, read from local Git
+metadata (including linked worktrees); if it cannot be identified, they are refused. Unqualified
+`#<N>` references still refer to this repository without needing remote metadata.
+
 `model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still
 raise it for a Complex or architecture step, so it is not "always use this model". `default` means the
 policy alone decides.
+
+## side-findings
+
+A side finding is something the run found and did not fix. `side-findings: list`, an absent key and the
+default all keep every one of them under `## Not tested` only. `file` also files each one as its own issue
+in the repo the run works in: after the redaction checks pass, at most 5 a run, labelled
+`superfix:side-finding`, assigned to the main issue's assignee or else the `gh` user, with the evidence
+file and line and nothing from the owner's data (references/journal.md).
+
+The owner's yes to the `Settings:` line at the Stop gate is that pre-authorisation: the line shows
+`side-findings=file` when the run may file, so the owner sees and approves it with everything else, and
+the run never asks a second question for it. With no issue to file in, the findings stay under
+`## Not tested` and say so.
 
 ## What the reader refuses
 
@@ -76,13 +98,15 @@ instruction.
 - `base-branch` and `pr-base` must be plain ref names, set once, with no `..` and no leading `-`.
 - `closing` takes exactly `auto`, `closes` or `refs`, and `model` exactly `sonnet`, `opus` or
   `default`. Anything else is `PROJECT-BAD-VALUE <key>`. Both are set once.
+- `side-findings` takes exactly `list` or `file`, set once. Anything else is
+  `PROJECT-BAD-VALUE side-findings`.
 - A `checks` command must be one interpreter (`python3`, `python`, `bash`, `sh`, `node`), then a
   repository script ending `.py`, `.sh` or `.js`, then plain arguments. No shell metacharacters
   (pipe, ampersand, semicolon, dollar, backtick, angle brackets, brackets, braces, bang, star,
   question mark, hash, tilde, backslash, quotes), no absolute path anywhere including after an `=`
   (`--out=/etc/x`), no `..`: the command cannot leave the repository or chain a second command.
   Anything else is `PROJECT-CHECK-REFUSED`.
-- A key that is not one of the seven is ignored and named: `PROJECT-UNKNOWN-KEY`. The rest of the
+- A key that is not one of the eight is ignored and named: `PROJECT-UNKNOWN-KEY`. The rest of the
   file still applies.
 
 ## Output and what the run does with it
