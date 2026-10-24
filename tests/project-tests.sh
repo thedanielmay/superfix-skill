@@ -184,6 +184,18 @@ t closing-body-auto-ok '^CLOSING-OK$' 0 issue_run
 t closing-body-missing-file '^CLOSING-BAD no-body-file$' 1 $P --pr-body "$T/nope.md" --issue 125 "$R"
 t closing-no-issue '^CLOSING-BAD no-issue$' 1 $P --pr-body "$T/pr-body.md" "$R"
 
+# ---- model: the fix stage default (1.7.0 part one, superfix-skill#125) ----
+for v in sonnet opus default; do
+  w "model: $v"
+  t "model-$v" "^PROJECT-OK.*SETTING model=$v" 0 read_it
+done
+w 'model: gpt'
+t model-refused '^PROJECT-BAD-VALUE model \(gpt\)' 1 read_it
+printf 'model: sonnet\nmodel: opus\n' > "$R/.superfix/project.md"
+t model-twice '^PROJECT-BAD-VALUE model \(set 2 times\)' 1 read_it
+w 'model: opus'
+t model-not-unknown '^PROJECT-OK' 0 read_it
+
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
 t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/project.py'
