@@ -108,7 +108,7 @@ In criteria mode the same post also needs `LINES-OK` and `CRITERIA-OK`, and carr
 | `PROJECT-BAD-VALUE <key>` | 1 | stops and asks at the Stop gate |
 | `SETTINGS-NONE` | 0 | no file, or no settings: nothing changes |
 
-Then one `SETTING <key>=<value>` per applied value, in file order. A refused value is echoed back cut to 60 characters. The five keys are `base-branch`, `pr-base`, `checks`, `rules` and `do-not-edit`. Any key or `rules` line naming a safeguard is refused, as is any `checks` command outside the narrow allowlist and any value naming a credential path or an outbound destination.
+Then one `SETTING <key>=<value>` per applied value, in file order. A refused value is echoed back cut to 60 characters. The seven keys are `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`, `closing` and `model`. Any key or `rules` line naming a safeguard is refused, as is any `checks` command outside the narrow allowlist and any value naming a credential path or an outbound destination. `closing` is checked against the PR body in Phase 4, which prints `CLOSING-OK` or `CLOSING-BAD <why>`.
 
 The settings are read once. A repo that changes its own settings file during a run is not re-read between the go and the fix; that window is known and unguarded. `pr-base` is carried into the PR command, but the PR is opened by a third-party skill at Phase 4, so the base is not enforced by the reader.
 
@@ -147,16 +147,24 @@ It compares every top-level function except the work order commands and their he
 
 It prints `CRIT-1.5-CHANGED <names>` and exits 1 on any difference, or `CRIT-1.5-UNCHANGED`. The 1.6.1 baseline is 106 functions.
 
+## The independent review stage (1.7.0)
+
+After the PR is open, and before `gh pr checks` starts the wait, one reviewer reads the PR itself: the PR number and your own words from `## Problems`, nothing else. Not the plan, the context file, the brief, the journal or the diff. It posts one comment starting `INDEPENDENT-REVIEW PASS|FAIL <n> findings`, and a FAIL blocks the ready-for-review status.
+
+It is required for Moderate and Complex, and for any diff that touches a gate or prompt text: `crit.py`, `redact-check.py`, `project.py`, `project.md`, any `tests/` script, `SKILL.md`, or a `references/*.md` file.
+
+What it cannot do: nothing records what the reviewer was given; independence means a fresh context, not a separate account or model; a PASS cannot be proven deserved; anyone with write access can post the verdict line; the path trigger over-triggers on small references edits and cannot tell a prompt edit from a typo fix; and passes cannot be counted from comments.
+
 ## The repo checks
 
 These are the free checks, run before a PR and in CI where the workflow names them.
 
 - `tests/preservation-check.py` lists every line of the last release tag that is gone or moved, and fails on an unexplained one.
-- `tests/project-tests.sh`, 52 settings tests.
+- `tests/project-tests.sh`, 73 settings tests.
 - `tests/workorder-tests.sh`, 115 work order tests.
 - `tests/workorder-criteria-tests.sh`, 240 criteria work order tests.
 - `tests/redact-check-tests.sh`, 16 redaction gate tests.
 - `tests/solved-close-tests.sh`, 11 solved check, merged tree, zero checks and closing tests.
-- `tests/skill-text-tests.sh`, 29 skill text tests.
+- `tests/skill-text-tests.sh`, 43 skill text tests.
 
 The CI workflow `.github/workflows/skill-sync-check.yml` runs the sync check, the preservation check, the `workorder.md` and `criteria.md` line caps, the CRIT-1.5 guard and the settings tests on a PR that touches the skill files. The work order, criteria, redaction, solved check and skill text tests are not in CI.

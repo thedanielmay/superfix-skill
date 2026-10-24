@@ -15,8 +15,10 @@ The reader is `references/project.py`. It judges the file and prints one item pe
 | `checks` | one command that must pass before the PR | yes, in file order |
 | `rules` | one line of repo rules, shown to the model and to you | yes, in file order |
 | `do-not-edit` | a file or folder the run never edits | yes, in file order |
+| `closing` | `auto`, `closes` or `refs`; what the PR body says about the issue | no |
+| `model` | `sonnet`, `opus` or `default`; a default for the fix stage only | no |
 
-Only these five keys exist. `work-clone` was dropped from v1: a repo-local file must not choose where the run works.
+Only these seven keys exist. `work-clone` was dropped from v1: a repo-local file must not choose where the run works.
 
 A sample file:
 
@@ -49,6 +51,12 @@ PROJECT-OK
 SETTINGS-NONE
 ```
 
+## closing and model
+
+`closing: auto` (the default) keeps the Phase 4 rule: the PR body carries `Closes #<N>` so the issue closes on merge, or `Refs #<N>` when a criteria-mode problem still has a `later` or `owner` criterion, is a process, or still matches your description. `closes` makes the closing keyword required, and `refs` forbids every closing keyword (`Closes`, `Fixes`, `Resolves`) and needs a `Refs #<N>` line. A keyword inside a code fence does not count, and a closing keyword naming a different issue is refused. The check is `python3 references/project.py --pr-body <file> --issue <N> <repo>`, which prints `CLOSING-OK` or `CLOSING-BAD <why>`.
+
+`model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still raise it for a Complex or architecture step, so it is not "always use this model". `default` means the policy alone decides.
+
 ## What the reader refuses
 
 The file may tighten behaviour, never relax it. Nothing in it can switch off the Stop gate, the secrets rules, the redaction scans or the create-issue question, and nothing in it is obeyed as an instruction.
@@ -58,7 +66,7 @@ The file may tighten behaviour, never relax it. Nothing in it can switch off the
 - Any value naming an outbound destination (`://`, `git@`, `scp:`, `rsync:`, `s3:`) or a credential path (`~/.ssh`, `/.ssh/`, `.env`, `id_rsa`, `id_ed25519`, `.netrc`, `.aws/`, `.gnupg`, `.kube/config`, `keychain`, credentials.json, `.docker/config`) is refused: `PROJECT-BAD-VALUE <key>`.
 - `base-branch` and `pr-base` must be plain ref names, set once, with no `..` and no leading `-`.
 - A `checks` command must be one interpreter (`python3`, `python`, `bash`, `sh`, `node`), then a repository script ending `.py`, `.sh` or `.js`, then plain arguments. No shell metacharacters (pipe, ampersand, semicolon, dollar, backtick, angle brackets, brackets, braces, bang, star, question mark, hash, tilde, backslash, quotes), no absolute path anywhere including after an `=` (`--out=/etc/x`), no `..`. The command cannot leave the repository or chain a second command. Anything else is `PROJECT-CHECK-REFUSED <key>`.
-- A key that is not one of the five is ignored and named: `PROJECT-UNKNOWN-KEY <key>`. The rest of the file still applies.
+- A key that is not one of the seven is ignored and named: `PROJECT-UNKNOWN-KEY <key>`. The rest of the file still applies.
 
 Real outputs for four bad files:
 
