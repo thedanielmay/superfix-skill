@@ -69,5 +69,16 @@ t p127-side-findings-journal '^FOUND$' has "$D/journal.md" 'Found while working 
 t p127-side-finding-label '^FOUND$' has "$D/journal.md" 'colour `1D76DB`'
 t p127-side-findings-cap '^FOUND$' has "$D/journal.md" 'At most 5 a run; the sixth and later stay under'
 
+# 1.7.0 part two (superfix-skill#127): the research type and its one validation pass
+t p127-research-type '^FOUND$' has "$S" 'and asks for no change | `research` |'
+t p127-research-pointer '^FOUND$' has "$S" 'references/research.md'
+t p127-research-report '^FOUND$' has "$D/research.md" '## The report'
+t p127-research-confirmed '^FOUND$' has "$D/research.md" 'CONFIRMED'
+t p127-research-corrected '^FOUND$' has "$D/research.md" 'CORRECTED <what is right>'
+t p127-research-refuted '^FOUND$' has "$D/research.md" 'REFUTED <why>'
+t p127-research-no-branch '^FOUND$' has "$D/research.md" 'makes no code change, no branch and no PR'
+t p127-research-limits '^FOUND$' has "$D/research.md" '## Limits'
+t p127-research-zero '^FOUND$' has "$D/research.md" 'A report with zero validated claims cannot be posted as a conclusion'
+
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

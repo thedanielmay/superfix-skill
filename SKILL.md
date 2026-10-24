@@ -52,7 +52,7 @@ Coverage:        [Code | Qik configuration | Everything else]  (one per problem)
 Trigger:         ["<the exact words from the report that matched>"]
 Evidence:        [one observation that confirms it, e.g. the file exists]
 Settings:        [<repo>/.superfix/project.md read in Phase 0: its lines joined with "; "]
-Primary type:    [bug | performance | ux | architecture | security | feature]
+Primary type:    [bug | performance | ux | architecture | security | feature | research]
 Secondary type:  [optional - set when issue spans two types]
 Complexity tier: [Simple | Moderate | Complex]  ← provisional; confirmed after exploration
 Skill manifest:  [ordered skills - merged from primary + secondary paths if compound]
@@ -120,9 +120,11 @@ A process is never called solved: Superfix drafts the change and says "change dr
 | Labels: `performance`, `perf`, `optimization`; keywords: "slow", "latency", "N+1", "cache", "index", "timeout" | `performance` |
 | Labels: `ui`, `ux`, `frontend`, `design`, `a11y`; keywords: "layout", "style", "visual", "animation", "mobile", "component", "accessibility" | `ux` |
 | Labels: `architecture`, `refactor`, `epic`; cross-cutting scope, multiple subsystems, structural change | `architecture` |
+| Labels: `research`; the owner asks what is true, to find out, to investigate or to compare, and asks for no change | `research` |
 | Everything else | `feature` |
 
 If a security signal and another type both match (for example "XSS error"), `security` is primary and the other type is secondary (see Compound issues).
+A `research` run answers questions and changes nothing: no branch, no PR, no code edit. It explores, writes the report with evidence for every claim, has one validation agent return CONFIRMED, CORRECTED or REFUTED for each claim, then concludes from the validated lines only and posts it as a comment and a `## Report` body section (references/research.md).
 
 ### Complexity tier (provisional from issue text; confirmed after exploration)
 | Tier | Criteria |
