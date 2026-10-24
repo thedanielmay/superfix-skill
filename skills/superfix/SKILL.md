@@ -403,29 +403,8 @@ If the PR targets a non-default branch, `Closes` does not fire. Close manually o
 
 ## Red Flags
 
-- Classifying from title alone - always read full body, labels, and all comments first
-- Triaging complexity before exploring the codebase
-- Skipping exploration for any tier
-- Starting implementation on Moderate/Complex without an approved plan
-- Skipping expert panel on Moderate or Complex
-- Execution subagents without the context file and briefs.md - undefined hand-offs produce blind reviews
 - Claiming tests pass without a fresh run
-- Declaring done without checking the original goal was actually achieved
 - Upgrading Simple→Moderate/Complex after implementation has started - stop, commit/stash partial work, return to Phase 2, write a plan accounting for what's already implemented, run expert panel, then send a decision request with the new budget and wait
-- Closing a GitHub issue without confirming the PR is merged
-- Updating only GitHub comments but never the issue body - the body is the living spec; let it drift and the issue becomes unreadable out of context
-- Editing the issue body for progress updates instead of adding a comment - body = current state, comments = history (except the Status line and ## Decision, which are body updates by design)
-- Starting any fix, branch or tracked-file edit on any tier before the Stop gate gets a go
-- Posting, pushing or creating anything before the redaction check
-- Naming a coverage row without a quoted trigger and evidence
-- Putting the original, a data value, or a Qik or live Sheet change in a work order
-- Calling it fixed without the solved check (three runs, with output)
-- Uploading a picture without the upload command, or to a public repo
-- Drawing a diagram without the owner's yes, or writing it inside the clone
-- A gap note with the owner's words, a name, path or link, or outside the checked repo or local folder
-- Fixing an "Everything else" problem without an approved, locked criterion
-- Calling a criteria-mode problem solved when only its criteria passed and the owner's description still holds
-- Calling a work order done from the executor's report, without running its checks yourself
 
 ## Out of Scope
 
