@@ -392,6 +392,9 @@ Merged tree and closing verify: `references/execute.md` (merged tree) and `refer
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
 The PR body and the final comment both end with `## Not tested`: one bullet per
 thing not checked, and why. An empty list says "Nothing known untested". Never leave it out.
+Side findings (found but not fixed) go under `## Not tested`. With `side-findings: file` in the repo
+settings each is also filed as its own issue after the redaction checks, at most 5 a run, labelled
+`superfix:side-finding` and assigned (references/journal.md); the owner's yes to the `Settings:` line approves it.
 If GitHub issue exists, post the final comment from `references/journal.md` and set the Status line to "Ready for review: PR <link>". Without an issue, write it as a journal entry and say it in chat.
 The final comment carries one before-and-after picture per problem with pictures (a problem with a before picture has an after picture or a stated reason), the website line, the cost estimate and the undo line (journal.md).
 The final comment also carries the `Labels:`, `Diagram:` and `Gap note:` lines (journal.md).

@@ -214,6 +214,18 @@ t model-twice '^PROJECT-BAD-VALUE model \(set 2 times\)' 1 read_it
 w 'model: opus'
 t model-not-unknown '^PROJECT-OK' 0 read_it
 
+# ---- side-findings: what the run does with a finding outside the job (1.7.0 part two, superfix-skill#127) ----
+for v in list file; do
+  w "side-findings: $v"
+  t "side-findings-$v" "^PROJECT-OK.*SETTING side-findings=$v" 0 read_it
+done
+w 'side-findings: both'
+t side-findings-refused '^PROJECT-BAD-VALUE side-findings \(both\)' 1 read_it
+printf 'side-findings: list\nside-findings: file\n' > "$R/.superfix/project.md"
+t side-findings-twice '^PROJECT-BAD-VALUE side-findings \(set 2 times\)' 1 read_it
+w 'side-findings: file'
+t side-findings-not-unknown '^PROJECT-OK' 0 read_it
+
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
 t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/project.py'

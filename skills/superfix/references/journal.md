@@ -281,6 +281,23 @@ F="$HOME/.superfix/runs/<run-key>/comment-<N>.md"; K='<decision or final>'; R='<
 - The gap note lines (exact text in references/gaps.md) go below the numbered questions, one per noted problem, with the gap list link only on a PRIVATE work repo.
 - 1.5.0, criteria mode (references/criteria.md): above the numbered questions, after the coverage lines, the plain block (one line per criterion: "<plain name>. Today: <number> (rows <N>, <N> and <N>). Must be <pass line>.", the bracket holding row numbers only); the two shared questions after the problem questions and before the budget question, asked ONCE for all criteria-mode problems ("P1, P2 and P3"; once per group when the problems touch different people or files), with no recommended answer; the sandbox and data-commit questions (only when they apply) before the budget question, with no recommended answer; after the budget question, in this order: the diagram question, the reminder question for a `later` criterion (no recommended answer), the `assets` question, the create-issue question last. `Criteria:` and `Criteria check:` go after `Gap note:` in the AI detail; the comment check prints `CRITERIA-OK` before posting, after `LINES-OK`.
 
+### Side findings (1.7.0)
+
+A side finding is something the run found and did not fix: a broken link next to the file it edited, a test that fails for another reason, a stale sentence. `side-findings: list` (the default, and what an absent key means) leaves every one of them under `## Not tested`.
+
+With `side-findings: file`, the owner's yes to the `Settings:` line at the Stop gate is the approval to file them, so there is no separate question. Then, in this order:
+
+- After the redaction checks pass on the title and on the body.
+- At most 5 a run; the sixth and later stay under `## Not tested` with a line saying why.
+- Never a finding that quotes a value from the owner's data: that one stays under `## Not tested`.
+- Label `superfix:side-finding`, colour `1D76DB`, description "Found while working on another issue": ensure it exists with the same ensure command shape as the labels above, then the same add and read-back commands.
+- Assignee: the main issue's assignee, or else the user `gh` is logged in as (`gh api user -q .login`).
+- Title: the finding in one plain line, with no value from the data.
+- Body: it starts "Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)", an explicit markdown link labelled `<owner>/<repo>#<N>`, never a bare number and never in backticks; then the evidence: the file and line, and the command output that showed it.
+- A create that fails is reported with its output and never retried blindly; the rest of the run carries on.
+- In the final comment, each `## Not tested` bullet that was filed ends "filed as <link>".
+- No issue (file-mode journal): nothing is filed, and the findings stay under `## Not tested`.
+
 ### Create-issue question (description only, in a git repo with a GitHub remote)
 
 The LAST numbered question of the decision message, always, so the owner's numbered reply stays predictable:

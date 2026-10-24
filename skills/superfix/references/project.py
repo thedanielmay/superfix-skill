@@ -24,13 +24,15 @@ the PR body instead: CLOSING-OK, or CLOSING-BAD <why> and exit 1.
 import pathlib, re, sys
 
 FILE = ".superfix/project.md"
-SINGLE = ("base-branch", "pr-base", "closing", "model")
+SINGLE = ("base-branch", "pr-base", "closing", "model", "side-findings")
 MULTI = ("checks", "rules", "do-not-edit")
 ALLOWED = SINGLE + MULTI
 # closing: what the PR body says about the issue.
 CLOSING = ("auto", "closes", "refs")
 # model: a default for the fix stage only; the policy table can still raise it.
 MODELS = ("sonnet", "opus", "default")
+# side-findings: what the run does with a finding outside the job. list is the default.
+SIDE_FINDINGS = ("list", "file")
 CLOSING_WORDS = ("closes", "fixes", "resolves")
 # A key holding one of these words is trying to loosen a safeguard, so the run stops.
 REFUSED = ("gate", "secre", "redact", "merge", "push", "budget", "approv", "bypass",
@@ -165,6 +167,9 @@ def read(root):
             values.append((key, value))
             continue
         if key == "model" and value not in MODELS:
+            values.append((key, value))
+            continue
+        if key == "side-findings" and value not in SIDE_FINDINGS:
             values.append((key, value))
             continue
         if not value or refused_value(value) or (key in SINGLE and not ok_ref(value)):

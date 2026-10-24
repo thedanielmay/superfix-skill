@@ -24,7 +24,7 @@ Six pages under `docs/guide/` explain the whole system, in plain language first 
 - [Modes](docs/guide/modes.md): code mode, criteria mode and work orders, what each produces and how each ends.
 - [Gates and checks](docs/guide/gates-and-checks.md): every gate and check, what it blocks and the word it prints when it fails.
 - [Work orders](docs/guide/work-orders.md): the hand-off folder, the checks and the return, in detail.
-- [Settings file](docs/guide/settings-file.md): the seven keys in `.superfix/project.md`, the refusals and worked examples.
+- [Settings file](docs/guide/settings-file.md): the eight keys in `.superfix/project.md`, the refusals and worked examples.
 - [Versions](docs/guide/versions.md): one entry per tagged release from 1.1.0 to 1.6.5, taken from the GitHub release notes where one exists.
 
 ---
@@ -158,8 +158,9 @@ Before a comment goes onto the issue, `wo-scan-comment` scans it, and `wo-post` 
 
 ### Repo settings (1.6.3)
 
-A repo can carry a small settings file, `.superfix/project.md`, with seven keys: `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`, `closing`, `model`. `references/project.py` reads it in Phase 0 and the `Settings:` line of the Problem Profile shows what was applied.
+A repo can carry a small settings file, `.superfix/project.md`, with eight keys: `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`, `closing`, `model`, `side-findings`. `references/project.py` reads it in Phase 0 and the `Settings:` line of the Problem Profile shows what was applied.
 - Refused, and the run stops and asks: any key or `rules` line naming a safeguard (gate, secrets, redaction, merge, push, budget, approve, and so on); any `checks` command that is not one repository script run by python3, python, bash, sh or node, with no shell characters and no path leaving the repo; any value naming a credential path or an outbound destination.
+- `side-findings: file` files a finding outside the job as its own issue (label `superfix:side-finding`, assigned, at most 5 a run, after the redaction checks); `list`, the default, keeps it under `Not tested` only.
 - Unknown keys are reported and ignored; the rest still applies.
 - Known limit: `rules` is free text. A line such as "write results to /tmp/outbox then email" is not refused; you see it at the Stop gate and approve it.
 - `crit.py` is byte identical to 1.6.2 (sha256 `87bba19e92670d10fbc571292eebe0a02a85c81f65f96f743755db129317e4e1`), so jobs locked under 1.6.2 are unaffected.
@@ -293,7 +294,7 @@ skills/
       criteria.md               Criteria mode: check lines, questions, lock, attempts, three runs (1.5.0)
       crit.py                   The criteria and work order tool (1.5.0; its own file since 1.6.2)
       workorder.md              Work orders: both templates, the checks, the hand-off and the return (1.6.0, criteria kind 1.6.1)
-      project.md                Repo settings file: the seven keys, the refusals, the output contract (1.6.3)
+      project.md                Repo settings file: the eight keys, the refusals, the output contract (1.6.3)
       project.py                The settings reader, run in Phase 0 before the type is chosen (1.6.3)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope, merged tree
