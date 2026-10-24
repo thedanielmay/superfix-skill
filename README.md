@@ -16,6 +16,19 @@ The skill file is kept short. The long parts (the issue journal, the diagnosis m
 
 ---
 
+## Documentation
+
+Six pages under `docs/guide/` explain the whole system, in plain language first and technical detail after:
+
+- [How a run works](docs/guide/how-a-run-works.md): Phase 0 to Phase 4, the Stop gate, where Superfix asks, and the issue as a work journal.
+- [Modes](docs/guide/modes.md): code mode, criteria mode and work orders, what each produces and how each ends.
+- [Gates and checks](docs/guide/gates-and-checks.md): every gate and check, what it blocks and the word it prints when it fails.
+- [Work orders](docs/guide/work-orders.md): the hand-off folder, the checks and the return, in detail.
+- [Settings file](docs/guide/settings-file.md): the five keys in `.superfix/project.md`, the refusals and worked examples.
+- [Versions](docs/guide/versions.md): one entry per tagged release from 1.1.0 to 1.6.4, taken from the GitHub release notes where one exists.
+
+---
+
 ## When to use / Triggers
 
 Invoke `superfix` (via `/superfix` in Claude Code) whenever you have:
@@ -118,12 +131,49 @@ For a sheet, a data file or a document, Superfix fixes only against checks you a
 
 ### Work orders: someone else makes the change (1.6.0)
 
-Say "work order", "someone else will do it" or "hand off" (in the request or the go reply) and Superfix diagnoses and plans as usual, but writes a work order folder instead of making the change. Code problems only.
-- The folder holds one file, `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). Anyone with git, Node and read access to the repo can carry it out: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately. The executor ticks and reports in `report.md` and never edits `workorder.md`. The default folder is `~/superfix-workorders/<id>/`, outside `~/.superfix`; an executor on the same Mac should run as another user, or sandboxed. Release note: an executor running as the same user on the same Mac is not supported; use another account or a sandbox.
+Say "work order", "someone else will do it" or "hand off" (in the request or the go reply) and Superfix diagnoses and plans as usual, but writes a work order folder instead of making the change. Code problems; 1.6.1 adds a second kind for a document, a spreadsheet or a process held in a file.
+- The folder holds `workorder.md`: the steps, exact checks and a loop (change, run the checks, fix, at most 5 attempts, one commit each). A criteria work order also holds the copy to change, the locked measure scripts, their lock and the approved tick list. Anyone with git, the repo's runtime and read access to the repo can carry out the code kind: a cheaper model, a developer, or you. Give them the `WORKORDER-SHA` line Superfix prints, separately. The executor ticks and reports in `report.md` and never edits `workorder.md`. The default folder is `~/superfix-workorders/<id>/`, outside `~/.superfix`; an executor on the same Mac should run as another user, or sandboxed. Release note: an executor running as the same user on the same Mac is not supported; use another account or a sandbox.
 - The work comes back as `return.bundle` inside the folder. Superfix trusts only its own locked copies and the shas in `## Decision`, runs the checks, held-back checks the executor never saw and the tests itself in a sandbox, and only then opens the PR. If something fails it asks: send it back (a fresh folder that carries on from the returned work), fix it myself, or stop.
 - It costs about the same as Superfix doing it, or more; the gain is handing the work off. Rules in `references/workorder.md`.
 - Since 1.6.1 the same trigger also works for criteria-mode files: the folder carries a copy (never the original, only after your explicit yes to the data question), the approved checks as a tick list, and the locked scripts with their shas.
 - On return Superfix measures the copy with its own locked tool in the sandbox; a failed check is sent back while attempts remain. Success says "the counts meet your checks"; a process ends at "ready for your review", never "solved".
+
+### Work orders for documents, spreadsheets and processes (1.6.1)
+
+The same idea, for a document, spreadsheet or process held in a file. A criteria work order carries a copy of the file, the locked measure scripts, their lock and the approved tick list. The copy goes into the folder only after an explicit yes to the data question; the original is never in the folder.
+- The criteria Step 0 writes the extracted checks block to a temp file outside the folder, so a folder that followed the work order exactly returns clean instead of being refused with `RETURN-FILES-OVER CHECKS-CHANGED`.
+- A tainted return never passes, the cleanup never follows a link, the cleanup fails loud and hashes the records it keeps, and the drafts gate is tied to the run's own criteria.
+- The 1.5.0 commands stay byte identical (`CRIT-1.5-UNCHANGED 106 functions`).
+- Known limits: the cell value scan is a prose step, not an enforced one, so a final comment on a criteria work order can still name a member (the same exposure as 1.5.0; fixed in 1.6.2). An executor running as the same user on the same Mac is out of scope.
+
+### The comment gate (1.6.2)
+
+Before a comment goes onto the issue, `wo-scan-comment` scans it, and `wo-post` refuses to open the gate for a comment that was not scanned.
+- The scan needs `--data <file>` (the owner's original) or `--no-data`. With neither, or with an empty list of values, it stops with `SCAN-NO-DATA` and writes no receipt.
+- The receipt is written whole and records the sha of the comment and of the data file; `wo-post` refuses a cut-short receipt, a changed comment or a changed data file.
+- The Stop gate comment and the final comment go through the same two commands.
+- The checking tool moved to `references/crit.py`; `criteria.md` is 383 lines, down from 4168. The 1.5.0 commands are byte identical.
+- After a stop the cleanup prints `CLEANUP-KEPT` for its small hash-and-path record and ends with `CLEANUP-OK`, instead of the false `CLEANUP-INCOMPLETE` warning.
+- Known limit: the gate detects, it does not prevent. A model that skips it and posts with `gh issue comment` is not stopped by the tool.
+
+### Repo settings (1.6.3)
+
+A repo can carry a small settings file, `.superfix/project.md`, with five keys: `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`. `references/project.py` reads it in Phase 0 and the `Settings:` line of the Problem Profile shows what was applied.
+- Refused, and the run stops and asks: any key or `rules` line naming a safeguard (gate, secrets, redaction, merge, push, budget, approve, and so on); any `checks` command that is not one repository script run by python3, python, bash, sh or node, with no shell characters and no path leaving the repo; any value naming a credential path or an outbound destination.
+- Unknown keys are reported and ignored; the rest still applies.
+- Known limit: `rules` is free text. A line such as "write results to /tmp/outbox then email" is not refused; you see it at the Stop gate and approve it.
+- `crit.py` is byte identical to 1.6.2 (sha256 `87bba19e92670d10fbc571292eebe0a02a85c81f65f96f743755db129317e4e1`), so jobs locked under 1.6.2 are unaffected.
+
+### Real gates and the corrected solved check (1.6.4)
+
+Three safeguards that used to be instructions are now real checks that fail loudly.
+- The redaction pattern check is one script, `references/redact-check.py`, run with `--run <run-folder> -- <files>` or `--self-test`. It prints the exact-string word and then `PATTERN-CLEAN` or `PATTERN-HITS`, and exits 1 on `BLOCKED`, `ERROR` or `NO-RUN-FOLDER`.
+- The label, diagram and gap gate snippets now exit 1 on failure.
+- Zero registered checks is no longer reported as green.
+- Solved check run 3 reverts only the fix's own files: modified files are restored from the approval commit, files the fix added are removed, and the expected failing guard is named. A fix that adds a new file used to revert nothing, so the check passed wrongly.
+- If main moved after the proof, the run records "merged tree not re-tested". The closing state is verified after the merge.
+- Skill text: issue claims are hypotheses; the issue's own control is run; readers are listed with counts; every scan needs a positive control; tests-only work gets a one-paragraph type; review depth scales with the diff; the budget counts active time; loose ends found in review are not scope creep; the mutant rule applies only to rows that pin a gate or check; merge commits are exempt from the trailer.
+- Known limits: the 29 skill-text tests check that the new wording is present, not that the rules work. The three new test scripts are not in CI, as with the work order tests.
 
 ### Design & Plan (Phase 2, Moderate/Complex only)
 
@@ -232,21 +282,30 @@ skills/
   superfix/
     SKILL.md                    Full skill implementation and phase definitions
     references/
-      journal.md                Issue body template, Status line, comments, decision message, file-mode journal
+      journal.md                Issue body template, Status line, labels, comments, decision message, file-mode journal
       diagnose.md               Diagnosis method, stop rules, tools and fallbacks, review header, fan-out brief
       briefs.md                 Execution brief for the fix agent (read only after approval)
-      redaction.md              Credential check before any post, commit or PR
+      redaction.md              Credential checks before any post, commit or PR
+      redact-check.py           The redaction gate: exact strings and patterns, with --self-test (1.6.4)
       evidence.md               Pictures: when, the capture script, the upload command, captions (1.4.0)
       diagrams.md               Diagrams: when to ask, the brief, the source check, render and upload (1.4.1)
       gaps.md                   Private gap notes: what they hold, the repo checks, the local folder (1.4.1)
-      criteria.md               Criteria mode for non-code problems: check lines, questions, lock, attempts (1.5.0)
-      crit.py                   The criteria and work order tool, run from the run folder (1.5.0; its own file since 1.6.2)
-      workorder.md              Work orders: the template, the checks, the hand-off and the return (1.6.0)
+      criteria.md               Criteria mode: check lines, questions, lock, attempts, three runs (1.5.0)
+      crit.py                   The criteria and work order tool (1.5.0; its own file since 1.6.2)
+      workorder.md              Work orders: both templates, the checks, the hand-off and the return (1.6.0, criteria kind 1.6.1)
       project.md                Repo settings file: the five keys, the refusals, the output contract (1.6.3)
       project.py                The settings reader, run in Phase 0 before the type is chosen (1.6.3)
       explore.md                Exploration by type
-      execute.md                Execute sequences by type, review rules, test scope
+      execute.md                Execute sequences by type, review rules, test scope, merged tree
       inventory.md              Every skill used, with its opencode name or fallback
+docs/
+  guide/
+    how-a-run-works.md          Phase 0 to Phase 4, the Stop gate, the issue as work journal
+    modes.md                    Code mode, criteria mode and work orders
+    gates-and-checks.md         Every gate and check, what each blocks and its failure words
+    work-orders.md              The hand-off folder and the return in detail
+    settings-file.md            .superfix/project.md keys, refusals, examples
+    versions.md                 One entry per tagged release, from the GitHub release notes
 tests/
   prompts.md                    Fixed test prompts and pass criteria for a release
   preservation-check.py         Lists every line of a release tag (--tag, default the newest) that is gone or MOVED; fails on unexplained ones
@@ -256,8 +315,22 @@ tests/
   preservation-1.4.1.md         The same for 1.4.1
   preservation-1.4.2.md         The same for 1.4.2 (move only)
   preservation-1.5.0.md         The same for 1.5.0
+  preservation-1.6.0.md         The same for 1.6.0
+  preservation-1.6.1.md         The same for 1.6.1, including the criteria work order fixes
+  preservation-1.6.2.md         The same for 1.6.2, including the tool move
+  preservation-1.6.3.md         The same for 1.6.3
+  crit-15-check.py              CRIT-1.5 guard: the 1.5.0 commands stay byte identical
+  project-tests.sh              52 settings tests (1.6.3)
+  redact-check-tests.sh         16 redaction gate tests (1.6.4)
+  solved-close-tests.sh         11 solved check, merged tree, zero checks and closing tests (1.6.4)
+  skill-text-tests.sh           29 skill text tests (1.6.4)
+  workorder-tests.sh            115 work order tests (1.6.0)
+  workorder-criteria-tests.sh   240 criteria work order tests (1.6.1)
+  mkrig.py                      Builds one criteria work-order rig for the tests
+  fixtures/workorder/           Inputs for the work order tests
+  gates/                        Live-gate scripts and their README (1.6.2)
 .claude-plugin/plugin.json      Plugin manifest and version
-.github/workflows/             Sync check: fails a PR when the two SKILL.md copies differ
+.github/workflows/              Sync check: fails a PR when the two SKILL.md copies differ
 CONTRIBUTING.md                 How to work on this repo
 ```
 
@@ -268,8 +341,16 @@ Since 1.4.0 the picture step writes a Python script from `references/evidence.md
 
 ## Status
 
-1.4.0. In production, supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the skill inventory and the other long parts live in `skills/superfix/references/`. Qik configuration support is provisional through 1.4.0. Pictures of Qik draft pages are untested in 1.4.0 (they need the one-time saved login above).
+1.6.4, released 23 October 2026. In production; it supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the long parts live in `skills/superfix/references/`.
 
-1.4.1 adds the labels, the optional diagrams, the private gap notes and aligned before and after pictures (above).
+The line since 1.5.0:
+- 1.5.0: criteria mode for non-code problems. A gap note now means a check Superfix had no way to measure, not every non-code problem.
+- 1.6.0: work orders for code.
+- 1.6.1: work orders for documents, spreadsheets and processes.
+- 1.6.2: the comment gate, and the tool in its own file at `references/crit.py`.
+- 1.6.3: the per-repo settings file at `.superfix/project.md`.
+- 1.6.4: real gates, the corrected solved check run 3, the merged tree rule and the r4 skill-text rules.
 
-1.5.0 adds criteria mode for non-code problems (above). A gap note now means a check Superfix had no way to measure, not every non-code problem.
+The 1.6.4 release note reports 115 work order, 240 criteria, 52 settings, 16 redaction, 11 solved check and 29 skill-text tests, 18 removed lines in the preservation record all justified, and `SKILL.md` at 439 of 440 lines.
+
+Known limits: Qik configuration support is provisional. Pictures of Qik draft pages are untested (they need the one-time saved login above). The 29 skill-text tests check that the new wording is present, not that the rules work. The redaction, solved check and skill text test scripts are not in CI, as with the work order tests.
