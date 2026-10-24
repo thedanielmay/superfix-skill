@@ -17,7 +17,7 @@ t run1-names-guard '^FOUND$' has "$ROOT/SKILL.md" "name the expected failing gua
 t run3-same-guard '^FOUND$' has "$ROOT/SKILL.md" "expect failure through the same named guard"
 # run 3 behaves on a real repo: the fix modifies one file and ADDS another (the case that used to error and revert nothing)
 R3="$(grep -F 'git -C <s3> checkout <approval-sha> --' "$ROOT/SKILL.md" | head -1 | sed 's/^ *`//; s/`; *$//')"
-run3() { local d; d="$(mktemp -d /private/tmp/run3-test.XXXX)"; ( cd "$d" && git init -q r && cd r && git config user.email a@b && git config user.name n && echo a > a.txt && git add . && git commit -qm base \
+run3() { local d; d="$(mktemp -d "${TMPDIR:-/tmp}/run3-test.XXXXXX")"; ( cd "$d" && git init -q r && cd r && git config user.email a@b && git config user.name n && echo a > a.txt && git add . && git commit -qm base \
   && A="$(git rev-parse HEAD)" && echo b >> a.txt && echo new > new.txt && git add . && git commit -qm fix && git worktree add -q --detach ../s3 HEAD \
   && cmd="${R3//<s3>/..\/s3}"; cmd="${cmd//<approval-sha>/$A}"; cmd="${cmd//<fix files that existed, no test paths>/a.txt}"; cmd="${cmd//<files the fix added>/new.txt}" \
   && eval "$cmd" && [ "$(cat ../s3/a.txt)" = a ] && [ ! -e ../s3/new.txt ] && echo REVERTED-BOTH ); }
