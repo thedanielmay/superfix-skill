@@ -224,7 +224,7 @@ t side-findings-refused '^PROJECT-BAD-VALUE side-findings \(both\)' 1 read_it
 printf 'side-findings: list\nside-findings: file\n' > "$R/.superfix/project.md"
 t side-findings-twice '^PROJECT-BAD-VALUE side-findings \(set 2 times\)' 1 read_it
 w 'side-findings: file'
-t side-findings-not-unknown '^PROJECT-OK' 0 read_it
+t side-findings-not-unknown '^PROJECT-OK.*SETTING side-findings=file' 0 read_it
 
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
