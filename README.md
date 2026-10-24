@@ -25,7 +25,7 @@ Six pages under `docs/guide/` explain the whole system, in plain language first 
 - [Gates and checks](docs/guide/gates-and-checks.md): every gate and check, what it blocks and the word it prints when it fails.
 - [Work orders](docs/guide/work-orders.md): the hand-off folder, the checks and the return, in detail.
 - [Settings file](docs/guide/settings-file.md): the five keys in `.superfix/project.md`, the refusals and worked examples.
-- [Versions](docs/guide/versions.md): one entry per tagged release from 1.1.0 to 1.6.4, taken from the GitHub release notes where one exists.
+- [Versions](docs/guide/versions.md): one entry per tagged release from 1.1.0 to 1.6.5, taken from the GitHub release notes where one exists.
 
 ---
 
@@ -341,7 +341,7 @@ Since 1.4.0 the picture step writes a Python script from `references/evidence.md
 
 ## Status
 
-1.6.4, released 23 October 2026. In production; it supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the long parts live in `skills/superfix/references/`.
+1.6.5, released 24 October 2026. In production; it supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the long parts live in `skills/superfix/references/`.
 
 The line since 1.5.0:
 - 1.5.0: criteria mode for non-code problems. A gap note now means a check Superfix had no way to measure, not every non-code problem.
@@ -350,6 +350,7 @@ The line since 1.5.0:
 - 1.6.2: the comment gate, and the tool in its own file at `references/crit.py`.
 - 1.6.3: the per-repo settings file at `.superfix/project.md`.
 - 1.6.4: real gates, the corrected solved check run 3, the merged tree rule and the r4 skill-text rules.
+- 1.6.5: clean-up hardening, the shared work order loops, and refused kinds.
 
 The 1.6.4 release note reports 115 work order, 240 criteria, 52 settings, 16 redaction, 11 solved check and 29 skill-text tests, 18 removed lines in the preservation record all justified, and `SKILL.md` at 439 of 440 lines.
 

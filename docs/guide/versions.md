@@ -1,8 +1,24 @@
 # Versions
 
-One entry per tagged release from 1.1.0 to 1.6.4. The details come from the GitHub release notes where one was published. Ten of the tags in this range have no GitHub release note; for those the entry records the tag date and the tag's commit subject, and says that the release contents are not documented.
+One entry per tagged release from 1.1.0 to 1.6.5. The details come from the GitHub release notes where one was published. Ten of the tags in this range have no GitHub release note; for those the entry records the tag date and the tag's commit subject, and says that the release contents are not documented.
 
-The current release is 1.6.4, tagged on 23 October 2026.
+The current release is 1.6.5, tagged on 24 October 2026.
+
+## 1.6.5
+
+Tag date: 2026-10-24. Release note: [Superfix 1.6.5](https://github.com/thedanielmay/superfix-skill/releases/tag/v1.6.5).
+
+In plain words: the clean-up step now removes the leftovers it used to call clean, the two work order checks share their loops, and a work order of a kind Superfix cannot do is refused before any of the owner's data is copied.
+
+- Every name at the top of a job stub or round folder other than `work`, `checks`, `workorder.md` and `key` counts as a stray. A regular file or link is removed. A directory, FIFO, socket or hardlinked file is listed in `CLEANUP-INCOMPLETE` and left alone. A FIFO or socket named `report.md` used to be skipped silently.
+- The work order check shares its missing key and freshness loops between the code kind and the criteria kind. The two exclusion lists stay separate, and the 1.5.0 guard still prints `CRIT-1.5-UNCHANGED 106 functions`.
+- A `KINDS:` line makes `wo-check` and `wo-lock` print `WORKORDER-KIND-REFUSED` for `qik`, `live`, `sheet`, `doc` or any kind outside code and criteria, and for a code plus criteria mix, before any copy of the owner's data is made. A work order with no `KINDS:` line behaves as before.
+
+Known limits in the release note: rolling back from 1.6.1 to 1.6.0 breaks a job locked under 1.6.1 (`CRIT-SHA-MISMATCH`), so a locked job is finished on the version it was locked under; a job locked under 1.5.0 keeps the 1.5.0 tool, including the weakness 1.6.0 closed, because moving it to a newer version would change its checks mid-run; the `crit.py` sha256 changes in 1.6.5, and jobs locked under 1.6.4 keep their own copy.
+
+Not done, as the release note says: single-directory cleanup with rounds as subfolders needs a migration decision, because it moves where folders are handed off and returned; file-descriptor-safe deletion needs Python 3.11 and defends a same-user race that stays out of scope; an executor running as the same user on the same Mac stays out of scope.
+
+Tests reported: new `cleanup-tests` (15), `wo-dedupe-tests` (11) and `workorder-kinds-tests` (11); the existing suites unchanged and passing, work order 115, criteria 240, project 52, redaction 16, solved check 11 and skill text 29.
 
 ## 1.6.4
 
