@@ -354,3 +354,5 @@ The line since 1.5.0:
 The 1.6.4 release note reports 115 work order, 240 criteria, 52 settings, 16 redaction, 11 solved check and 29 skill-text tests, 18 removed lines in the preservation record all justified, and `SKILL.md` at 439 of 440 lines.
 
 Known limits: Qik configuration support is provisional. Pictures of Qik draft pages are untested (they need the one-time saved login above). The 29 skill-text tests check that the new wording is present, not that the rules work. The redaction, solved check and skill text test scripts are not in CI, as with the work order tests.
+
+Broken proof link: [gone](guide/nope.md)
