@@ -77,13 +77,6 @@ An attempt moved only when a failing `C` got closer to its pass line and no `C` 
 
 ### The three runs
 
-```mermaid
-flowchart LR
-    A[Run 1<br/>the original] -->|the C checks FAIL| B[Run 2<br/>the changed copy]
-    B -->|the C checks PASS| C[Run 3<br/>one planted defect]
-    C -->|the C check FAILS again| D[Recorded with output]
-```
-
 Run 1 measures the original and expects each `C` to fail on the rows in the plain block, and each `K` to pass. Run 2 measures the changed copy and expects every check to pass. Run 3 plants exactly one defect in a scratch copy and expects the check to fail again. The tool refuses a negative copy that equals the change or an original, or that has more than one defect.
 
 ### Where the work happens
