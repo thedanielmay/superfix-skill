@@ -877,7 +877,8 @@ CHANGED = ("woc_cleanup_full", "woc_distinctive_values", "woc_comment_corpus", "
            "woc_comment_name_hits", "woc_scan_marker", "woc_write_receipt",
            "cmd_wo_scan_comment", "cmd_wo_post", "cmd_wo_cleanup",
            "woc_missing_keys", "woc_not_fresh", "woc_kinds", "woc_kinds_problem",
-           "woc_check", "cmd_wo_check")
+           "woc_check", "cmd_wo_check",
+           "woc_rules_lines", "woc_style_check")
 def strip_bodies(text):
     out, skip = [], False
     for line in text.splitlines(True):

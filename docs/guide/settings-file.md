@@ -17,8 +17,9 @@ The reader is `references/project.py`. It judges the file and prints one item pe
 | `do-not-edit` | a file or folder the run never edits | yes, in file order |
 | `closing` | `auto`, `closes` or `refs`; what the PR body says about the issue | no |
 | `model` | `sonnet`, `opus` or `default`; a default for the fix stage only | no |
+| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |
 
-Only these seven keys exist. `work-clone` was dropped from v1: a repo-local file must not choose where the run works.
+Only these eight keys exist. `work-clone` was dropped from v1: a repo-local file must not choose where the run works.
 
 A sample file:
 
@@ -57,6 +58,12 @@ SETTINGS-NONE
 
 `model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still raise it for a Complex or architecture step, so it is not "always use this model". `default` means the policy alone decides.
 
+## side-findings
+
+A side finding is something the run found and did not fix. `side-findings: list` (the default, and what an absent key means) leaves every one of them under `## Not tested`. `file` also files each one as its own issue in the repo the run works in: after the redaction checks pass, at most 5 a run, labelled `superfix:side-finding`, assigned to the main issue's assignee or else the `gh` user, with the evidence file and line and nothing from your data.
+
+Your yes to the `Settings:` line at the Stop gate is that pre-authorisation: the line reads `side-findings=file` when the run may file, so you approve it with everything else and the run asks no second question. With no issue to file in, the findings stay under `## Not tested` and say so.
+
 ## What the reader refuses
 
 The file may tighten behaviour, never relax it. Nothing in it can switch off the Stop gate, the secrets rules, the redaction scans or the create-issue question, and nothing in it is obeyed as an instruction.
@@ -66,7 +73,8 @@ The file may tighten behaviour, never relax it. Nothing in it can switch off the
 - Any value naming an outbound destination (`://`, `git@`, `scp:`, `rsync:`, `s3:`) or a credential path (`~/.ssh`, `/.ssh/`, `.env`, `id_rsa`, `id_ed25519`, `.netrc`, `.aws/`, `.gnupg`, `.kube/config`, `keychain`, credentials.json, `.docker/config`) is refused: `PROJECT-BAD-VALUE <key>`.
 - `base-branch` and `pr-base` must be plain ref names, set once, with no `..` and no leading `-`.
 - A `checks` command must be one interpreter (`python3`, `python`, `bash`, `sh`, `node`), then a repository script ending `.py`, `.sh` or `.js`, then plain arguments. No shell metacharacters (pipe, ampersand, semicolon, dollar, backtick, angle brackets, brackets, braces, bang, star, question mark, hash, tilde, backslash, quotes), no absolute path anywhere including after an `=` (`--out=/etc/x`), no `..`. The command cannot leave the repository or chain a second command. Anything else is `PROJECT-CHECK-REFUSED <key>`.
-- A key that is not one of the seven is ignored and named: `PROJECT-UNKNOWN-KEY <key>`. The rest of the file still applies.
+- `side-findings` takes exactly `list` or `file`, set once. Anything else is `PROJECT-BAD-VALUE side-findings`.
+- A key that is not one of the eight is ignored and named: `PROJECT-UNKNOWN-KEY <key>`. The rest of the file still applies.
 
 Real outputs for four bad files:
 

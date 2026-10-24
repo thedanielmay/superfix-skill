@@ -26,5 +26,6 @@ jobs:
       - run: bash tests/project-tests.sh
       - run: python3 tests/docs-check.py .
       - run: bash tests/redact-check-tests.sh
+      - run: bash tests/style-check-tests.sh
       - run: bash tests/solved-close-tests.sh
       - run: bash tests/skill-text-tests.sh
