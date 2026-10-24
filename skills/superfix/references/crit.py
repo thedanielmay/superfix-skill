@@ -2831,9 +2831,8 @@ def woc_cleanup_full(D, keep=True):
     if got:
         left.append(got)
     round_dirs = woc_verified_round_dirs(wid) if wid else []
-    stub_pats = ("RETURNED-*.md", "report.md")
-    round_pats = ("RETURNED-*.md", "report.md", "sendback.md", "key")
-    for d, pats in [(D / "workorder" / "folder", stub_pats)] + [(d, round_pats) for d in round_dirs]:
+    WOC_KEEP_TOP = {"work", "checks", "workorder.md", "key"}   # work and checks are cleaned above
+    for d in [D / "workorder" / "folder"] + round_dirs:
         try:
             dst = os.lstat(d)
         except FileNotFoundError:
@@ -2844,16 +2843,34 @@ def woc_cleanup_full(D, keep=True):
         if not stat.S_ISDIR(dst.st_mode):
             left.append(str(d))
             continue
-        for pat in pats:
-            for p in sorted(d.glob(pat)):
-                if not woc_guard(p, d):
+        # Every other name at the top of the folder is a stray: paperwork a round
+        # left behind, or data someone dropped there. A regular file or a link goes;
+        # a directory, a FIFO, a socket or a hardlinked file is listed, never touched.
+        try:
+            top = sorted(d.iterdir())
+        except OSError:
+            left.append(str(d))
+            continue
+        for p in top:
+            if p.name in WOC_KEEP_TOP or not woc_guard(p, d):
+                if p.name not in WOC_KEEP_TOP:
                     left.append(str(p))
-                    continue
-                try:
-                    if p.is_symlink() or p.is_file():
-                        p.unlink()
-                except OSError:
-                    left.append(str(p))
+                continue
+            try:
+                pst = os.lstat(p)
+            except OSError:
+                left.append(str(p))
+                continue
+            if stat.S_ISREG(pst.st_mode) and pst.st_nlink != 1:
+                left.append(str(p))
+                continue
+            if not (stat.S_ISREG(pst.st_mode) or stat.S_ISLNK(pst.st_mode)):
+                left.append(str(p))
+                continue
+            try:
+                p.unlink()
+            except OSError:
+                left.append(str(p))
     if keep:
         keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
         keep = {str(real(pathlib.Path(k))) for k in keep if k}
