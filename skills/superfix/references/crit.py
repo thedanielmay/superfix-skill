@@ -1529,6 +1529,29 @@ def wo_head(text):
     return {k: v for l in text.splitlines() for k, _, v in [l.partition(": ")] if k in WO_REQUIRED}
 
 
+def woc_kinds(t):
+    """KINDS from the header, lowercased: every problem's kind. None when the line is absent."""
+    for l in t.splitlines():
+        if l.startswith("KINDS: "):
+            return [w.strip().lower() for w in re.split(r"[, ]+", l[len("KINDS: "):]) if w.strip()]
+    return None
+
+
+def woc_kinds_problem(t):
+    """The refused-set problem line, or "": a kind outside code and criteria, or a code
+    plus criteria mix, is refused before any copy of the owner's data is made. An absent
+    KINDS line is the old behaviour, never a refusal."""
+    ks = woc_kinds(t)
+    if not ks:
+        return ""
+    bad = [k for k in ks if k not in WO_KINDS]
+    if bad:
+        return f"WORKORDER-KIND-REFUSED {' '.join(bad)} (a work order covers Code or criteria only: run these as normal, or split them into their own run)"
+    if len(set(ks)) > 1:
+        return "WORKORDER-KIND-REFUSED mix (a code problem and a criteria problem in one run: split them)"
+    return ""
+
+
 def wo_block(text):
     """The CHECKS block, exactly as Step 0 extracts it (the lines between # BEGIN CHECKS and # END CHECKS)."""
     m = re.search(r"(?ms)^# BEGIN CHECKS\n(.*?)^# END CHECKS$", text)
@@ -1731,22 +1754,42 @@ def woc_base_name(t):
     return pathlib.Path(fs[0]).name
 
 
-def woc_check(a, t):
-    """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
-    lines, bad = t.splitlines(), []
-    for k in WO_REQUIRED_CRITERIA:
+def woc_missing_keys(lines, keys):
+    """The required header keys that are missing or repeated, as problem lines."""
+    bad = []
+    for k in keys:
         n = sum(1 for l in lines if l.startswith(k + ": "))
         if n != 1:
             bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
-    h = wo_head(t)
+    return bad
+
+
+def woc_not_fresh(t, skip_prefixes):
+    """The placeholder, ticked box and unticked step problems, as problem lines.
+    The placeholder exclusion list is the caller's: the code kind skips shell
+    fragments (r(){, o=, t=), where the criteria kind skips a checklist line."""
+    bad = []
     rep = t.find("\n## Report")
     for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
-        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "- [ ]")):
+        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(skip_prefixes):
             bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
         if re.search(r"^\s*- \[[xX]\]", l):
             bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
     if not re.search(r"(?m)^- \[ \] ", t):
         bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    return bad
+
+
+def woc_check(a, t):
+    """WORKORDER for kind criteria: the tick list, the bundled files, the copy, the scan, the data yes, the stub lock."""
+    lines, bad = t.splitlines(), []
+    bad += woc_missing_keys(lines, WO_REQUIRED_CRITERIA)
+    bad += woc_not_fresh(t, ("#", "- [ ]"))
+    kp = woc_kinds_problem(t)
+    if kp:
+        print(kp)
+        return 1
+    h = wo_head(t)
     F = real(pathlib.Path(a.wo).parent)
     appr = woc_approved(F)
     ticks = woc_tick(t)
@@ -2831,9 +2874,8 @@ def woc_cleanup_full(D, keep=True):
     if got:
         left.append(got)
     round_dirs = woc_verified_round_dirs(wid) if wid else []
-    stub_pats = ("RETURNED-*.md", "report.md")
-    round_pats = ("RETURNED-*.md", "report.md", "sendback.md", "key")
-    for d, pats in [(D / "workorder" / "folder", stub_pats)] + [(d, round_pats) for d in round_dirs]:
+    WOC_KEEP_TOP = {"work", "checks", "workorder.md", "key"}   # work and checks are cleaned above
+    for d in [D / "workorder" / "folder"] + round_dirs:
         try:
             dst = os.lstat(d)
         except FileNotFoundError:
@@ -2844,16 +2886,34 @@ def woc_cleanup_full(D, keep=True):
         if not stat.S_ISDIR(dst.st_mode):
             left.append(str(d))
             continue
-        for pat in pats:
-            for p in sorted(d.glob(pat)):
-                if not woc_guard(p, d):
+        # Every other name at the top of the folder is a stray: paperwork a round
+        # left behind, or data someone dropped there. A regular file or a link goes;
+        # a directory, a FIFO, a socket or a hardlinked file is listed, never touched.
+        try:
+            top = sorted(d.iterdir())
+        except OSError:
+            left.append(str(d))
+            continue
+        for p in top:
+            if p.name in WOC_KEEP_TOP or not woc_guard(p, d):
+                if p.name not in WOC_KEEP_TOP:
                     left.append(str(p))
-                    continue
-                try:
-                    if p.is_symlink() or p.is_file():
-                        p.unlink()
-                except OSError:
-                    left.append(str(p))
+                continue
+            try:
+                pst = os.lstat(p)
+            except OSError:
+                left.append(str(p))
+                continue
+            if stat.S_ISREG(pst.st_mode) and pst.st_nlink != 1:
+                left.append(str(p))
+                continue
+            if not (stat.S_ISREG(pst.st_mode) or stat.S_ISLNK(pst.st_mode)):
+                left.append(str(p))
+                continue
+            try:
+                p.unlink()
+            except OSError:
+                left.append(str(p))
     if keep:
         keep = {r.get("copy") for r in woc_returns(D) if r.get("failing") == 0}
         keep = {str(real(pathlib.Path(k))) for k in keep if k}
@@ -3138,22 +3198,16 @@ def cmd_wo_check(a):
     if wo_head(t).get("CHECKS-KIND") == "criteria":
         return woc_check(a, t)
     lines, bad = t.splitlines(), []
-    for k in WO_REQUIRED:
-        n = sum(1 for l in lines if l.startswith(k + ": "))
-        if n != 1:
-            bad.append(f"WORKORDER-MISSING {k} (found {n} times)")
+    bad += woc_missing_keys(lines, WO_REQUIRED)
     h = wo_head(t)
     if h.get("CHECKS-KIND") and h["CHECKS-KIND"] not in WO_KINDS:
         print(f"WORKORDER-KIND {h['CHECKS-KIND']}")
         return 1
-    rep = t.find("\n## Report")
-    for n, l in enumerate(t[:rep if rep >= 0 else len(t)].splitlines(), 1):
-        if re.search(r"<[^<>\s][^<>]*>", re.sub(r"<(word|n|k|why)>", "", l)) and not l.lstrip().startswith(("#", "r(){", "o=", "t=")):
-            bad.append(f"WORKORDER-NOT-FRESH line {n} (a placeholder outside ## Report)")
-        if re.search(r"^\s*- \[[xX]\]", l):
-            bad.append(f"WORKORDER-NOT-FRESH line {n} (a ticked box)")
-    if not re.search(r"(?m)^- \[ \] ", t):
-        bad.append("WORKORDER-NOT-FRESH (no unticked step)")
+    kp = woc_kinds_problem(t)
+    if kp:
+        print(kp)
+        return 1
+    bad += woc_not_fresh(t, ("#", "r(){", "o=", "t="))
     blk = wo_block(t)
     locked = pathlib.Path(a.check).read_text() if a.check else None
     if blk is None or sha_text(blk) != h.get("CHECKS-SHA") or (locked is not None and sha_text(locked) != h.get("CHECKS-SHA")):

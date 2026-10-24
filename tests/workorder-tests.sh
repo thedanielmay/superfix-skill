@@ -240,7 +240,7 @@ t files-round2-builds-on-last '^on$' bash -c "git -C '$X' merge-base --is-ancest
 RED="python3 -I $ROOT/skills/superfix/references/redact-check.py --run $D --"
 sed 's/^## What this is for$/## What this is for\nUse token ghp_abcdefghijklmnopqrstuvwxyz0123456789 for the clone./' "$T/example.md" > "$T/token.md"
 t redaction-blocks-planted-token 'PATTERN-HITS' bash -c "$RED $T/token.md"
-t redaction-example-only-sha-lines '^NO-LIST[|]PATTERN-HITS [^|]*[|][^|]*example.md:(9|35)[|][^|]*example.md:(9|35)$' bash -c "$RED $T/example.md"
+t redaction-example-only-sha-lines '^NO-LIST[|]PATTERN-HITS [^|]*[|][^|]*example.md:(10|36)[|][^|]*example.md:(10|36)$' bash -c "$RED $T/example.md"
 
 # ---- size, SKILL.md and the journal lines check (normal runs carry Work order:) ----
 t workorder-md-under-cap '^ok$' bash -c "[ \$(wc -l < '$ROOT/skills/superfix/references/workorder.md') -le 250 ] && echo ok"
