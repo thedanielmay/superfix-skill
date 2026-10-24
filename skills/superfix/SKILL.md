@@ -116,11 +116,11 @@ A process is never called solved: Superfix drafts the change and says "change dr
 | Signals | Type |
 |---------|------|
 | Labels: `security`, `vuln`, `cve`; keywords: "injection", "auth bypass", "XSS", "CSRF", "exposed", "CVE", "vulnerability" | `security` |
+| Labels: `research` with no change requested; the owner asks what is true, to find out, to investigate or to compare, and asks for no change | `research` |
 | Labels: `bug`, `regression`; keywords: "broken", "error", "exception", "crash", "not working", "fails" | `bug` |
 | Labels: `performance`, `perf`, `optimization`; keywords: "slow", "latency", "N+1", "cache", "index", "timeout" | `performance` |
 | Labels: `ui`, `ux`, `frontend`, `design`, `a11y`; keywords: "layout", "style", "visual", "animation", "mobile", "component", "accessibility" | `ux` |
 | Labels: `architecture`, `refactor`, `epic`; cross-cutting scope, multiple subsystems, structural change | `architecture` |
-| Labels: `research`; the owner asks what is true, to find out, to investigate or to compare, and asks for no change | `research` |
 | Everything else | `feature` |
 
 If a security signal and another type both match (for example "XSS error"), `security` is primary and the other type is secondary (see Compound issues).

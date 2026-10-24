@@ -6,15 +6,16 @@ A research issue asks a question and wants an answer. It is not a bug and no fil
 
 ## Detection
 
-Label `research`, or the owner asks what is true, asks you to find out, to investigate or to compare two or more things, and asks for no change. One word of change ("and fix it") makes it a normal run: the type is then the change, and the questions join its diagnosis.
+Label `research` with no change requested, or the owner asks what is true, asks you to find out, to investigate or to compare two or more things, and asks for no change. This row sits above the ordinary types, below `security`: an explicit "do not fix it" wins over "broken" or "error" in the same request, which is the point of the type. One word of change ("and fix it") makes it a normal run: the type is then the change, and the questions join its diagnosis.
 
 ## Flow
 
 1. Phase 0 and Phase 1 as usual, without a failing check: the questions are the work. Record each one as Q1, Q2 and so on at the top of `## Problems`, in the owner's words where he asked in words.
 2. Explore read only, and keep the evidence with each step: the file and line, or the command and its output. A claim without one of those is not a claim yet.
-3. Write the report below into the `## Report` section of the issue body or journal file, and stop at the Stop gate as usual: the owner's go is needed before anything is posted, and the comment goes through the comment gate like any other.
-4. One validation agent, then the conclusion.
-5. A research run makes no code change, no branch and no PR. Its output is a comment on the issue and a `## Report` body section. With no issue, it is a journal file, as for any other run.
+3. Write the report below into the run folder draft, never into the issue body yet, and stop at the Stop gate as usual: the owner's go is needed before anything is posted, and the comment goes through the comment gate like any other.
+4. One validation agent, then the conclusion: apply every CORRECTED line, drop every REFUTED claim, keep every CONFIRMED claim, and mark every claim the agent did not return as unvalidated.
+5. Publish only after that: the filtered report goes into the `## Report` section of the body, the conclusion with its confirmed and not-checked list goes in the comment, and the Status line moves as usual. Until then the report is a draft and is never posted.
+6. A research run makes no code change, no branch and no PR. Its output is a comment on the issue and a `## Report` body section. With no issue, it is a journal file, as for any other run.
 
 ## The report
 
