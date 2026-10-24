@@ -1529,6 +1529,29 @@ def wo_head(text):
     return {k: v for l in text.splitlines() for k, _, v in [l.partition(": ")] if k in WO_REQUIRED}
 
 
+def woc_kinds(t):
+    """KINDS from the header, lowercased: every problem's kind. None when the line is absent."""
+    for l in t.splitlines():
+        if l.startswith("KINDS: "):
+            return [w.strip().lower() for w in re.split(r"[, ]+", l[len("KINDS: "):]) if w.strip()]
+    return None
+
+
+def woc_kinds_problem(t):
+    """The refused-set problem line, or "": a kind outside code and criteria, or a code
+    plus criteria mix, is refused before any copy of the owner's data is made. An absent
+    KINDS line is the old behaviour, never a refusal."""
+    ks = woc_kinds(t)
+    if not ks:
+        return ""
+    bad = [k for k in ks if k not in WO_KINDS]
+    if bad:
+        return f"WORKORDER-KIND-REFUSED {' '.join(bad)} (a work order covers Code or criteria only: run these as normal, or split them into their own run)"
+    if len(set(ks)) > 1:
+        return "WORKORDER-KIND-REFUSED mix (a code problem and a criteria problem in one run: split them)"
+    return ""
+
+
 def wo_block(text):
     """The CHECKS block, exactly as Step 0 extracts it (the lines between # BEGIN CHECKS and # END CHECKS)."""
     m = re.search(r"(?ms)^# BEGIN CHECKS\n(.*?)^# END CHECKS$", text)
@@ -1762,6 +1785,10 @@ def woc_check(a, t):
     lines, bad = t.splitlines(), []
     bad += woc_missing_keys(lines, WO_REQUIRED_CRITERIA)
     bad += woc_not_fresh(t, ("#", "- [ ]"))
+    kp = woc_kinds_problem(t)
+    if kp:
+        print(kp)
+        return 1
     h = wo_head(t)
     F = real(pathlib.Path(a.wo).parent)
     appr = woc_approved(F)
@@ -3175,6 +3202,10 @@ def cmd_wo_check(a):
     h = wo_head(t)
     if h.get("CHECKS-KIND") and h["CHECKS-KIND"] not in WO_KINDS:
         print(f"WORKORDER-KIND {h['CHECKS-KIND']}")
+        return 1
+    kp = woc_kinds_problem(t)
+    if kp:
+        print(kp)
         return 1
     bad += woc_not_fresh(t, ("#", "r(){", "o=", "t="))
     blk = wo_block(t)

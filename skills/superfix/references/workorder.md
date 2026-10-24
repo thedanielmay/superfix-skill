@@ -4,6 +4,7 @@ New in 1.6.0 ([superfix-skill#57](https://github.com/thedanielmay/superfix-skill
 
 ### 1. When, who, where
 - Only when this run's request or the go reply says "work order", "someone else will do it" or "hand off", and every problem is row Code, or every problem is a criteria-mode file (never Qik, a live Sheet or Doc, or a mix). Otherwise say in one line why not and run as normal. A process held in a file, a document or a data file is in scope. Never the fast lane. "Keep executing" still means Superfix makes the change.
+- The `KINDS:` header line lists every problem's kind, comma separated. `wo-check` and `wo-lock` refuse a kind outside code and criteria (`qik`, `live`, `sheet`, `doc`) and refuse a code plus criteria mix with `WORKORDER-KIND-REFUSED` before any copy of the owner's data is made. A work order with no `KINDS:` line is the old behaviour: the line is added to new work orders, not required of old ones.
 - Who can carry it out: anyone with git, the repo's runtime (named with its version in CHECKS) and read access to the repo: a cheaper model, another service, a developer, or the owner.
 - An executor on this Mac runs as another user, or sandboxed: as the same user it can read `~/.superfix` (held.sh, the lock, crit.py). That is why the folder never goes inside `~/.superfix` (`wo-lock` and `wo-sendback` refuse it: `WORKORDER-DEST-INSIDE-SUPERFIX`). Release note: an executor running as the same user on the same Mac is not supported; use another account or a sandbox.
 - At the stop, one plain line: "This route costs about the same as me fixing it, or more; the gain is handing it off."
@@ -37,6 +38,7 @@ Any other `CHECKS-KIND:` prints `WORKORDER-KIND <value>` when writing and `RETUR
 # Work order: CSV and JSON export (superfix-testbed issue 109)
 WORK-ORDER: thedanielmay+superfix-testbed+109-wo1
 CHECKS-KIND: code
+KINDS: code
 REPO: https://github.com/thedanielmay/superfix-testbed (private; clone needs read access)
 BASE: baecc4813fafefc66934fd83c7e0ae85cf5f094b
 BRANCH: wo/109-csv-json-export
@@ -116,6 +118,7 @@ EXECUTOR: <model or person>, turns <n if known>, cost <if known>
 # Work order: dedupe members-export.csv (testbed seed-1.5)
 WORK-ORDER: thedanielmay+superfix-testbed+csv-wo1
 CHECKS-KIND: criteria
+KINDS: criteria
 SOURCE: data/members-export.csv (a copy is in work/; you never get the original)
 BASE: <sha256 of the copy in work/> (sha256)
 FILES: work/members-export.csv (a process names work/drafts/ too, as a second entry)
