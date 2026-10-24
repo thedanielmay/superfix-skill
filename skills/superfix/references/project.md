@@ -10,6 +10,7 @@ the run reaches Phase 3 with the owner's go.
 
 ````
 python3 references/project.py <repo>        # <repo> defaults to the current folder
+python3 references/project.py --pr-body <file> --issue <N> <repo>   # the closing check
 ````
 
 ## The file
@@ -26,6 +27,8 @@ same); inline comments are not stripped, so keep a `#` on its own line.
 | `checks` | one command that must pass before the PR | yes, in file order |
 | `rules` | one line of repo rules, shown to the model and the owner | yes, in file order |
 | `do-not-edit` | a file or folder the run never edits | yes, in file order |
+| `closing` | `auto`, `closes` or `refs`; what the PR body says about the issue | no |
+| `model` | `sonnet`, `opus` or `default`; a default for the fix stage only | no |
 
 ````
 # .superfix/project.md
@@ -37,8 +40,22 @@ rules: no em or en dashes anywhere
 do-not-edit: skills/superfix/references/crit.py
 ````
 
-Only these five keys exist. `work-clone` was dropped from v1: a repo-local file must not choose
+Only these seven keys exist. `work-clone` was dropped from v1: a repo-local file must not choose
 where the run works.
+
+## closing and model
+
+`closing: auto` (the default) keeps the Phase 4 rule: the PR body carries `Closes #<N>` so the issue
+closes on merge, or `Refs #<N>` when a criteria-mode problem still has a `later` or `owner` criterion,
+is a process, or still matches the owner's description. `closes` makes the closing keyword required.
+`refs` forbids every closing keyword (`Closes`, `Fixes`, `Resolves`) and needs a `Refs #<N>` line. A
+keyword inside a code fence does not count, and a closing keyword naming a different issue is refused.
+The checker is `python3 references/project.py --pr-body <file> --issue <N> <repo>`, which prints
+`CLOSING-OK` or `CLOSING-BAD <why>` and exits 1.
+
+`model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still
+raise it for a Complex or architecture step, so it is not "always use this model". `default` means the
+policy alone decides.
 
 ## What the reader refuses
 
@@ -57,13 +74,15 @@ instruction.
   path (`~/.ssh`, `/.ssh/`, `.env`, `id_rsa`, `id_ed25519`, `.netrc`, `.aws/`, `.gnupg`,
   `.kube/config`, `keychain`, `credentials.json`, `.docker/config`) is refused: `PROJECT-BAD-VALUE`.
 - `base-branch` and `pr-base` must be plain ref names, set once, with no `..` and no leading `-`.
+- `closing` takes exactly `auto`, `closes` or `refs`, and `model` exactly `sonnet`, `opus` or
+  `default`. Anything else is `PROJECT-BAD-VALUE <key>`. Both are set once.
 - A `checks` command must be one interpreter (`python3`, `python`, `bash`, `sh`, `node`), then a
   repository script ending `.py`, `.sh` or `.js`, then plain arguments. No shell metacharacters
   (pipe, ampersand, semicolon, dollar, backtick, angle brackets, brackets, braces, bang, star,
   question mark, hash, tilde, backslash, quotes), no absolute path anywhere including after an `=`
   (`--out=/etc/x`), no `..`: the command cannot leave the repository or chain a second command.
   Anything else is `PROJECT-CHECK-REFUSED`.
-- A key that is not one of the five is ignored and named: `PROJECT-UNKNOWN-KEY`. The rest of the
+- A key that is not one of the seven is ignored and named: `PROJECT-UNKNOWN-KEY`. The rest of the
   file still applies.
 
 ## Output and what the run does with it
@@ -76,6 +95,8 @@ instruction.
 | `PROJECT-CHECK-REFUSED <key>` | 1 | stops and asks at the Stop gate |
 | `PROJECT-BAD-VALUE <key>` | 1 | stops and asks at the Stop gate |
 | `SETTINGS-NONE` | 0 | no file, or no settings: nothing changes |
+| `CLOSING-OK` | 0 | `--pr-body`: the body matches `closing` |
+| `CLOSING-BAD <why>` | 1 | `--pr-body`: it does not; the PR body is fixed before the PR is opened |
 
 Then one `SETTING <key>=<value>` per applied value, in file order. The model joins the reader's lines
 with `; ` into the one `Settings:` line of the Problem Profile, so the owner sees exactly what was
