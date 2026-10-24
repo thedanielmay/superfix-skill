@@ -108,7 +108,7 @@ In criteria mode the same post also needs `LINES-OK` and `CRITERIA-OK`, and carr
 | `PROJECT-BAD-VALUE <key>` | 1 | stops and asks at the Stop gate |
 | `SETTINGS-NONE` | 0 | no file, or no settings: nothing changes |
 
-Then one `SETTING <key>=<value>` per applied value, in file order. A refused value is echoed back cut to 60 characters. The seven keys are `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`, `closing` and `model`. Any key or `rules` line naming a safeguard is refused, as is any `checks` command outside the narrow allowlist and any value naming a credential path or an outbound destination. `closing` is checked against the PR body in Phase 4, which prints `CLOSING-OK` or `CLOSING-BAD <why>`.
+Then one `SETTING <key>=<value>` per applied value, in file order. A refused value is echoed back cut to 60 characters. The eight keys are `base-branch`, `pr-base`, `checks`, `rules`, `do-not-edit`, `closing`, `model` and `side-findings`. Any key or `rules` line naming a safeguard is refused, as is any `checks` command outside the narrow allowlist and any value naming a credential path or an outbound destination. `closing` is checked against the PR body in Phase 4, which prints `CLOSING-OK` or `CLOSING-BAD <why>`.
 
 The settings are read once. A repo that changes its own settings file during a run is not re-read between the go and the fix; that window is known and unguarded. `pr-base` is carried into the PR command, but the PR is opened by a third-party skill at Phase 4, so the base is not enforced by the reader.
 
