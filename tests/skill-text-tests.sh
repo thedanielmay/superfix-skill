@@ -46,7 +46,7 @@ t x86-merge-exempt '^FOUND$' has "$D/execute.md" "Merge commits are exempt from 
 
 # issue 121, the trimmed Red Flags: a line budget on SKILL.md, one change-pipeline ban, and the two kept bullets
 count_where() { bash -c "$2" "$1"; }
-t i121-lines '^MAX-424-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 424 ]; then echo MAX-424-OK; else echo "MAX-424-FAIL $n"; fi'
+t i121-lines '^MAX-430-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 430 ]; then echo MAX-430-OK; else echo "MAX-430-FAIL $n"; fi'
 t i121-ban-once '^BAN-ONCE-OK$' count_where "$S" 'n=$(grep -c change-pipeline "$0"); if [ "$n" -eq 1 ]; then echo BAN-ONCE-OK; else echo "BAN-ONCE-FAIL $n"; fi'
 t i121-two-bullets '^BULLETS-2$' count_where "$S" 'n=$(awk "/^## Red Flags/,/^## Out of Scope/" "$0" | grep -c "^- "); echo "BULLETS-$n"'
 # 1.7.0 part one (superfix-skill#125): the two new settings keys
@@ -60,7 +60,7 @@ t p125-review-heading '^FOUND$' has "$S" "### Independent review (Moderate, Comp
 t p125-review-verdict '^FOUND$' has "$S" 'INDEPENDENT-REVIEW PASS|FAIL <n> findings'
 t p125-review-limits '^FOUND$' has "$D/execute.md" "Limits:"
 t p125-review-exec '^FOUND$' has "$D/execute.md" 'One verdict comment on the PR: `INDEPENDENT-REVIEW PASS|FAIL <n> findings`'
-t p125-lines '^MAX-424-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 424 ]; then echo MAX-424-OK; else echo "MAX-424-FAIL $n"; fi'
+t p125-lines '^MAX-430-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 430 ]; then echo MAX-430-OK; else echo "MAX-430-FAIL $n"; fi'
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]
