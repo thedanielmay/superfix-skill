@@ -25,7 +25,7 @@ Six pages under `docs/guide/` explain the whole system, in plain language first 
 - [Gates and checks](docs/guide/gates-and-checks.md): every gate and check, what it blocks and the word it prints when it fails.
 - [Work orders](docs/guide/work-orders.md): the hand-off folder, the checks and the return, in detail.
 - [Settings file](docs/guide/settings-file.md): the eight keys in `.superfix/project.md`, the refusals and worked examples.
-- [Versions](docs/guide/versions.md): one entry per tagged release from 1.1.0 to 1.7.0, taken from the GitHub release notes where one exists.
+- [Versions](docs/guide/versions.md): one entry per tagged release, taken from the GitHub release notes where one exists.
 
 ---
 
@@ -241,9 +241,21 @@ Nothing is hard-required. Superfix names Claude Code skills; any step whose skil
 
 ---
 
-## Installation
+## Install
 
-This repo is structured as a Claude Code installable plugin with a skill manifest.
+Install from the marketplace in this repo:
+
+```
+/plugin install superfix --marketplace thedanielmay/superfix-skill
+```
+
+Or link a local checkout into your skills folder:
+
+```
+ln -s ~/projects/agent-tools/skills/superfix-skill/skills/superfix ~/.claude/skills/superfix
+```
+
+More ways to install follow.
 
 ### Claude Code
 
@@ -342,18 +354,6 @@ Since 1.4.0 the picture step writes a Python script from `references/evidence.md
 
 ## Status
 
-1.7.0, released 24 October 2026. In production; it supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the long parts live in `skills/superfix/references/`.
-
-The line since 1.5.0:
-- 1.5.0: criteria mode for non-code problems. A gap note now means a check Superfix had no way to measure, not every non-code problem.
-- 1.6.0: work orders for code.
-- 1.6.1: work orders for documents, spreadsheets and processes.
-- 1.6.2: the comment gate, and the tool in its own file at `references/crit.py`.
-- 1.6.3: the per-repo settings file at `.superfix/project.md`.
-- 1.6.4: real gates, the corrected solved check run 3, the merged tree rule and the r4 skill-text rules.
-- 1.6.5: clean-up hardening, the shared work order loops, and refused kinds.
-- 1.7.0: the independent review stage, the closing and model and side-findings settings, the comment gate style check, and the research issue type.
-
-The 1.7.0 release note reports 103 settings, 16 redaction, 15 comment gate style check, 11 solved check, 61 skill-text, 15 cleanup, 11 work order dedupe, 11 work order kinds, 115 work order and 240 criteria tests, 31 removed and 10 moved lines in the preservation record all justified, and `SKILL.md` at 427 of 430 lines.
+In production; it supersedes `change-pipeline`. The classification rules and phase sequences live in the SKILL.md files; the long parts live in `skills/superfix/references/`. See [CHANGELOG.md](CHANGELOG.md) for what changed in each release, and [docs/guide/versions.md](docs/guide/versions.md) for the earlier release history.
 
 Known limits: Qik configuration support is provisional. Pictures of Qik draft pages are untested (they need the one-time saved login above). The 61 skill-text tests check that the new wording is present, not that the rules work. The redaction, solved check and skill text test scripts run in CI on every pull request; the two work order suites still run only on this Mac, because they need `sandbox-exec` and local fixtures.

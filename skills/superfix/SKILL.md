@@ -8,6 +8,9 @@ description: >-
   superfix, issue #N, fix #N, implement #N, or a request to fix, build or
   change something in code, or clean up a document or data file against criteria the owner approves.
   It diagnoses first and stops for approval before fixing.
+license: MIT
+metadata:
+  version: "1.7.1"
 ---
 
 # Superfix Orchestrator
