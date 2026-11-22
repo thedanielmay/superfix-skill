@@ -4,7 +4,7 @@
 # Uses the fixtures in tests/fixtures/seed15 (no testbed clone, no network). SEED=<folder> overrides them.
 # Usage: bash tests/workorder-criteria-tests.sh   (prints one line per test, then "RESULT: <n> passed, <m> failed")
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
-ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; SEED="${SEED:-$ROOT/tests/fixtures/seed15}"
+ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; SEED="${SEED:-$(cd "$(dirname "$0")" && pwd)/fixtures/seed15}"
 export ROOT SEED
 T="$(mktemp -d /private/tmp/wo-crit-tests.XXXX)"; REALHOME="$HOME"
 export HOME="$T/home"; mkdir -p "$HOME"
