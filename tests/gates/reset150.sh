@@ -12,4 +12,4 @@ for b in $(git ls-remote --heads origin | awk '{print $2}' | sed 's#refs/heads/#
 git push -q -f origin $T:main
 rm -rf $HOME/.superfix/runs/thedanielmay+superfix-testbed+*(N) $HOME/.superfix/journal/thedanielmay-superfix-testbed*(N) $HOME/.superfix/gaps   # only the testbed (21 Oct 2026): other runs, such as a Superfix run on its own repo, must survive a reset
 if [ "$KEEPGAPS" != yes ]; then for n in $(gh issue list --repo $G --state open --json number -q '.[].number'); do gh issue close $n --repo $G >/dev/null 2>&1; done; fi
-echo "reset-done to $T; releases: $(gh release list --repo $R | wc -l); gap notes open: $(gh issue list --repo $G --state open --json number -q length)"
+echo "reset-done to $T; releases: $(gh release list --repo $R | wc -l); gap notes open: $([ -n "$G" ] && gh issue list --repo $G --state open --json number -q length || echo "not checked")"

@@ -17,7 +17,9 @@ bad() { fail=$((fail+1)); echo "FAIL $1"; }
 # scan <root>: print file:line for each hit; print no matched text.
 scan() {
   local r="$1" p
-  for p in '/Users/[A-Za-z0-9._-]+/' '-Users-[A-Za-z0-9]+-' 'GoogleDrive-[A-Za-z0-9.-]+-(com|org|net|au)'; do
+  # a Drive mount folder always holds the account, so any GoogleDrive- followed by a letter or digit counts;
+  # a placeholder such as GoogleDrive-<email> does not
+  for p in '/Users/[A-Za-z0-9._-]+/' '-Users-[A-Za-z0-9._]+-' 'GoogleDrive-[A-Za-z0-9]'; do
     git -C "$r" grep -a -n -E -e "$p" -- . | cut -d: -f1,2
   done
   git -C "$r" ls-files | grep -E '\.pyc$|(^|/)__pycache__/' | sed 's/$/:1/'
@@ -33,11 +35,13 @@ M="$T/m"; mkdir -p "$M/__pycache__"; git -C "$M" init -q
 a="/Us"; b="ers"; printf 'x %s%s/someone/y\n' "$a" "$b" > "$M/a.txt"
 printf 'x -%s-someone-y\n' "Us$b" > "$M/b.txt"
 printf 'x Google%s-some.one-com\n' "Drive" > "$M/c.txt"
+printf 'x Google%s-some@one.example/My Drive\n' "Drive" > "$M/f.txt"
+printf 'x -%s-so_me.one-y\n' "Us$b" > "$M/g.txt"
 printf 'x' > "$M/__pycache__/d.pyc"
-printf 'safe /Users/<you>/ and /Users/ and /Users/[^/]+/\n' > "$M/e.txt"
+printf 'safe /Users/<you>/ and /Users/ and /Users/[^/]+/ and GoogleDrive-<email>\n' > "$M/e.txt"
 git -C "$M" add -A
 mh="$(scan "$M")"
-for f in a.txt b.txt c.txt __pycache__/d.pyc; do
+for f in a.txt b.txt c.txt f.txt g.txt __pycache__/d.pyc; do
   if printf '%s\n' "$mh" | grep -q "^$f:"; then ok "control: $f caught"; else bad "control: $f not caught"; fi
 done
 if printf '%s\n' "$mh" | grep -q '^e.txt:'; then bad "control: placeholders flagged"; else ok "control: placeholders pass"; fi
