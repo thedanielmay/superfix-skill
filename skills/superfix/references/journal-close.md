@@ -31,7 +31,7 @@ Without an issue, write the same as a journal entry and say it in chat.
 - The picture lines: one side-by-side picture per problem that had pictures (evidence.md), each with its caption; a problem with a before picture has an after picture or a stated reason (for example "P1 after picture not taken: <why>"); a problem with no screen gets "P<k> has no screen; its proof is the check output below." The website line once, only when there is a picture. A public repo or no issue: the local folder line instead. Pictures still held because of a credential: the same "Pictures are not posted because you gave me a password or token in this run" line, and the run waits for that answer before its end-of-run delete (evidence.md).
 - Cost line: always present and always marked as an estimate, because the run cannot read its own bill. Rough figures by tier until the 1.4.0 test record gives measured ones: Simple about 2 USD, Moderate about 6 USD, Complex about 15 USD.
 - Undo line: always present, in plain words. The revert command (`git revert -m 1 <merge sha>`) goes in the AI detail, not in the undo line. Qik work: "To undo, tell me "undo P1". The backup is in <folder>." instead.
-- Diagrams (1.4.1): when posted, one pointer line after the picture lines, not the diagrams themselves: "The diagrams of the cause and of the change are in the issue description, under P1 and under Proposed solution (default style, chosen by Claude)." The `Labels:` line of the final comment is the `LABELS-NOW` read-back value followed by the fixed suffix ` (ready for your review)`, for example `superfix:awaiting-decision (ready for your review)`, because "Ready for review" brings that label back. Never typed from memory; the lines check below compares it with the issue.
+- Diagrams (1.4.1): when posted, one pointer line after the picture lines, not the diagrams themselves: "The diagrams of the cause and of the change are in the issue description, under P1 and under Proposed solution (default style, chosen by Claude)." The `Labels:` line of the final comment is the `LABELS-NOW` read-back value followed by the fixed suffix ` (ready for your review)`, for example `superfix:awaiting-decision (ready for your review)`, because "Ready for review" brings that label back. Never typed from memory; the lines check in journal.md compares it with the issue.
 
 ### Side findings (1.7.0)
 
@@ -50,5 +50,5 @@ With `side-findings: file`, the owner's yes to the `Settings:` line at the Stop 
 - In the final comment, each `## Not tested` bullet that was filed ends "filed as <link>".
 - No issue (file-mode journal): nothing is filed, and the findings stay under `## Not tested`.
 
-**Closing verify (Phase 4)**
+### Closing verify (Phase 4)
 After the PR merges, read `closingIssuesReferences` on the PR and the issue state. A closing keyword in the PR body does not always close the issue, so verify; if the issue is still open, close it by hand with a comment. Post the comment with `gh issue comment` first, then `gh issue close`, because `close --comment` silently drops the comment when a keyword already closed the issue.

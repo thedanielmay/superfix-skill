@@ -35,7 +35,7 @@ Skill names are Claude Code names. If a name does not resolve, use the opencode 
 |------------|-------------------|
 | `/issue #N` | `gh issue view N` - read title, body, labels, all comments |
 | `/issue "description"`, in a git repo with a GitHub remote | Use the text. Search once: `gh issue list --state open --search "<3 key words>" --limit 5`. Diagnose read-only, keeping the record in the file-mode journal. The last numbered question of the decision message offers to create the issue (journal-nofile.md, Create-issue question). Read `references/journal-nofile.md` in full before the first journal entry |
-| `/issue "description"`, anywhere else | Use the text. Keep the record in the file-mode journal. Read `references/journal-nofile.md` in full before the first journal entry. No issue question |
+| `/issue "description"`, anywhere else | Use the text. Keep the record in the file-mode journal. Read `references/journal-nofile.md` in full as soon as the file-mode journal is needed, before choosing the journal file name. No issue question |
 | `/issue` (no args) | Ask: "GitHub issue number or describe what needs doing?" |
 
 GitHub steps (comments, closing) run only when an issue exists. Without one,
