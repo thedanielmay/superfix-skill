@@ -3,6 +3,7 @@
 ## 1.7.4 - 2026-11-22
 
 - Removed personal data from the repo's current files: home folder paths in the test notes and old plans, a Drive path in a test note, and a client name and private repo names used as examples. They are now made-up names or placeholders. The rule in `gaps.md` (a repo name or run key blocks the phrases built from it) is unchanged (#136).
+- The root `SKILL.md` copy and the root `references` link are gone: `skills/superfix/` is the only copy. An OpenCode or `~/.agents` link to the repo root must now point at `<clone>/skills/superfix` (#135).
 - Stopped tracking a compiled Python file in `tests/`.
 - Added `tests/leak-check.sh`, which runs in CI and fails on a home path with a real user name, an email-shaped Drive path, or a tracked compiled file. It prints file and line only. It cannot know a client or repo name, so those still depend on the writing rule.
 
