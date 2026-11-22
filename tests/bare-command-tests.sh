@@ -3,6 +3,7 @@
 # without python3 and crit.py in the same span (superfix-skill#134).
 # No model runs, no network. Needs: python3, git.
 # Usage: bash tests/bare-command-tests.sh
+# Also fails when a command runs a references/ script by a path relative to the current folder, in a span or a code block (superfix-skill#138).
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 T="$(mktemp -d "${TMPDIR:-/tmp}/bare-command-tests.XXXXXX")"
@@ -58,6 +59,44 @@ PYM
 if ! cmp -s "$M" "$ROOT/skills/superfix/references/workorder.md" \
    && python3 -I "$T/scan.py" "$T/m" | grep -q '^BARE'; then ok "mutant: one short form on a line with a full form is caught"
 else bad "mutant not caught"; fi
+
+# a command that runs a references/ script by a relative path, in a backticked span or inside a fenced code block (superfix-skill#138)
+cat > "$T/rel.py" <<'PY'
+import re, sys, pathlib
+root = pathlib.Path(sys.argv[1])
+files = [p for pat in ("SKILL.md", "README.md", "skills/*/SKILL.md", "skills/superfix/references/*.md") for p in sorted(root.glob(pat))]
+if not files:
+    print("SCAN-NO-FILES (wrong ROOT?)"); sys.exit(2)
+span_re = re.compile(r'^(python3?|bash|sh)( -I)? "?references/')
+line_re = re.compile(r'^\s*(python3?|bash|sh)( -I)? "?references/')
+n = 0; full = 0
+for f in files:
+    fence = False
+    for i, line in enumerate(f.read_text().splitlines(), 1):
+        full += line.count("<skill dir>/references/")
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        hit = line_re.match(line) if fence else any(span_re.match(s) for s in re.findall(r"`([^`]+)`", line))
+        if hit:
+            n += 1
+            print(f"RELATIVE {f.relative_to(root)}:{i}: {line.strip()[:60]}")
+print(f"CONTROL {full}")
+print(f"TOTAL {n}")
+PY
+out="$(python3 -I "$T/rel.py" "$ROOT")"
+if [ "$(printf '%s\n' "$out" | tail -1)" = "TOTAL 0" ]; then ok "no references/ script run by a relative path"
+else bad "relative references/ commands found (name them as <skill dir>/references/..., as workorder.md does):"; printf '%s\n' "$out" | grep '^RELATIVE'; fi
+c=$(printf '%s\n' "$out" | sed -n 's/^CONTROL //p')
+if [ "${c:-0}" -ge 5 ]; then ok "control: $c lines name <skill dir>/references/"; else bad "relative scan broken: only ${c:-0} lines name <skill dir>/references/ (want 5 or more)"; fi
+
+# mutant: put a relative project.py line back into a code block of a copy of project.md; the scan must go red
+mkdir -p "$T/m2/skills/superfix/references"
+cp "$ROOT/skills/superfix/references/project.md" "$T/m2/skills/superfix/references/"
+M2="$T/m2/skills/superfix/references/project.md"
+printf '\n````\npython3 references/project.py <repo>\n````\n' >> "$M2"
+if python3 -I "$T/rel.py" "$T/m2" | grep -q '^RELATIVE'; then ok "mutant: a relative project.py line in a code block is caught"
+else bad "relative-path mutant not caught"; fi
 
 echo "pass $pass fail $fail"
 [ "$fail" -eq 0 ]
