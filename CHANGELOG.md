@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.4 - 2026-11-23
+
+- Adds the marketplace icon approved by Daniel (thedanielmay/agent-tools#2).
+
 ## 1.8.3 - 2026-11-23
 
 - Marketplace file gains a description, so the full check passes again (thedanielmay/agent-tools#10).

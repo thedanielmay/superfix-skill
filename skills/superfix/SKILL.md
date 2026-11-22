@@ -10,10 +10,10 @@ description: >-
   It diagnoses first and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.8.3"
+  version: "1.8.4"
 ---
 
-# Superfix Orchestrator (version 1.8.3)
+# Superfix Orchestrator (version 1.8.4)
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
 Supersedes `change-pipeline` - do not invoke change-pipeline.
