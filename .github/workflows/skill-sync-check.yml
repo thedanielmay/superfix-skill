@@ -28,3 +28,13 @@ jobs:
       - run: bash tests/solved-close-tests.sh
       - run: bash tests/skill-text-tests.sh
       - run: bash tests/leak-check.sh
+  workorder-macos:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: bash tests/workorder-kinds-tests.sh
+      # tests/workorder-tests.sh clones the private superfix-testbed repo, so it runs by hand (TESTBED=<clone> bash tests/workorder-tests.sh), not in CI.
+      # tests/workorder-criteria-tests.sh needs the seed15 fixtures, which are not in the repo yet (https://github.com/thedanielmay/superfix-skill/issues/150); it runs by hand until then.
