@@ -1,6 +1,6 @@
 # Phase 2 and dispatch (Moderate and Complex)
 
-New in 1.7.4 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Phase 2) says when to read this file: in full, at go, before Phase 2, together with execute.md, on every Moderate or Complex run. These are rules for the main thread, so briefs.md (which is pasted into the fix agent's prompt) does not hold them. The blocks moved here word for word from SKILL.md. Simple runs never read this file. "The shared block above" in the dispatch section is SKILL.md's branch block under Simple path.
+New in 1.7.5 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Phase 2) says when to read this file: in full, at go, before Phase 2, together with execute.md, on every Moderate or Complex run. These are rules for the main thread, so briefs.md (which is pasted into the fix agent's prompt) does not hold them. The blocks moved here word for word from SKILL.md. Simple runs never read this file. "The shared block above" in the dispatch section is SKILL.md's branch block under Simple path.
 
 ### Expert panel
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.

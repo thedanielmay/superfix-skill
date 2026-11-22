@@ -1,6 +1,6 @@
 # Qik configuration
 
-New in 1.7.4 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Coverage check, Qik configuration row) says when to read this file: in full, before the Stop gate, whenever a problem's Coverage line is the Qik configuration row. A run with no Qik problem never reads it. The four rules moved here word for word from SKILL.md (Phase 3); briefs.md carries the same four rules for the fix agent.
+New in 1.7.5 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Coverage check, Qik configuration row) says when to read this file: in full, before the Stop gate, whenever a problem's Coverage line is the Qik configuration row. A run with no Qik problem never reads it. The four rules moved here word for word from SKILL.md (Phase 3); briefs.md carries the same four rules for the fix agent.
 
 ### Qik configuration (provisional)
 Qik configuration (provisional). Load the qik skill first. No branch.

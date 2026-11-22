@@ -1,6 +1,6 @@
 # Work orders (someone else makes the change)
 
-New in 1.6.0 ([superfix-skill#57](https://github.com/thedanielmay/superfix-skill/issues/57)). SKILL.md (Work order mode) says when to read this file: in full, before the stop. Every command writes its values out literally (the shell keeps no variables between calls) and prints one word; silence is never a pass. The commands are `crit.py`'s, written into the run folder exactly as criteria.md section 5 says.
+New in 1.6.0 ([superfix-skill#57](https://github.com/thedanielmay/superfix-skill/issues/57)). SKILL.md (Work order mode) says when to read this file: in full, before the stop, or at once when only the go reply asks for a work order. Every command writes its values out literally (the shell keeps no variables between calls) and prints one word; silence is never a pass. The commands are `crit.py`'s, written into the run folder exactly as criteria.md section 5 says.
 
 ### 1. When, who, where
 - Only when this run's request or the go reply says "work order", "someone else will do it" or "hand off", and every problem is row Code, or every problem is a criteria-mode file (never Qik, a live Sheet or Doc, or a mix). Otherwise say in one line why not and run as normal. A process held in a file, a document or a data file is in scope. Never the fast lane. "Keep executing" still means Superfix makes the change.
