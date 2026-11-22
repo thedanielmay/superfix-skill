@@ -878,7 +878,7 @@ cat > "$T/movecheck.py" <<'EOF'
 # difference means the move was not faithful.
 import re, subprocess, sys
 root = sys.argv[1]
-old = subprocess.run(["git", "-C", root, "show", "adbdbae:skills/superfix/references/criteria.md"], capture_output=True, text=True)
+old = subprocess.run(["git", "-C", root, "show", "b38a57e~1:skills/superfix/references/criteria.md"], capture_output=True, text=True)
 lines = old.stdout.splitlines()
 i = lines.index("# --- crit.py start ---")
 j = lines.index("# --- crit.py end ---")
@@ -1003,3 +1003,4 @@ t wo-cleanup-criteria-removes-scan-receipts 'RECEIPTS-GONE' sh -c 'python3 -I "$
 
 echo "RESULT: $pass passed, $fail failed"
 export HOME="$REALHOME"
+[ "$fail" = 0 ]
