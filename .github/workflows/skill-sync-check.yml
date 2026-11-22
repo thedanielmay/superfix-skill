@@ -27,6 +27,7 @@ jobs:
       - run: bash tests/bare-command-tests.sh
       - run: bash tests/solved-close-tests.sh
       - run: bash tests/skill-text-tests.sh
+      - run: bash tests/skill-route-tests.sh
       - run: bash tests/leak-check.sh
   workorder-macos:
     runs-on: macos-latest

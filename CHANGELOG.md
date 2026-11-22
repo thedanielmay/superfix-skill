@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 - 2026-11-22
+
+- Skill route (agent-tools#8 stage 4): a plain "superfix it" on a skill now runs the expert-panel skill review and files only the findings the owner picks.
+  - New `references/skill-route.md`: the test that finds a skill target, the review, show and file steps, the install check, and the check and version rules for fixing a picked issue.
+  - SKILL.md has one new pointer (6 lines, 348 in all, cap stays 352). Every other target never reads the new file.
+  - New `tests/skill-route-tests.sh`, added to the CI list. It runs the detection snippet from the route file.
+  - `tests/preservation-1.8.0.md` records the version bump.
+
 ## 1.7.7 - 2026-11-22
 
 - #144 step C: `journal.md` is split so a run reads only the parts it needs. SKILL.md has the same 342 lines plus one (343, cap stays 352): each pointer now names the new file.
