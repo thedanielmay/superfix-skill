@@ -37,6 +37,7 @@ t wo-check-expected-not-in-steps 'WORKORDER-EXPECTED-NOT-IN-STEPS C3' plant 's/s
 t wo-check-unmarked-new-file 'WORKORDER-FILE-NOT-AT-BASE test/cli.test.js' plant 's#test/cli.test.js (new)#test/cli.test.js#'
 t wo-check-marked-existing 'WORKORDER-NEW-EXISTS report.js' plant 's#^FILES: report.js,#FILES: report.js (new),#'
 t wo-check-baseline-id 'WORKORDER-NOT-IN-BASELINE K1' plant 's/, K1 PASS$//'
+t wo-check-no-kinds-passes-with-note '^NOTE no KINDS line, old work order[^|]*[|]WORKORDER-OK$' 0 plant '/^KINDS: /d'
 t frame-wo-check-kind-unknown '^WORKORDER-KIND firmware$' plant 's/^CHECKS-KIND: code$/CHECKS-KIND: firmware/'
 
 # ---- P2: the widened sandbox ----

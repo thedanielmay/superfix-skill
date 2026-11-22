@@ -32,6 +32,17 @@ with open(dst, "w", newline="", encoding="utf-8") as f:
     w.writeheader(); w.writerows(out)
 EOF
 mkdir -p "$T/src"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"
+# mkrig.py writes the rig's workorder.md without a KINDS line; wo-lock now refuses that (superfix-skill#141), so add KINDS: criteria after the rig is made
+MKRIG="$(cd "$(dirname "$0")" && pwd)/mkrig.py"; export MKRIG
+cat > "$T/mkrig-k.py" <<'EOF2'
+import os, re, subprocess, sys
+out = subprocess.run([sys.executable, os.environ["MKRIG"]] + sys.argv[1:], capture_output=True, text=True, check=True).stdout
+for m in re.finditer(r"^\w*RF=(.*)$", out, re.M):
+    p = m.group(1).strip("'\"") + "/workorder.md"
+    t = open(p).read()
+    open(p, "w").write(t.replace("CHECKS-KIND: criteria\n", "CHECKS-KIND: criteria\nKINDS: criteria\n", 1))
+sys.stdout.write(out)
+EOF2
 # model-side attempt in the real criteria folder
 doattempt() { python3 -I "$1/crit.py" attempt --run "$1" --attempts "$2/attempts" --scripts "$2" --label "$4" --body "$3" --measure "P1-C1=$5" --measure "P1-K1=$5"; }
 # returned folder from a handed folder, deduped to <keep> removals
@@ -40,7 +51,7 @@ retfix() { rm -rf "$T/$1"; mkdir -p "$T/$1"; cp -r "$2" "$T/$1/folder"; python3 
 
 mkdir -p "$T/src"; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"
 # ---- MAIN RIG (real 1.5.0 job plus stub folder work order) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-csv-wo thedanielmay+superfix-testbed+csv-wo1 "$T/src/members-export.csv" work/members-export.csv M)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-csv-wo thedanielmay+superfix-testbed+csv-wo1 "$T/src/members-export.csv" work/members-export.csv M)"
 [ -n "$M_RD" ] || { echo "CANNOT RUN: main rig build failed"; exit 2; }
 export M_RD M_RF M_RCRC M_DEST M_BODYDEC M_PRISTINE
 M_PRISTINE="$T/pristine-main"; cp -r "$M_RF" "$M_PRISTINE"
@@ -133,7 +144,7 @@ t wo-return-code-run-criteria-folder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/fak
 t wo-return-binary-workorder 'RETURN-OURS-CHANGED' sh -c 'rm -rf "$T/retb"; cp -r "$M_DEST" "$T/retb"; printf "\377\376\000binary-binary" > "$T/retb/workorder.md"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retb" --body "$M_BODYDEC"'
 
 # ---- Step 0 writes outside the folder (#91): the template block run literally, then the return ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-step0-wo thedanielmay+superfix-testbed+step0-wo1 "$T/src/members-export.csv" work/members-export.csv S0)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-step0-wo thedanielmay+superfix-testbed+step0-wo1 "$T/src/members-export.csv" work/members-export.csv S0)"
 [ -n "$S0_RD" ] || { echo "CANNOT RUN: step0 rig build failed"; exit 2; }
 export S0_RD S0_RF S0_RCRC S0_DEST S0_BODYDEC
 python3 -I "$S0_RD/crit.py" wo-lock --run "$S0_RD" --folder "$S0_RF" --dest "$S0_DEST" --body "$S0_BODYDEC" >/dev/null 2>&1
@@ -251,7 +262,7 @@ t wo-return-checks-deleted-records 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/re
 t wo-return-checks-plus-extra 'RETURN-FILES-OVER .*work/extra2.txt.*RETURN-FILES-OVER .*CHECKS-CHANGED' sh -c 'rm -rf "$T/retce"; cp -r "$T/ret1" "$T/retce"; echo "# x" >> "$T/retce/folder/checks/measure-P1-C1.py"; echo x > "$T/retce/folder/work/extra2.txt"; python3 -I "$M_RD/crit.py" wo-return --run "$M_RD" --folder "$T/retce/folder" --body "$M_BODYDEC"'
 
 # ---- TAINTED RIG (changed checks still record, measure and send back) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-chg-wo thedanielmay+superfix-testbed+chg-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-chg-wo thedanielmay+superfix-testbed+chg-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
 [ -n "$V_RD" ] || { echo "CANNOT RUN: tainted rig build failed"; exit 2; }
 export V_RD V_RF V_RCRC V_DEST V_BODYDEC
 python3 -I "$V_RD/crit.py" wo-lock --run "$V_RD" --folder "$V_RF" --dest "$V_DEST" --body "$V_BODYDEC" >/dev/null 2>&1
@@ -263,7 +274,7 @@ t wo-tainted-verify-fail 'VERIFY-FAIL' python3 -I "$V_RD/crit.py" wo-verify --ru
 t wo-tainted-sendback-ready 'SENDBACK-READY' python3 -I "$V_RD/crit.py" wo-sendback --run "$V_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+chg-wo1-r2" --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC"
 
 # ---- FULL-FIX TAINTED RIG (a tampered return with a fully fixed copy must never pass) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-full-wo thedanielmay+superfix-testbed+full-wo1 "$T/src/members-export.csv" work/members-export.csv F)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-full-wo thedanielmay+superfix-testbed+full-wo1 "$T/src/members-export.csv" work/members-export.csv F)"
 [ -n "$F_RD" ] || { echo "CANNOT RUN: full-fix rig build failed"; exit 2; }
 export F_RD F_RF F_RCRC F_DEST F_BODYDEC
 python3 -I "$F_RD/crit.py" wo-lock --run "$F_RD" --folder "$F_RF" --dest "$F_DEST" --body "$F_BODYDEC" >/dev/null 2>&1
@@ -277,7 +288,7 @@ t wo-real-note-accepted 'RETURN-CRITERIA-COPIED' python3 -I "$F_RD/crit.py" wo-r
 t wo-cleanup-removes-notes 'NOTES-GONE' sh -c 'cp "$T/src/members-export.csv" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md"; echo "report" > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md"; python3 -I "$F_RD/crit.py" wo-cleanup --run "$F_RD" >/dev/null 2>&1; test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/RETURNED-9.md" && test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+full-wo1/report.md" && echo NOTES-GONE'
 
 # ---- ENDING RIG (a pass cleans everything: rounds, stub copy, run copies) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-end-wo thedanielmay+superfix-testbed+end-wo1 "$T/src/members-export.csv" work/members-export.csv E)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-end-wo thedanielmay+superfix-testbed+end-wo1 "$T/src/members-export.csv" work/members-export.csv E)"
 [ -n "$E_RD" ] || { echo "CANNOT RUN: ending rig build failed"; exit 2; }
 export E_RD E_RF E_RCRC E_DEST E_BODYDEC
 python3 -I "$E_RD/crit.py" wo-lock --run "$E_RD" --folder "$E_RF" --dest "$E_DEST" --body "$E_BODYDEC" >/dev/null 2>&1
@@ -294,7 +305,7 @@ t wo-reverify-after-ending 'VERIFY-PASS' python3 -I "$E_RD/crit.py" wo-verify --
 t wo-orphan-finish-clean 'WORK-DELETED' python3 -I "$E_RD/crit.py" finish --run "$E_RD"
 
 # ---- FINISH RIG (finish leaves the stub copy; wo-cleanup removes it) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-fin-wo thedanielmay+superfix-testbed+fin-wo1 "$T/src/members-export.csv" work/members-export.csv N)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-fin-wo thedanielmay+superfix-testbed+fin-wo1 "$T/src/members-export.csv" work/members-export.csv N)"
 [ -n "$N_RD" ] || { echo "CANNOT RUN: finish rig build failed"; exit 2; }
 export N_RD N_RF N_RCRC N_DEST N_BODYDEC
 python3 -I "$N_RD/crit.py" wo-lock --run "$N_RD" --folder "$N_RF" --dest "$N_DEST" --body "$N_BODYDEC" >/dev/null 2>&1
@@ -306,7 +317,7 @@ t wo-cleanup-cleans 'NO-DATA' python3 "$T/nodata.py" "$N_RD" "$N_DEST"
 
 # ---- FIX 94: a stop ends CLEANUP-OK and the .sf-orig record is a kept record, not a leftover ----
 mkdir -p "$T/src2"; cp "$T/src/members-export.csv" "$T/src2/members-export.csv"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-rec-wo thedanielmay+superfix-testbed+rec-wo1 "$T/src2/members-export.csv" work/members-export.csv R3)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-rec-wo thedanielmay+superfix-testbed+rec-wo1 "$T/src2/members-export.csv" work/members-export.csv R3)"
 [ -n "$R3_RD" ] || { echo "CANNOT RUN: record rig build failed"; exit 2; }
 export R3_RD R3_RF R3_RCRC R3_DEST R3_BODYDEC
 python3 -I "$R3_RD/crit.py" wo-lock --run "$R3_RD" --folder "$R3_RF" --dest "$R3_DEST" --body "$R3_BODYDEC" >/dev/null 2>&1
@@ -323,7 +334,7 @@ t wo-cleanup-record-named 'CLEANUP-KEPT.*members-export.csv.sf-orig' python3 -I 
 t wo-cleanup-record-no-data 'NO-DATA' python3 "$T/nodata.py" "$R3_RD" "$R3_DEST"
 
 # ---- CLEANUP-HARDENING (links never followed, permissions fail loud, records hashed) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-sym-wo thedanielmay+superfix-testbed+sym-wo1 "$T/src/members-export.csv" work/members-export.csv Y)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-sym-wo thedanielmay+superfix-testbed+sym-wo1 "$T/src/members-export.csv" work/members-export.csv Y)"
 [ -n "$Y_RD" ] || { echo "CANNOT RUN: symlink rig build failed"; exit 2; }
 export Y_RD Y_RF Y_RCRC Y_DEST Y_BODYDEC
 python3 -I "$Y_RD/crit.py" wo-lock --run "$Y_RD" --folder "$Y_RF" --dest "$Y_DEST" --body "$Y_BODYDEC" >/dev/null 2>&1
@@ -331,7 +342,7 @@ mkdir -p "$T/outside/work"; echo "precious data" > "$T/outside/work/canary.txt"
 ln -s "$T/outside" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+sym-wo1-r99-x"
 t wo-cleanup-symlink-listed 'CLEANUP-INCOMPLETE.*r99-x' 1 python3 -I "$Y_RD/crit.py" wo-cleanup --run "$Y_RD"
 t wo-cleanup-symlink-canary-intact 'precious data' cat "$T/outside/work/canary.txt"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-hard-wo thedanielmay+superfix-testbed+hard-wo1 "$T/src/members-export.csv" work/members-export.csv H)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-hard-wo thedanielmay+superfix-testbed+hard-wo1 "$T/src/members-export.csv" work/members-export.csv H)"
 [ -n "$H_RD" ] || { echo "CANNOT RUN: hardening rig build failed"; exit 2; }
 export H_RD H_RF H_RCRC H_DEST H_BODYDEC
 python3 -I "$H_RD/crit.py" wo-lock --run "$H_RD" --folder "$H_RF" --dest "$H_DEST" --body "$H_BODYDEC" >/dev/null 2>&1
@@ -339,24 +350,24 @@ t wo-cleanup-chmod000-run 'CLEANUP-OK' sh -c 'chmod 000 "$H_RD/work"; python3 -I
 t wo-cleanup-chmod000-round 'CLEANUP-INCOMPLETE' sh -c 'chmod 000 "$H_DEST"; python3 -I "$H_RD/crit.py" wo-cleanup --run "$H_RD"; chmod 755 "$H_DEST"'
 t wo-cleanup-hardlink-mode '644' sh -c 'echo owner > "$T/orig-h.csv"; chmod 644 "$T/orig-h.csv"; ln "$T/orig-h.csv" "$H_RD/work/victim.csv"; python3 -I "$H_RD/crit.py" wo-cleanup --run "$H_RD" >/dev/null 2>&1; stat -f "%Lp" "$T/orig-h.csv"'
 t wo-cleanup-hardlink-listed 'CLEANUP-INCOMPLETE.*victim.csv' python3 -I "$H_RD/crit.py" wo-cleanup --run "$H_RD"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph-wo thedanielmay+superfix-testbed+orph-wo1 "$T/src/members-export.csv" work/members-export.csv O)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-orph-wo thedanielmay+superfix-testbed+orph-wo1 "$T/src/members-export.csv" work/members-export.csv O)"
 [ -n "$O_RD" ] || { echo "CANNOT RUN: orphan rig build failed"; exit 2; }
 export O_RD O_RF O_RCRC O_DEST O_BODYDEC
 python3 -I "$O_RD/crit.py" wo-lock --run "$O_RD" --folder "$O_RF" --dest "$O_DEST" --body "$O_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-orphan-changed-kept 'CLEANUP-KEPT.*CLEANUP-OK.*NO-WARNING' sh -c 'rm "$O_RD/work/members-export.csv"; echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; out="$(python3 -I "$O_RD/crit.py" wo-cleanup --run "$O_RD")"; echo "$out"; echo "$out" | grep -q CLEANUP-INCOMPLETE || echo NO-WARNING; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"'
 t wo-cleanup-orphan-record-kept 'sf-orig' sh -c 'ls "$O_RD/work"'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-orph2-wo thedanielmay+superfix-testbed+orph2-wo1 "$T/src/members-export.csv" work/members-export.csv G)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-orph2-wo thedanielmay+superfix-testbed+orph2-wo1 "$T/src/members-export.csv" work/members-export.csv G)"
 [ -n "$G_RD" ] || { echo "CANNOT RUN: orphan agree rig build failed"; exit 2; }
 export G_RD G_RF G_RCRC G_DEST G_BODYDEC
 python3 -I "$G_RD/crit.py" wo-lock --run "$G_RD" --folder "$G_RF" --dest "$G_DEST" --body "$G_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-orphan-unchanged-deletes 'CLEANUP-OK' sh -c 'rm "$G_RD/work/members-export.csv"; python3 -I "$G_RD/crit.py" wo-cleanup --run "$G_RD"'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-stray-wo thedanielmay+superfix-testbed+stray-wo1 "$T/src/members-export.csv" work/members-export.csv A)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-stray-wo thedanielmay+superfix-testbed+stray-wo1 "$T/src/members-export.csv" work/members-export.csv A)"
 [ -n "$A_RD" ] || { echo "CANNOT RUN: stray rig build failed"; exit 2; }
 export A_RD A_RF A_RCRC A_DEST A_BODYDEC
 python3 -I "$A_RD/crit.py" wo-lock --run "$A_RD" --folder "$A_RF" --dest "$A_DEST" --body "$A_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-stray-record-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$A_RD/work/foo"; echo rec > "$A_RD/work/foo.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
 t wo-cleanup-junk-record-listed 'CLEANUP-INCOMPLETE.*junk.sf-orig' 1 sh -c 'echo "name,email" > "$A_RD/work/junk.sf-orig"; python3 -I "$A_RD/crit.py" wo-cleanup --run "$A_RD"'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-ovr-wo thedanielmay+superfix-testbed+ovr-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-ovr-wo thedanielmay+superfix-testbed+ovr-wo1 "$T/src/members-export.csv" work/members-export.csv V)"
 [ -n "$V_RD" ] || { echo "CANNOT RUN: override rig build failed"; exit 2; }
 export V_RD V_RF V_RCRC V_DEST V_BODYDEC
 python3 -I "$V_RD/crit.py" wo-lock --run "$V_RD" --folder "$V_RF" --dest "$V_DEST" --body "$V_BODYDEC" >/dev/null 2>&1
@@ -364,7 +375,7 @@ retfix Vret1 "$V_DEST" 8
 python3 -I "$V_RD/crit.py" wo-return --run "$V_RD" --folder "$T/Vret1/folder" --body "$V_BODYDEC" >/dev/null 2>&1
 doattempt "$V_RD" "$V_RCRC" "$V_BODYDEC" wo1 "$V_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 t wo-verify-incomplete-overrides-pass 'VERIFY-FAIL' 1 sh -c 'cp "$T/src/members-export.csv" "$V_RD/work/stray.csv"; chflags uchg "$V_RD/work/stray.csv"; python3 -I "$V_RD/crit.py" wo-verify --run "$V_RD" --head wo1 --attempts "$V_RCRC/attempts" --scripts "$V_RCRC" --body "$V_BODYDEC" --findings "$T/find-ok.txt"; rc=$?; chflags nouchg "$V_RD/work/stray.csv"; exit $rc'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-wf-wo thedanielmay+superfix-testbed+wf-wo1 "$T/src/members-export.csv" work/members-export.csv F)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-wf-wo thedanielmay+superfix-testbed+wf-wo1 "$T/src/members-export.csv" work/members-export.csv F)"
 [ -n "$F_RD" ] || { echo "CANNOT RUN: finish rig build failed"; exit 2; }
 export F_RD F_RF F_RCRC F_DEST F_BODYDEC
 python3 -I "$F_RD/crit.py" wo-lock --run "$F_RD" --folder "$F_RF" --dest "$F_DEST" --body "$F_BODYDEC" >/dev/null 2>&1
@@ -374,7 +385,7 @@ t wo-cleanup-doc-verified 'NOTHING-SPARED' sh -c 'grep -q "with nothing spared" 
 t wo-suite-trap-cleanup 'TRAP-CLEANUP' sh -c 'grep -q "trap .rm -rf" "$ROOT/tests/workorder-criteria-tests.sh" && grep -q "trap .rm -rf" "$ROOT/tests/workorder-tests.sh" && echo TRAP-CLEANUP'
 
 # ---- PROGRESS RIG (8 then 3 then 1: every return moved, send-back goes) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-prog-wo thedanielmay+superfix-testbed+prog-wo1 "$T/src/members-export.csv" work/members-export.csv P)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-prog-wo thedanielmay+superfix-testbed+prog-wo1 "$T/src/members-export.csv" work/members-export.csv P)"
 [ -n "$P_RD" ] || { echo "CANNOT RUN: prog rig build failed"; exit 2; }
 export P_RD P_RF P_RCRC P_DEST P_BODYDEC
 python3 -I "$P_RD/crit.py" wo-lock --run "$P_RD" --folder "$P_RF" --dest "$P_DEST" --body "$P_BODYDEC" >/dev/null 2>&1
@@ -402,7 +413,7 @@ t wo-flat-no-progress-cleans 'NO-DATA' python3 "$T/nodata.py" "$P_RD" "$P_DEST" 
 t wo-cleanup-incomplete 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$P_RD/work/locked2"; cp "$T/src/members-export.csv" "$P_RD/work/locked2/secret.csv"; chflags uchg "$P_RD/work/locked2/secret.csv"; python3 -I "$P_RD/crit.py" wo-cleanup --run "$P_RD"; chflags nouchg "$P_RD/work/locked2/secret.csv"'
 
 # ---- STOP RIG (8 then 3 then 3 then 3: two in a row did not move) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-stop-wo thedanielmay+superfix-testbed+stop-wo1 "$T/src/members-export.csv" work/members-export.csv S)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-stop-wo thedanielmay+superfix-testbed+stop-wo1 "$T/src/members-export.csv" work/members-export.csv S)"
 [ -n "$S_RD" ] || { echo "CANNOT RUN: stop rig build failed"; exit 2; }
 export S_RD S_RF S_RCRC S_DEST S_BODYDEC
 python3 -I "$S_RD/crit.py" wo-lock --run "$S_RD" --folder "$S_RF" --dest "$S_DEST" --body "$S_BODYDEC" >/dev/null 2>&1
@@ -434,7 +445,7 @@ t wo-stop-sendback-refused 'NO-PROGRESS' python3 -I "$S_RD/crit.py" wo-sendback 
 t wo-stop-cleans-rounds 'NO-DATA' python3 "$T/nodata.py" "$S_RD" "$S_DEST" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9"
 
 # ---- CAP RIG (five moving returns, then the cap) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cap-wo thedanielmay+superfix-testbed+cap-wo1 "$T/src/members-export.csv" work/members-export.csv K)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-cap-wo thedanielmay+superfix-testbed+cap-wo1 "$T/src/members-export.csv" work/members-export.csv K)"
 [ -n "$K_RD" ] || { echo "CANNOT RUN: cap rig build failed"; exit 2; }
 export K_RD K_RF K_RCRC K_DEST K_BODYDEC
 python3 -I "$K_RD/crit.py" wo-lock --run "$K_RD" --folder "$K_RF" --dest "$K_DEST" --body "$K_BODYDEC" >/dev/null 2>&1
@@ -450,7 +461,7 @@ t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorder
 t wo-cap-cleans-rounds 'NO-DATA' python3 "$T/nodata.py" "$K_RD" "$K_DEST" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7"
 
 # ---- KPROG RIG (distinct members fall: NO-PROGRESS worse) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-kprog-wo thedanielmay+superfix-testbed+kprog-wo1 "$T/src/members-export.csv" work/members-export.csv W)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-kprog-wo thedanielmay+superfix-testbed+kprog-wo1 "$T/src/members-export.csv" work/members-export.csv W)"
 [ -n "$W_RD" ] || { echo "CANNOT RUN: kprog rig build failed"; exit 2; }
 export W_RD W_RF W_RCRC W_DEST W_BODYDEC
 python3 "$T/dedupe.py" "$W_RD/work/members-export.csv" "$W_RD/work/kbad.csv" 8
@@ -465,7 +476,7 @@ EOF
 t wo-kprog-no-progress-worse 'NO-PROGRESS .*worse' sh -c 'python3 -I "$W_RD/crit.py" attempt --run "$W_RD" --attempts "$W_RCRC/attempts" --scripts "$W_RCRC" --label k1 --body "$W_BODYDEC" --measure "P1-C1=$W_RD/work/kbad.csv" --measure "P1-K1=$W_RD/work/kbad.csv" >/dev/null 2>&1; python3 -I "$W_RD/crit.py" progress --attempts "$W_RCRC/attempts" --scripts "$W_RCRC" --run "$W_RD" --body "$W_BODYDEC"'
 
 # ---- CUT RIG (a cut copy all the way through check, lock and return) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cut-wo thedanielmay+superfix-testbed+cut-wo1 "$T/src/members-export.csv" work/cut.csv --cut U)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-cut-wo thedanielmay+superfix-testbed+cut-wo1 "$T/src/members-export.csv" work/cut.csv --cut U)"
 [ -n "$U_RD" ] || { echo "CANNOT RUN: cut rig build failed"; exit 2; }
 export U_RD U_RF U_RCRC U_DEST U_BODYDEC
 t wo-cut-check-ok '^WORKORDER-OK$' python3 -I "$U_RD/crit.py" wo-check --wo "$U_RF/workorder.md" --run "$U_RD" --body "$U_BODYDEC"
@@ -494,7 +505,7 @@ t wo-cut-verify-cleans 'KEPT-COPY' sh -c 'test "$(find "$U_RD/work" "$U_DEST" -n
 t wo-stop-deletes-all 'NO-DATA' sh -c 'python3 -I "$U_RD/crit.py" wo-cleanup --run "$U_RD" >/dev/null 2>&1; python3 "$T/nodata.py" "$U_RD" "$U_DEST"'
 
 # ---- I: process drafts allowed; dead locals scan ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-proc-wo thedanielmay+superfix-testbed+proc-wo1 "$T/src/members-export.csv" work/members-export.csv Q)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-proc-wo thedanielmay+superfix-testbed+proc-wo1 "$T/src/members-export.csv" work/members-export.csv Q)"
 [ -n "$Q_RD" ] || { echo "CANNOT RUN: proc rig build failed"; exit 2; }
 export Q_RD Q_RF Q_RCRC Q_DEST Q_BODYDEC
 python3 - "$Q_RF/workorder.md" <<'EOF'
@@ -531,7 +542,7 @@ QSHA="$(printf '%s\n' "$QLOCKOUT" | sed -n 's/^Internal: criteria-sha \([0-9a-f]
 rm -rf "$Q_DEST"; python3 -I "$Q_RD/crit.py" wo-lock --run "$Q_RD" --folder "$Q_RF" --dest "$Q_DEST" --body "$T/body-dec2.md" >/dev/null 2>&1
 t wo-diverged-drafts-allowed 'RETURN-CRITERIA-COPIED' sh -c 'rm -rf "$T/retd2"; cp -r "$Q_DEST" "$T/retd2"; mkdir -p "$T/retd2/work/drafts"; echo hi > "$T/retd2/work/drafts/note.md"; python3 -I "$Q_RD/crit.py" wo-return --run "$Q_RD" --folder "$T/retd2" --body "$T/body-dec2.md" --attempts "$Q_RCRC/attempts" --scripts "$Q_RCRC"'
 # ---- J: process drafts allowed (owner criterion in the body) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-procjob-wo thedanielmay+superfix-testbed+procjob-wo1 "$T/src/members-export.csv" work/members-export.csv --owner J)"
 [ -n "$J_RD" ] || { echo "CANNOT RUN: process rig build failed"; exit 2; }
 export J_RD J_RF J_RCRC J_DEST J_BODYDEC
 python3 - "$J_RF/workorder.md" <<'EOF'
@@ -685,25 +696,25 @@ EOF
 t cut-mapback-keeps-columns '^KEPT-COLUMNS$' python3 "$T/keepcols.py" "$CD/work/full.csv" "$CD/work/mapped.csv"
 
 # ---- CONSOLIDATED-HARDENING (issue 87: links, lock checks, gates, names) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link-wo thedanielmay+superfix-testbed+link-wo1 "$T/src/members-export.csv" work/members-export.csv R)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-link-wo thedanielmay+superfix-testbed+link-wo1 "$T/src/members-export.csv" work/members-export.csv R)"
 [ -n "$R_RD" ] || { echo "CANNOT RUN: link rig build failed"; exit 2; }
 export R_RD R_RF R_RCRC R_DEST R_BODYDEC
 python3 -I "$R_RD/crit.py" wo-lock --run "$R_RD" --folder "$R_RF" --dest "$R_DEST" --body "$R_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-linked-runwork-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/ldoc/work"; echo precious > "$T/ldoc/work/canary.txt"; rm -rf "$R_RD/work"; ln -s "$T/ldoc" "$R_RD/work"; python3 -I "$R_RD/crit.py" wo-cleanup --run "$R_RD"; rm -f "$R_RD/work"'
 t wo-cleanup-linked-runwork-canary-intact 'precious' cat "$T/ldoc/work/canary.txt"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link2-wo thedanielmay+superfix-testbed+link2-wo1 "$T/src/members-export.csv" work/members-export.csv Z)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-link2-wo thedanielmay+superfix-testbed+link2-wo1 "$T/src/members-export.csv" work/members-export.csv Z)"
 [ -n "$Z_RD" ] || { echo "CANNOT RUN: stub link rig build failed"; exit 2; }
 export Z_RD Z_RF Z_RCRC Z_DEST Z_BODYDEC
 python3 -I "$Z_RD/crit.py" wo-lock --run "$Z_RD" --folder "$Z_RF" --dest "$Z_DEST" --body "$Z_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-linked-stub-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/lstub"; mv "$Z_RD/workorder/folder" "$T/lstub/folder"; echo victim > "$T/lstub/folder/work/victim.csv"; ln -s "$T/lstub/folder" "$Z_RD/workorder/folder"; python3 -I "$Z_RD/crit.py" wo-cleanup --run "$Z_RD"; rm -f "$Z_RD/workorder/folder"'
 t wo-cleanup-linked-stub-victim-intact 'victim' cat "$T/lstub/folder/work/victim.csv"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-link3-wo thedanielmay+superfix-testbed+link3-wo1 "$T/src/members-export.csv" work/members-export.csv B)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-link3-wo thedanielmay+superfix-testbed+link3-wo1 "$T/src/members-export.csv" work/members-export.csv B)"
 [ -n "$B_RD" ] || { echo "CANNOT RUN: base link rig build failed"; exit 2; }
 export B_RD B_RF B_RCRC B_DEST B_BODYDEC
 python3 -I "$B_RD/crit.py" wo-lock --run "$B_RD" --folder "$B_RF" --dest "$B_DEST" --body "$B_BODYDEC" >/dev/null 2>&1
 t wo-cleanup-linked-base-listed 'CLEANUP-INCOMPLETE' sh -c 'mkdir -p "$T/swreal"; mv "$HOME/superfix-workorders/thedanielmay+superfix-testbed+link3-wo1" "$T/swreal/"; mv "$HOME/superfix-workorders" "$T/sworig"; ln -s "$T/swreal" "$HOME/superfix-workorders"; echo precious2 > "$T/swreal/thedanielmay+superfix-testbed+link3-wo1/work/precious2.csv"; python3 -I "$B_RD/crit.py" wo-cleanup --run "$B_RD"; rm -f "$HOME/superfix-workorders"; mv "$T/sworig" "$HOME/superfix-workorders"'
 t wo-cleanup-linked-base-victim-intact 'precious2' cat "$T/swreal/thedanielmay+superfix-testbed+link3-wo1/work/precious2.csv"
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-finlock-wo thedanielmay+superfix-testbed+finlock-wo1 "$T/src/members-export.csv" work/members-export.csv L)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-finlock-wo thedanielmay+superfix-testbed+finlock-wo1 "$T/src/members-export.csv" work/members-export.csv L)"
 [ -n "$L_RD" ] || { echo "CANNOT RUN: finish-lock rig build failed"; exit 2; }
 export L_RD L_RF L_RCRC L_DEST L_BODYDEC
 python3 -I "$L_RD/crit.py" wo-lock --run "$L_RD" --folder "$L_RF" --dest "$L_DEST" --body "$L_BODYDEC" >/dev/null 2>&1
@@ -712,7 +723,7 @@ python3 -I "$L_RD/crit.py" wo-return --run "$L_RD" --folder "$T/Lret1/folder" --
 doattempt "$L_RD" "$L_RCRC" "$L_BODYDEC" wo1 "$L_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 python3 -I "$L_RD/crit.py" wo-verify --run "$L_RD" --head wo1 --attempts "$L_RCRC/attempts" --scripts "$L_RCRC" --body "$L_BODYDEC" --findings "$T/find-ok.txt" >/dev/null 2>&1
 t wo-finish-lock-changed-kept 'ORIGINAL-CHANGED.*WORK-KEPT' 1 sh -c 'echo "M9,X,x@x.org,2024-01-01,45" >> "$T/src/members-export.csv"; python3 -I "$L_RD/crit.py" wo-finish --run "$L_RD"; rc=$?; cp "$SEED/overlay/data/members-export.csv" "$T/src/members-export.csv"; exit $rc'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-gate-wo thedanielmay+superfix-testbed+gate-wo1 "$T/src/members-export.csv" work/members-export.csv D)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-gate-wo thedanielmay+superfix-testbed+gate-wo1 "$T/src/members-export.csv" work/members-export.csv D)"
 [ -n "$D_RD" ] || { echo "CANNOT RUN: gate rig build failed"; exit 2; }
 export D_RD D_RF D_RCRC D_DEST D_BODYDEC
 python3 -I "$D_RD/crit.py" wo-lock --run "$D_RD" --folder "$D_RF" --dest "$D_DEST" --body "$D_BODYDEC" >/dev/null 2>&1
@@ -723,10 +734,10 @@ doattempt "$D_RD" "$D_RCRC" "$D_BODYDEC" wo1 "$D_RD/work/wo1-members-export.csv"
 t wo-tainted-verify-keeps-taint-line 'CHECKS-CHANGED' sh -c 'python3 -I "$D_RD/crit.py" wo-verify --run "$D_RD" --head wo1 --attempts "$D_RCRC/attempts" --scripts "$D_RCRC" --body "$D_BODYDEC" --findings "$T/find-ok.txt" >/dev/null 2>&1; python3 -c "import json; print(\" \".join(json.load(open(\"$D_RD/workorder/returns.json\"))[0][\"lines\"]))"'
 t wo-tainted-sendback-note-keeps-line 'CHECKS-CHANGED' sh -c 'python3 -I "$D_RD/crit.py" wo-sendback --run "$D_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2" --attempts "$D_RCRC/attempts" --scripts "$D_RCRC" --body "$D_BODYDEC" >/dev/null 2>&1; grep -h CHECKS-CHANGED "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2"/RETURNED-*.md "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1-r2"/sendback.md'
 t wo-endings-delete-smuggled 'NOTES-GONE' sh -c 'echo smuggled > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/report.md"; echo smuggled > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/sendback.md"; python3 -I "$D_RD/crit.py" wo-cleanup --run "$D_RD" >/dev/null 2>&1; test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/report.md" && test ! -e "$HOME/superfix-workorders/thedanielmay+superfix-testbed+gate-wo1/sendback.md" && echo NOTES-GONE'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-owner1-wo thedanielmay+superfix-testbed+owner1-wo1 "$T/src/members-export.csv" work/members-export.csv --owner X)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-owner1-wo thedanielmay+superfix-testbed+owner1-wo1 "$T/src/members-export.csv" work/members-export.csv --owner X)"
 [ -n "$X_RD" ] || { echo "CANNOT RUN: owner rig build failed"; exit 2; }
 export X_RD X_RF X_RCRC X_DEST X_BODYDEC
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-owner2-wo thedanielmay+superfix-testbed+owner2-wo1 "$T/src/members-export.csv" work/members-export.csv --owner C)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-owner2-wo thedanielmay+superfix-testbed+owner2-wo1 "$T/src/members-export.csv" work/members-export.csv --owner C)"
 [ -n "$C_RD" ] || { echo "CANNOT RUN: owner rig 2 build failed"; exit 2; }
 export C_RD C_RF C_RCRC C_DEST C_BODYDEC
 python3 - "$X_RD/workorder/folder/workorder.md" "$C_RD/workorder/folder/workorder.md" <<'EOF'
@@ -760,7 +771,7 @@ t wo-cleanup-fifo-nohang 'CLEANUP-INCOMPLETE' sh -c 'mkfifo "$X_RD/work/x.sf-ori
 t wo-gate-docs 'FOREIGN-NOTE-DOCS' sh -c 'grep -q "RETURN-FOREIGN-NOTE" "$ROOT/skills/superfix/references/workorder.md" && grep -q "can never pass" "$ROOT/skills/superfix/references/workorder.md" && grep -q "not supported; use another account" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS'
 
 # ---- FINAL-BOUNDED (issue 88: values, wording, checks leftovers, guards) ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-scan-wo thedanielmay+superfix-testbed+scan-wo1 "$T/src/members-export.csv" work/members-export.csv I)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-scan-wo thedanielmay+superfix-testbed+scan-wo1 "$T/src/members-export.csv" work/members-export.csv I)"
 [ -n "$I_RD" ] || { echo "CANNOT RUN: scan rig build failed"; exit 2; }
 export I_RD I_RF I_RCRC I_DEST I_BODYDEC
 python3 -I "$I_RD/crit.py" wo-lock --run "$I_RD" --folder "$I_RF" --dest "$I_DEST" --body "$I_BODYDEC" >/dev/null 2>&1
@@ -834,7 +845,7 @@ t wo-scan-no-data-with-only-a-notes-file 'SCAN-NO-DATA' 1 python3 -I "$I_RD/crit
 t wo-scan-refusal-withdraws-the-receipt 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/src/members-export.csv" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" >/dev/null 2>&1; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
 cp "$T/src/members-export.csv" "$T/changing.csv"
 t wo-post-refuses-stale-data 'POST-REFUSED' 1 sh -c 'python3 -I "$I_RD/crit.py" wo-scan-comment --comment "$T/normal-comment.md" --run "$T/empty-run" --data "$T/changing.csv" >/dev/null 2>&1; printf "x,y\n1,2\n" >> "$T/changing.csv"; python3 -I "$I_RD/crit.py" wo-post --comment "$T/normal-comment.md" --run "$T/empty-run"'
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-roundchk-wo thedanielmay+superfix-testbed+roundchk-wo1 "$T/src/members-export.csv" work/members-export.csv R2)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-roundchk-wo thedanielmay+superfix-testbed+roundchk-wo1 "$T/src/members-export.csv" work/members-export.csv R2)"
 [ -n "$R2_RD" ] || { echo "CANNOT RUN: round checks rig build failed"; exit 2; }
 export R2_RD R2_RF R2_RCRC R2_DEST R2_BODYDEC
 python3 -I "$R2_RD/crit.py" wo-lock --run "$R2_RD" --folder "$R2_RF" --dest "$R2_DEST" --body "$R2_BODYDEC" >/dev/null 2>&1
@@ -877,7 +888,7 @@ CHANGED = ("woc_cleanup_full", "woc_distinctive_values", "woc_comment_corpus", "
            "woc_comment_name_hits", "woc_scan_marker", "woc_write_receipt",
            "cmd_wo_scan_comment", "cmd_wo_post", "cmd_wo_cleanup",
            "woc_missing_keys", "woc_not_fresh", "woc_kinds", "woc_kinds_problem",
-           "woc_check", "cmd_wo_check",
+           "woc_check", "cmd_wo_check", "woc_kinds_note", "cmd_wo_lock",
            "woc_rules_lines", "woc_style_check")
 def strip_bodies(text):
     out, skip = [], False
@@ -982,7 +993,7 @@ tamperrun defarg woc_tick "CRIT-1.5-CHANGED .*woc_tick"
 tamperrun wokinds "" "CRIT-1.5-CHANGED .*WO_KINDS"
 
 # ---- FIX 98: the cleanup on a stop deletes the scan receipts, a pass keeps them ----
-eval "$(python3 "$(dirname "$0")/mkrig.py" "$HOME" test-cleanup-wo thedanielmay+superfix-testbed+cleanup-wo1 "$T/src/members-export.csv" work/members-export.csv C)"
+eval "$(python3 "$T/mkrig-k.py" "$HOME" test-cleanup-wo thedanielmay+superfix-testbed+cleanup-wo1 "$T/src/members-export.csv" work/members-export.csv C)"
 [ -n "$C_RD" ] || { echo "CANNOT RUN: cleanup rig build failed"; exit 2; }
 export C_RD C_RF C_RCRC C_DEST C_BODYDEC
 python3 -I "$C_RD/crit.py" wo-lock --run "$C_RD" --folder "$C_RF" --dest "$C_DEST" --body "$C_BODYDEC" >/dev/null 2>&1

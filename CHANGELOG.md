@@ -7,6 +7,8 @@
 - Stopped tracking a compiled Python file in `tests/`.
 - Added `tests/leak-check.sh`, which runs in CI and fails on a home path with a real user name, an email-shaped Drive path, or a tracked compiled file. It prints file and line only. It cannot know a client or repo name, so those still depend on the writing rule.
 - `briefs.md` now gives fix agents the same run 3 command as SKILL.md (#143).
+- `wo-lock` now refuses a new work order with no `KINDS:` line (`WORKORDER-KIND-MISSING`). `wo-check` on an older locked work order without one still passes and prints one NOTE line (#141).
+- `workorder.md` now says a squash inside round 1 cannot be detected (git shows one commit), so the attempt count reads 1 (#142).
 
 ## 1.7.3 - 2026-11-22
 
