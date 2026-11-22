@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.6 - 2026-11-22
+
+- #144 step B (draft, filled in before the last commit).
+
 ## 1.7.5 - 2026-11-22
 
 - #144 step A: text that only one mode uses moved out of SKILL.md, which goes from 430 to 364 lines. The criteria and work order mode steps (already in `criteria.md` and `workorder.md`), the evidence, diagram and research detail, the Qik rules (new `references/qik.md`), and the expert panel and Moderate and Complex dispatch steps (new `references/phase2.md`) are read at the step that needs them. The line caps in the tests are now 374.

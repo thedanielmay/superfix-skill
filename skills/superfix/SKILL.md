@@ -10,7 +10,7 @@ description: >-
   It diagnoses first and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.7.5"
+  version: "1.7.6"
 ---
 
 # Superfix Orchestrator
