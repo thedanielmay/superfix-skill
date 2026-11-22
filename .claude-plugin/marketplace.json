@@ -11,8 +11,7 @@
     {
       "name": "superfix",
       "source": "./",
-      "description": "Development orchestrator. Takes a GitHub issue or a plain description, diagnoses it, stops for your approval, then fixes it and drives the change to an opened pull request with CI green.",
-      "version": "1.8.5"
+      "description": "Development orchestrator. Takes a GitHub issue or a plain description, diagnoses it, stops for your approval, then fixes it and drives the change to an opened pull request with CI green."
     }
   ]
 }
