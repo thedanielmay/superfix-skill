@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.5 - 2026-11-23
+
+- #166: the cap rig in `tests/workorder-criteria-tests.sh` reads its loop count and round names from `WO_LIMIT` in `crit.py`, refuses to run when `MAX_ATTEMPTS` differs from it, and a fence comment says no test goes inside the rig.
+
 ## 1.8.4 - 2026-11-23
 
 - Adds the marketplace icon approved by Daniel (thedanielmay/agent-tools#2).
