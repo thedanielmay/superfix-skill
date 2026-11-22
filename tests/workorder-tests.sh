@@ -250,7 +250,7 @@ t doc-handoff-written-line 'The comment posted with it ends with .Work order: WR
 t doc-post-every-outcome 'Every outcome below is posted on the issue before the session ends' cat "$ROOT/skills/superfix/references/workorder.md"
 t skill-work-order-two-kinds 'or every problem is a criteria-mode file' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
-t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/SKILL.md"
+t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/references/workorder.md"
 t skill-stop-gate-post-required 'posting this comment on the issue is required' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-label-done-after-merge 'set the Status to "Done" and run the label' cat "$ROOT/skills/superfix/SKILL.md"
 # the gate tools in tests/gates/ must parse and must carry no em dash or en dash
