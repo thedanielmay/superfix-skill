@@ -1,0 +1,121 @@
+member_id,name,email,joined,fee
+M1000,Kate Scott,kate.scott0@example.org,2024-07-20,45
+M1001,Jack Adams,jack.adams1@example.org,18/05/2024,$45.00
+M1002,Noah Lee,noah.lee2@example.org,23 Oct 2024,45 AUD
+M1003,Jack Baker,jack.baker3@example.org,2025-02-14,90
+M1004,Zoe Taylor,zoe.taylor4@example.org,28/05/2024,$90.00
+M1005,Liam Lee,liam.lee5@example.org,28 Nov 2024,45
+M1006,Liam Taylor,liam.taylor6@example.org,2024-01-14,$45.00
+M1007,Dan Taylor,dan.taylor7@example.org,19/08/2025,45 AUD
+M1008,Zoe Hall,zoe.hall8@example.org,27 May 2025,90
+M1009,Ruby Moore,ruby.moore9@example.org,2025-07-13,$90.00
+M1010,"Nguyen, Linh",uma.baker10@example.org,20/06/2024,45
+M1011,Ben Young,ben.young11@example.org,19 Apr 2025,$45.00
+M1003,Jack Baker,jack.baker3@example.org,2025-02-14,90
+M1009,Ruby Moore,ruby.moore9@example.org,2025-07-13,$90.00
+M1012,Yusuf Hill,yusuf.hill12@example.org,2024-10-16,45 AUD
+M1013,Ava Hall,ava.hall13@example.org,22/02/2024,90
+M1014,Yusuf Taylor,yusuf.taylor14@example.org,16 Mar 2024,$90.00
+M1015,Ruby Hall,ruby.hall15@example.org,2025-08-18,45
+M1016,Isla Baker,isla.baker16@example.org,15/01/2025,$45.00
+M1017,Chloe Wright,chloe.wright17@example.org,18 Dec 2024,45 AUD
+M1018,Noah Taylor,noah.taylor18@example.org,2024-01-16,90
+M1019,Finn Hall,finn.hall19@example.org,25/10/2024,$90.00
+M1020,Mia Wright,mia.wright20@example.org,N/A,45
+M1021,Jack Smith,jack.smith21@example.org,2024-03-26,$45.00
+M1022,Ben Adams,ben.adams22@example.org,23/02/2025,45 AUD
+M1023,Jack Wilson,jack.wilson23@example.org,13 Jan 2025,90
+M1024,Liam Scott,liam.scott24@example.org,2024-07-15,$90.00
+M1025,Sam Scott,sam.scott25@example.org,14/10/2024,45
+M1026,Harry Baker,harry.baker26@example.org,28 Apr 2025,$45.00
+M1027,Tara Clark,tara.clark27@example.org,2024-06-21,45 AUD
+M1028,Tara Green,tara.green28@example.org,24/06/2024,90
+M1029,Liam White,liam.white29@example.org,16 Dec 2024,$90.00
+M1030,Finn Smith,finn.smith30@example.org,2024-01-21,45
+M1031,Will Wood,will.wood31@example.org,28/01/2024,$45.00
+M1032,Ruby Wilson,ruby.wilson32@example.org,13 Apr 2025,45 AUD
+M1033,Harry Martin,harry.martin33@example.org,2025-02-16,90
+M1034,Will Martin,will.martin34@example.org,21/05/2025,$90.00
+M1035,Finn Young,finn.young35@example.org,28 May 2024,45
+M1036,Jack Martin,jack.martin36@example.org,2024-04-15,$45.00
+M1037,Finn Baker,finn.baker37@example.org,23/04/2025,45 AUD
+M1038,Ava Adams,ava.adams38@example.org,15 Apr 2025,90
+M1039,Will Lee,will.lee39@example.org,2025-01-21,$90.00
+M1040,Tara Lee,tara.lee40@example.org,23/03/2025,45
+M1041,Chloe Lee,chloe.lee41@example.org,23 Mar 2025,$45.00
+M1042,Noah Scott,noah.scott42@example.org,2024-04-19,45 AUD
+M1043,Grace Adams,grace.adams43@example.org,23/07/2025,90
+M1044,Grace Smith,grace.smith44@example.org,19 Mar 2025,$90.00
+M1045,Tara Scott,tara.scott45@example.org,2024-05-14,45
+M1046,Ella Adams,ella.adams46@example.org,19/04/2025,$45.00
+M1047,Harry Wilson,harry.wilson47@example.org,21 Jan 2025,45 AUD
+M1048,Ben Brown,ben.brown48@example.org,2024-09-19,90
+M1049,Xena White,xena.white49@example.org,18/05/2024,$90.00
+M1050,Noah King,noah.king50@example.org,19 Apr 2025,45
+M1051,Olive White,olive.white51@example.org,2024-11-25,$45.00
+M1052,Olive Smith,olive.smith52@example.org,19/09/2024,45 AUD
+M1053,Ruby Wilson,ruby.wilson53@example.org,22 Nov 2024,90
+M1054,Ruby Baker,ruby.baker54@example.org,2025-07-21,$90.00
+M1055,Noah Baker,noah.baker55@example.org,25/06/2025,45
+M1056,Kate Smith,kate.smith56@example.org,19 Feb 2024,$45.00
+M1057,Olive King,olive.king57@example.org,N/A,45 AUD
+M1044,Grace Smith,grace.smith44@example.org,19 Mar 2025,$90.00
+M1058,Will King,will.king58@example.org,23/05/2025,90
+M1059,Vik Clark,vik.clark59@example.org,26 Jan 2025,$90.00
+M1060,Jack Wright,jack.wright60@example.org,2025-07-15,45
+M1061,Ruby Hill,ruby.hill61@example.org,14/05/2025,$45.00
+M1062,Jack Martin,jack.martin62@example.org,15 Mar 2024,45 AUD
+M1063,Yusuf Smith,yusuf.smith63@example.org,2024-02-15,90
+M1064,Noah Clark,noah.clark64@example.org,15/02/2025,$90.00
+M1065,Liam King,liam.king65@example.org,15 Jul 2025,45
+M1066,Jack Taylor,jack.taylor66@example.org,2024-06-24,$45.00
+M1067,Liam Wood,liam.wood67@example.org,26/03/2025,45 AUD
+M1068,Ruby Nelson,ruby.nelson68@example.org,26 Nov 2024,90
+M1069,Kate Wood,kate.wood69@example.org,2025-03-17,$90.00
+M1070,Noah White,noah.white70@example.org,18/01/2024,45
+M1071,Xena Adams,xena.adams71@example.org,13 Jun 2025,$45.00
+M1072,Finn Young,finn.young72@example.org,2025-01-24,45 AUD
+M1073,Ava King,ava.king73@example.org,14/04/2025,90
+M1074,Liam Brown,liam.brown74@example.org,13 Dec 2024,$90.00
+M1075,Finn King,finn.king75@example.org,2025-02-24,45
+M1076,Ella Martin,ella.martin76@example.org,26/04/2025,$45.00
+M1077,Isla Martin,isla.martin77@example.org,03/04/2025,45 AUD
+M1078,Will Baker,will.baker78@example.org,2025-05-27,90
+M1079,Dan Adams,dan.adams79@example.org,27/10/2024,$90.00
+M1080,Noah Green,noah.green80@example.org,16 Oct 2024,45
+M1081,Jack Martin,jack.martin81@example.org,2024-05-27,$45.00
+M1082,Olive Lee,olive.lee82@example.org,13/03/2024,45 AUD
+M1083,Finn Brown,finn.brown83@example.org,23 Mar 2025,90
+M1030,Finn Smith,finn.smith30@example.org,2024-01-21,45
+M1084,Isla Taylor,isla.taylor84@example.org,2024-09-23,$90.00
+M1085,Chloe Hall,chloe.hall85@example.org,22/01/2024,45
+M1086,Xena Scott,xena.scott86@example.org,25 Oct 2024,$45.00
+M1087,Finn Wright,finn.wright87@example.org,2024-07-25,45 AUD
+M1088,Ella Baker,ella.baker88@example.org,26/07/2024,90
+M1089,Dan Adams,dan.adams89@example.org,13 Sep 2024,$90.00
+M1090,Yusuf White,yusuf.white90@example.org,2024-09-19,45
+M1091,Uma Baker,uma.baker91@example.org,18/03/2025,$45.00
+M1092,Paul Wood,paul.wood92@example.org,27 May 2024,45 AUD
+M1093,Ben Green,ben.green93@example.org,2024-01-21,90
+M1094,Tara Young,tara.young94@example.org,19/06/2025,$90.00
+M1095,Ruby White,ruby.white95@example.org,23 Jul 2025,45
+M1061,Ruby Hill,ruby.hill61@example.org,14/05/2025,$45.00
+M1096,Liam Martin,liam.martin96@example.org,2025-02-23,$45.00
+M1097,Olive Hill,olive.hill97@example.org,26/03/2025,45 AUD
+M1098,Liam Moore,liam.moore98@example.org,23 Nov 2024,90
+M1099,Ruby Nelson,ruby.nelson99@example.org,2025-02-25,$90.00
+M1095,Ruby White,ruby.white95@example.org,23 Jul 2025,45
+M1100,Harry Young,harry.young100@example.org,22/05/2025,45
+M1101,Ruby Adams,ruby.adams101@example.org,20 Apr 2025,$45.00
+M1102,Finn Young,finn.young102@example.org,2025-04-16,45 AUD
+M1103,Chloe Scott,chloe.scott103@example.org,28/01/2025,90
+M1104,Isla Hill,isla.hill104@example.org,27 Feb 2025,$90.00
+M1105,Grace Baker,grace.baker105@example.org,2024-04-25,45
+M1106,Liam Green,liam.green106@example.org,27/05/2024,$45.00
+M1107,Ava Wood,ava.wood107@example.org,17 Jun 2025,45 AUD
+M1108,Ella Young,ella.young108@example.org,2024-04-22,90
+M2050,Noah King,Noah.king50@Example.org,2023-11-20,45
+M1109,Chloe Green,chloe.green109@example.org,15/08/2024,$90.00
+M1110,Olive Hill,olive.hill110@example.org,20 Feb 2024,45
+M1111,Ella Hall,ella.hall111@example.org,2024-10-17,$45.00
+M1070,Noah White,noah.white70@example.org ,18/01/2024,45 AUD
