@@ -266,6 +266,12 @@ t side-findings-twice '^PROJECT-BAD-VALUE side-findings \(set 2 times\)' 1 read_
 w 'side-findings: file'
 t side-findings-not-unknown '^PROJECT-OK.*SETTING side-findings=file' 0 read_it
 
+# ---- a folder that does not exist, and an unknown option, are refused (superfix-skill#138) ----
+t missing-folder-refused '^PROJECT-REFUSED' 1 $P "$T/does-not-exist"
+t missing-folder-closing-refused '^PROJECT-REFUSED' 1 $P --pr-body "$T/pr-body.md" --issue 1 "$T/does-not-exist"
+t help-refused '^PROJECT-REFUSED' 1 $P --help
+t newline-path-one-line '^PROJECT-REFUSED x[?]PROJECT-OK is not a folder$' 1 $P "$(printf 'x\nPROJECT-OK')"
+
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
 t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/project.py'
