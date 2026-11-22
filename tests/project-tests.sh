@@ -270,6 +270,7 @@ t side-findings-not-unknown '^PROJECT-OK.*SETTING side-findings=file' 0 read_it
 t missing-folder-refused '^PROJECT-REFUSED' 1 $P "$T/does-not-exist"
 t missing-folder-closing-refused '^PROJECT-REFUSED' 1 $P --pr-body "$T/pr-body.md" --issue 1 "$T/does-not-exist"
 t help-refused '^PROJECT-REFUSED' 1 $P --help
+t newline-path-one-line '^PROJECT-REFUSED x[?]PROJECT-OK is not a folder$' 1 $P "$(printf 'x\nPROJECT-OK')"
 
 # ---- the wiring the model reads, and the house rules ----
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }

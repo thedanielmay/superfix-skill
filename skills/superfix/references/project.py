@@ -308,14 +308,14 @@ def main(argv):
             issue = args[i + 1]
             i += 2
         elif args[i].startswith("-"):
-            print(f"PROJECT-REFUSED unknown option {args[i][:60]}")
+            print(f"PROJECT-REFUSED unknown option {re.sub(r'[\x00-\x1f\x7f]', '?', args[i])[:60]}")
             return 1
         else:
             rest.append(args[i])
             i += 1
     root = pathlib.Path(rest[0] if rest else ".")
     if not root.is_dir():
-        print(f"PROJECT-REFUSED {str(root)[:100]} is not a folder")
+        print(f"PROJECT-REFUSED {re.sub(r'[\x00-\x1f\x7f]', '?', str(root))[:100]} is not a folder")
         return 1
     if body is not None:
         lines, code = closing_check(root, body, issue)

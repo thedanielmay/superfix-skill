@@ -118,7 +118,7 @@ instruction.
 | `PROJECT-OK` | 0 | applies every `SETTING` line |
 | `PROJECT-UNKNOWN-KEY <key>` | 0 | applies the `SETTING` lines, shows `IGNORED <key>` in the Profile, continues |
 | `PROJECT-REFUSED <key>` | 1 | stops and asks at the Stop gate |
-| `PROJECT-REFUSED <path> is not a folder` or `PROJECT-REFUSED unknown option <arg>` | 1 | stops and asks at the Stop gate; the repo path or the options were wrong, not the settings |
+| `PROJECT-REFUSED <path> is not a folder` or `PROJECT-REFUSED unknown option <arg>` | 1 | stops and asks at the Stop gate; the repo path or the options were wrong, not the settings; a folder whose name starts with `-` is passed as `./-name` |
 | `PROJECT-CHECK-REFUSED <key>` | 1 | stops and asks at the Stop gate |
 | `PROJECT-BAD-VALUE <key>` | 1 | stops and asks at the Stop gate |
 | `SETTINGS-NONE` | 0 | no file, or no settings: nothing changes |

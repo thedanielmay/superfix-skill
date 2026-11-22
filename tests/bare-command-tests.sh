@@ -67,17 +67,23 @@ root = pathlib.Path(sys.argv[1])
 files = [p for pat in ("SKILL.md", "README.md", "skills/*/SKILL.md", "skills/superfix/references/*.md") for p in sorted(root.glob(pat))]
 if not files:
     print("SCAN-NO-FILES (wrong ROOT?)"); sys.exit(2)
-span_re = re.compile(r'^(python3?|bash|sh)( -I)? "?references/')
-line_re = re.compile(r'^\s*(python3?|bash|sh)( -I)? "?references/')
+# the interpreter may sit anywhere in the line (after cd ... &&, a pipe or a $ prompt); ./references/ counts too
+cmd_re = re.compile(r'(?:^|[\s;&|$(])(python3?|bash|sh)( -I)? "?(\./)?references/')
 n = 0; full = 0
 for f in files:
-    fence = False
+    fence = ""   # the opening fence string; a fence closes only on the same character, at least as long
     for i, line in enumerate(f.read_text().splitlines(), 1):
         full += line.count("<skill dir>/references/")
-        if line.lstrip().startswith("```"):
-            fence = not fence
-            continue
-        hit = line_re.match(line) if fence else any(span_re.match(s) for s in re.findall(r"`([^`]+)`", line))
+        m = re.match(r"\s*(`{3,}|~{3,})", line)
+        if m:
+            tok = m.group(1)
+            if not fence:
+                fence = tok
+                continue
+            if tok[0] == fence[0] and len(tok) >= len(fence) and not line.strip()[len(tok):].strip():
+                fence = ""
+                continue
+        hit = cmd_re.search(line) if fence else any(cmd_re.search(s) for s in re.findall(r"`([^`]+)`", line))
         if hit:
             n += 1
             print(f"RELATIVE {f.relative_to(root)}:{i}: {line.strip()[:60]}")
@@ -97,6 +103,15 @@ M2="$T/m2/skills/superfix/references/project.md"
 printf '\n````\npython3 references/project.py <repo>\n````\n' >> "$M2"
 if python3 -I "$T/rel.py" "$T/m2" | grep -q '^RELATIVE'; then ok "mutant: a relative project.py line in a code block is caught"
 else bad "relative-path mutant not caught"; fi
+
+# mutant: an inline relative span (the SKILL.md form) and a nested three-backtick line inside a four-backtick block
+mkdir -p "$T/m3/skills/superfix/references"
+cp "$ROOT/skills/superfix/references/project.md" "$T/m3/skills/superfix/references/"
+M3="$T/m3/skills/superfix/references/project.md"
+printf '\nRun `cd x && python3 references/project.py .` first.\n\n````\n```\npython3 -I references/crit.py lock\n````\n' >> "$M3"
+n3=$(python3 -I "$T/rel.py" "$T/m3" | grep -c '^RELATIVE')
+if [ "$n3" -ge 2 ]; then ok "mutant: an inline relative span and a command after a nested fence are caught ($n3)"
+else bad "inline or nested-fence mutant not caught (found $n3, want 2)"; fi
 
 echo "pass $pass fail $fail"
 [ "$fail" -eq 0 ]
