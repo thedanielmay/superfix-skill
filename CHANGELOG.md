@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.4 - 2026-11-22
+
+- Removed personal data from the repo's current files: home folder paths in the test notes and old plans, a Drive path in a test note, and a client name and private repo names used as examples. They are now made-up names or placeholders. The rule in `gaps.md` (a repo name or run key blocks the phrases built from it) is unchanged (#136).
+- Stopped tracking a compiled Python file in `tests/`.
+- Added `tests/leak-check.sh`, which runs in CI and fails on a home path with a real user name, an email-shaped Drive path, or a tracked compiled file. It prints file and line only. It cannot know a client or repo name, so those still depend on the writing rule.
+
 ## 1.7.3 - 2026-11-22
 
 - The `project.py` commands in SKILL.md and project.md now name the script by its full path (`python3 -I "<skill dir>/references/project.py" ...`). Before, they used a path relative to the current folder, which only worked inside Superfix's own repo, so the settings step and the closing check failed in every other repo (#138).
