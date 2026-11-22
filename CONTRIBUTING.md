@@ -44,10 +44,12 @@ Claude Code installs superfix through the marketplace repo `thedanielmay/claude-
 4. Pull it into Claude Code:
    - `claude plugin marketplace update thedanielmay`
    - `claude plugin update superfix@thedanielmay`
-   - Restart Claude Code. The update only applies after a restart.
 5. Check it worked:
    - `~/.claude/plugins/installed_plugins.json` shows the new version and the new commit SHA for `superfix@thedanielmay`.
    - `diff ~/.claude/plugins/cache/thedanielmay/superfix/<version>/skills/superfix/SKILL.md skills/superfix/SKILL.md` prints nothing.
 6. opencode needs no deploy step. It already reads this checkout. Keep the clone on `main` when you are not mid-edit, so opencode runs released text.
+7. Restart Claude Code. The update only applies after a restart: until then the old cached copy keeps loading.
+   - After the restart, load the skill. Line 1 of the skill body must read `# Superfix Orchestrator (version <new version>)`.
+   - If it shows an older version, the old copy is still loaded. Restart again.
 
 Not yet confirmed by a real release: whether Claude Code needs the version bump to notice a change. Bump it every time until proven otherwise, then edit this line.

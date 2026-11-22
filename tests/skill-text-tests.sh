@@ -83,5 +83,16 @@ t p127-research-publish-last '^FOUND$' has "$D/research.md" 'Publish only after 
 t p127-research-limits '^FOUND$' has "$D/research.md" '## Limits'
 t p127-research-zero '^FOUND$' has "$D/research.md" 'A report with zero validated claims cannot be posted as a conclusion'
 
+# superfix-skill#156: a stale plugin copy must be easy to spot
+PJ="$ROOT/.claude-plugin/plugin.json"; C="$ROOT/CONTRIBUTING.md"
+# body_version <SKILL.md> <version>: the first non-blank line after the front matter must end "(version <version>)"
+body_version() { local l; l="$(awk 'f==2 && NF {print; exit} /^---$/ {f++}' "$1")"; [ "$l" = "# Superfix Orchestrator (version $2)" ] && echo MATCH || echo "MISMATCH: $l"; }
+meta_version() { local v; v="$(sed -n '2,/^---$/p' "$1" | sed -n 's/^  version: "\(.*\)"$/\1/p')"; [ "$v" = "$2" ] && echo MATCH || echo "MISMATCH: $v"; }
+V="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$PJ")"
+t v156-body-line1-version '^MATCH$' body_version "$S" "$V"
+t v156-meta-version '^MATCH$' meta_version "$S" "$V"
+t v156-checker-catches-wrong '^MISMATCH' body_version "$S" "0.0.0"
+t v156-contributing-restart-last '^FOUND$' bash -c "l=\$(sed -n '/^## Releasing and deploying/,\$p' '$C' | grep -E '^[0-9]+\. ' | tail -1); printf '%s' \"\$l\" | grep -qi 'restart Claude Code' && echo FOUND || echo \"MISSING: \$l\""
+
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]
