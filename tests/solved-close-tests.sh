@@ -15,6 +15,7 @@ t run3-named-files '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "checkout <app
 t run3-no-range-revert '^ABSENT$' absent "$ROOT/skills/superfix/SKILL.md" "diff <approval-sha>..HEAD -- . ':!test' ':!tests'"
 t brief-run3-named-files '^FOUND$' has "$ROOT/skills/superfix/references/briefs.md" "checkout <approval-sha> -- <fix files that existed, no test paths>"
 t brief-run3-no-range-revert '^ABSENT$' absent "$ROOT/skills/superfix/references/briefs.md" "diff <approval-sha>..HEAD -- . ':!test' ':!tests'"
+t brief-run3-rm-added '^FOUND$' has "$ROOT/skills/superfix/references/briefs.md" "; git -C <s3> rm -q -f -- <files the fix added>"
 t run1-names-guard '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "name the expected failing guard and check its line fired"
 t run3-same-guard '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "expect failure through the same named guard"
 # run 3 behaves on a real repo: the fix modifies one file and ADDS another (the case that used to error and revert nothing)
