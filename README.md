@@ -299,6 +299,7 @@ skills/
       journal.md                Issue body template, Status line, labels, comments, decision message (every issue run, before the stop)
       journal-nofile.md         File-mode journal and the create-issue question (runs with no issue only, 1.7.7)
       journal-close.md          Final comment, side findings, closing verify (read at Phase 4, 1.7.7)
+      skill-route.md            Skill target test, expert-panel review, pick and file steps (read on a skill target only, 1.8.0)
       diagnose.md               Diagnosis method, stop rules, tools and fallbacks, review header, fan-out brief
       briefs.md                 Execution brief for the fix agent (read only after approval)
       redaction.md              Credential checks before any post, commit or PR

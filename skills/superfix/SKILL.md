@@ -10,7 +10,7 @@ description: >-
   It diagnoses first and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.7.7"
+  version: "1.8.0"
 ---
 
 # Superfix Orchestrator
@@ -95,6 +95,11 @@ Each Everything else problem with no checkable criterion (it stops at diagnosis)
 gap note at the Stop gate: read references/gaps.md first (what a note holds, where it goes, and that a note never edits this skill).
 No gap note and no gap-list sentence for a problem that has checks proposed.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
+
+### Skill route (when the target is a skill)
+When the target is a skill (a folder with `SKILL.md`, or a skill repo) and the request is a plain "superfix it", with no issue number and no described defect, read `references/skill-route.md` in full first. It tests the target, runs the expert-panel skill review, and files only the findings the owner picks. Away mode is not a pick.
+Fixing a picked skill issue also follows that file: the repo's own checker is a required check, and the version rules apply. Every other target skips this section and the file.
+Write `Loaded: skill-route.md` in the decision comment.
 
 ### Criteria mode (Everything else problems; read references/criteria.md before the stop)
 Data and document clean-ups are fixed only against criteria the owner approves; never against criteria Superfix invented alone.
