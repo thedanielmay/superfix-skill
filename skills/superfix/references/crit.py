@@ -1552,6 +1552,12 @@ def woc_kinds_problem(t):
     return ""
 
 
+def woc_kinds_note(t):
+    """One NOTE line for a work order with no KINDS line: an older locked one passes, wo-lock refuses a new one."""
+    if woc_kinds(t) is None:
+        print("NOTE no KINDS line, old work order: the kinds check is skipped (wo-lock refuses a new work order without one)")
+
+
 def wo_block(text):
     """The CHECKS block, exactly as Step 0 extracts it (the lines between # BEGIN CHECKS and # END CHECKS)."""
     m = re.search(r"(?ms)^# BEGIN CHECKS\n(.*?)^# END CHECKS$", text)
@@ -1785,6 +1791,7 @@ def woc_check(a, t):
     lines, bad = t.splitlines(), []
     bad += woc_missing_keys(lines, WO_REQUIRED_CRITERIA)
     bad += woc_not_fresh(t, ("#", "- [ ]"))
+    woc_kinds_note(t)
     kp = woc_kinds_problem(t)
     if kp:
         print(kp)
@@ -3251,6 +3258,7 @@ def cmd_wo_check(a):
     if h.get("CHECKS-KIND") and h["CHECKS-KIND"] not in WO_KINDS:
         print(f"WORKORDER-KIND {h['CHECKS-KIND']}")
         return 1
+    woc_kinds_note(t)
     kp = woc_kinds_problem(t)
     if kp:
         print(kp)
@@ -3400,6 +3408,10 @@ def wo_dest(dest):
 
 def cmd_wo_lock(a):
     """WORKORDER and BASELINE again, then lock the run folder's copies (shasum format), copy workorder.md to the destination, print the sha lines."""
+    wp = pathlib.Path(a.folder if getattr(a, "folder", None) else pathlib.Path(a.run) / "workorder") / "workorder.md"
+    if wp.is_file() and woc_kinds(wp.read_text()) is None:
+        print("WORKORDER-KIND-MISSING (new work orders name every problem's kind on a KINDS: line; see workorder.md)")
+        return 1
     if getattr(a, "folder", None) and woc_folder_is_criteria(a.folder):
         return woc_lock(a)
     rc = woc_need_clone(a, "wo-lock")

@@ -30,6 +30,17 @@ absent no-kinds-line-not-refused 'KIND-REFUSED' $C wo-check --wo "$(wo nokinds.m
 # an unknown CHECKS-KIND keeps its own early refusal
 t unknown-kind-still-first '^WORKORDER-KIND firmware$' $C wo-check --wo "$(wo firmware.md firmware code)"
 absent unknown-kind-not-kinds-refusal 'KIND-REFUSED' $C wo-check --wo "$(wo firmware.md firmware code)"
+# wo-lock refuses a new work order with no KINDS line (superfix-skill#141), in a code run folder and a criteria folder
+lockrun() { local r="$T/run-$1"; mkdir -p "$r/workorder"; cp "$(wo "wo-$1.md" "$2" "$3")" "$r/workorder/workorder.md"; echo "$r"; }
+nolock() { local name="$1"; shift; local out rc; out="$("$@" 2>&1)"; rc=$?
+  if [ "$rc" != 0 ] && printf '%s' "$out" | grep -q '^WORKORDER-KIND-MISSING (new work orders name every problem'; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: rc $rc got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-240)"; fi; }
+nolock lock-refuses-missing-kinds $C wo-lock --run "$(lockrun nk code '')" --dest "$T/dest-nk" --clone "$T"
+nolock lock-refuses-missing-kinds-criteria $C wo-lock --run "$(lockrun nkc criteria '')" --folder "$T/run-nkc/workorder" --dest "$T/dest-nkc" --body "$T/none"
+absent lock-with-kinds-not-missing 'KIND-MISSING' $C wo-lock --run "$(lockrun wk code code)" --dest "$T/dest-wk" --clone "$T"
+# wo-check on an older locked work order with no KINDS line keeps passing and prints one NOTE naming the old behaviour
+t no-kinds-note 'NOTE no KINDS line, old work order: the kinds check is skipped' $C wo-check --wo "$(wo nokinds.md code '')"
+once() { local n; n="$($C wo-check --wo "$(wo nokinds2.md code '')" 2>&1 | grep -c '^NOTE')"; [ "$n" = 1 ] && echo NOTE-ONCE; }
+t no-kinds-note-once 'NOTE-ONCE' once
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]
