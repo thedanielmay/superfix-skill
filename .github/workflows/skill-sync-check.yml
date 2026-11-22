@@ -38,4 +38,4 @@ jobs:
           fetch-depth: 0
       - run: bash tests/workorder-kinds-tests.sh
       # tests/workorder-tests.sh clones the private superfix-testbed repo, so it runs by hand (TESTBED=<clone> bash tests/workorder-tests.sh), not in CI.
-      # tests/workorder-criteria-tests.sh needs the seed15 fixtures, which are not in the repo yet (https://github.com/thedanielmay/superfix-skill/issues/150); it runs by hand until then.
+      - run: bash tests/workorder-criteria-tests.sh

@@ -1,10 +1,10 @@
 #!/bin/bash
 # Free tests for 1.6.1 criteria work orders (references/workorder.md kind criteria and crit.py's woc-* commands).
 # No model runs. Runs under a throwaway HOME. Needs: git, python3, /usr/bin/sandbox-exec.
-# Uses the local fixtures in ~/superfix-handoff/scripts/seed15 (no testbed clone, no network).
+# Uses the fixtures in tests/fixtures/seed15 (no testbed clone, no network). SEED=<folder> overrides them.
 # Usage: bash tests/workorder-criteria-tests.sh   (prints one line per test, then "RESULT: <n> passed, <m> failed")
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
-ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; SEED=~/superfix-handoff/scripts/seed15
+ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; SEED="${SEED:-$(cd "$(dirname "$0")" && pwd)/fixtures/seed15}"
 export ROOT SEED
 T="$(mktemp -d /private/tmp/wo-crit-tests.XXXX)"; REALHOME="$HOME"
 export HOME="$T/home"; mkdir -p "$HOME"
@@ -878,7 +878,7 @@ cat > "$T/movecheck.py" <<'EOF'
 # difference means the move was not faithful.
 import re, subprocess, sys
 root = sys.argv[1]
-old = subprocess.run(["git", "-C", root, "show", "adbdbae:skills/superfix/references/criteria.md"], capture_output=True, text=True)
+old = subprocess.run(["git", "-C", root, "show", "b38a57e~1:skills/superfix/references/criteria.md"], capture_output=True, text=True)
 lines = old.stdout.splitlines()
 i = lines.index("# --- crit.py start ---")
 j = lines.index("# --- crit.py end ---")
@@ -1003,3 +1003,4 @@ t wo-cleanup-criteria-removes-scan-receipts 'RECEIPTS-GONE' sh -c 'python3 -I "$
 
 echo "RESULT: $pass passed, $fail failed"
 export HOME="$REALHOME"
+[ "$fail" = 0 ]
