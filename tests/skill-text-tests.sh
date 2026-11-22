@@ -92,7 +92,15 @@ V="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])
 t v156-body-line1-version '^MATCH$' body_version "$S" "$V"
 t v156-meta-version '^MATCH$' meta_version "$S" "$V"
 t v156-checker-catches-wrong '^MISMATCH' body_version "$S" "0.0.0"
-t v156-contributing-restart-last '^FOUND$' bash -c "l=\$(sed -n '/^## Releasing and deploying/,\$p' '$C' | grep -E '^[0-9]+\. ' | tail -1); printf '%s' \"\$l\" | grep -qi 'restart Claude Code' && echo FOUND || echo \"MISSING: \$l\""
+pcheck_same() { python3 -I - "$ROOT/tests/preservation-check.py" <<'PY'
+import importlib.util, sys
+s = importlib.util.spec_from_file_location("pc", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+a = list(m.places("# T (version 1.2.3)\nbody\n", "f")); b = list(m.places("# T\nbody\n", "f"))
+print("SAME" if a == b else f"DIFFERENT {a} {b}")
+PY
+}
+t v156-preservation-ignores-version-tail '^SAME$' pcheck_same
+t v156-contributing-restart-last '^FOUND$' bash -c "l=\$(sed -n '/^## Releasing and deploying/,/^## /p' '$C' | grep -E '^[0-9]+\. ' | tail -1); printf '%s' \"\$l\" | grep -qi 'restart Claude Code' && echo FOUND || echo \"MISSING: \$l\""
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

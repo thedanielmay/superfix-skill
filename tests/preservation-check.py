@@ -62,6 +62,10 @@ def git(root, *args):
     return r.stdout
 
 
+# A heading may end in " (version X.Y.Z)" (SKILL.md, #156). The tail is ignored so a version bump moves no lines.
+VERSION_TAIL = re.compile(r" \(version \d+\.\d+\.\d+\)$")
+
+
 def places(text, fname):
     """Yield (stripped line, place) for every non-blank line.
 
@@ -99,7 +103,8 @@ def places(text, fname):
         elif fence is not None and s.startswith(fence):
             fence = None
         elif fence is None and s.startswith("#") and s.lstrip("#").startswith(" "):
-            text_ = s.lstrip("#").strip()
+            text_ = VERSION_TAIL.sub("", s.lstrip("#").strip())
+            s = s[:len(s) - len(s.lstrip("#"))] + " " + text_
             seen[text_] += 1
             heading = text_ if seen[text_] == 1 else f"{text_} ({seen[text_]})"
             place = f"{fname} > {heading}"

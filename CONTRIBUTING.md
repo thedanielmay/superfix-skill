@@ -38,7 +38,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `skill
 
 Claude Code installs superfix through the marketplace repo `thedanielmay/claude-marketplace`, which points at this repo. A release is: new version here, matching version there, then pull it in.
 
-1. In this repo, change `version` in `.claude-plugin/plugin.json` (for example `1.0.0` to `1.1.0`). Merge to `main`.
+1. In this repo, change `version` in `.claude-plugin/plugin.json` (for example `1.0.0` to `1.1.0`). Change `metadata.version` in `skills/superfix/SKILL.md` and the version in its first heading, `# Superfix Orchestrator (version X.Y.Z)`, to the same number. A CI test fails when the three differ. Merge to `main`.
 2. Tag and push: `git tag v1.1.0 && git push origin v1.1.0`.
 3. In `thedanielmay/claude-marketplace`, change superfix's `version` in `.claude-plugin/marketplace.json` to the same number. Merge to `main`.
 4. Pull it into Claude Code:
