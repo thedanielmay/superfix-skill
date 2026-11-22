@@ -27,7 +27,7 @@ t merged-tree-reprove '^FOUND$' has "$ROOT/skills/superfix/references/execute.md
 t merged-tree-not-tested '^FOUND$' has "$ROOT/skills/superfix/references/execute.md" "merged tree not re-tested"
 # item 4: zero registered checks is not green, via the 1.6.3 checks key
 t zero-checks-not-green '^FOUND$' has "$ROOT/SKILL.md" "zero registered checks is NOT green"
-t checks-key-pointer '^FOUND$' has "$ROOT/SKILL.md" "python3 references/project.py <repo>"
+t checks-key-pointer '^FOUND$' has "$ROOT/SKILL.md" 'python3 -I "<skill dir>/references/project.py" <repo>'
 # item 5: closing verify lives in journal.md
 t closing-refs '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" "closingIssuesReferences"
 t close-by-hand '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" "close it by hand with a comment"

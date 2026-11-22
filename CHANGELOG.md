@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.3 - 2026-11-22
+
+- The `project.py` commands in SKILL.md and project.md now name the script by its full path (`python3 -I "<skill dir>/references/project.py" ...`). Before, they used a path relative to the current folder, which only worked inside Superfix's own repo, so the settings step and the closing check failed in every other repo (#138).
+- `project.py` now refuses a repo path that is not a folder, and any unknown option (such as `--help`), with `PROJECT-REFUSED` and exit 1. Before, a wrong path read as "no settings" (#138).
+- `tests/bare-command-tests.sh` also fails on a `references/` script run by a relative path, in a backticked span or a code block.
+
 ## 1.7.2 - 2026-11-22
 
 - The comment gate commands in SKILL.md and workorder.md now name `crit.py` (`python3 -I ".../crit.py" wo-scan-comment ...`). Before, they read as programs on the PATH, and a run that could not find them posted a comment without the gate (#134).
