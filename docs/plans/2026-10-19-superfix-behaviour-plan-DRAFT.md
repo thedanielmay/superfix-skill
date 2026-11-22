@@ -49,9 +49,9 @@ Written 19 Oct 2026 for the session that will execute it, and for the expert pan
 Checked (read or ran on 19 Oct 2026):
 - `skills/superfix/SKILL.md` on `main` at `64dae1d`: **502 lines** (the brief said about 495; all line numbers below are from the 502 line file). Root `SKILL.md` is identical (`diff` clean). `plugin.json` version `1.1.1`, tags `v1.0.0`, `v1.1.0`, `v1.1.1`.
 - README "Status" still says `1.1.0`. `plugin.json` description still says "merged PR" and contains an em dash.
-- Epic [superfix-skill#34](https://github.com/thedanielmay/superfix-skill/issues/34) body and all four comments; roadmap issues 35 to 39; the research report; the khub master plan.
-- Repo labels: no `superfix:*` labels exist. Releases: only `v1.0.0` (marked Latest); no `assets` release on `superfix-skill`. `khub` has an `assets` release.
-- `superfix-skill` is **PUBLIC**. `khub` is PRIVATE.
+- Epic [superfix-skill#34](https://github.com/thedanielmay/superfix-skill/issues/34) body and all four comments; roadmap issues 35 to 39; the research report; the acme-portal master plan.
+- Repo labels: no `superfix:*` labels exist. Releases: only `v1.0.0` (marked Latest); no `assets` release on `superfix-skill`. `acme-portal` has an `assets` release.
+- `superfix-skill` is **PUBLIC**. `acme-portal` is PRIVATE.
 - `gh label create` supports `--force`. `gh release create` supports `--latest=false`.
 - Installed `diagnose` skill phases: 1 feedback loop, 2 reproduce, 3 hypothesise (says "don't block on it"), 4 instrument, 5 fix and regression test, 6 cleanup.
 - The `qik` skill has **no backup or RESTORE recipe**. The closest is `references/gotchas.md` line 104 (copy `pre` and `post` SCSS with `get_content` before a style edit) and line 11 (write probes only on the throwaway interface `6ac976586ec796b19cf2e3a7`, scope `6ac976527335933f8093198d`). `kh_export.py` is local to the knowledgehub project.
@@ -61,7 +61,7 @@ Told by the coordinator, not checked by me:
 - In the current session Playwright MCP, episodic memory, the `feature-dev` agents and the `pr-review-toolkit` agents are not available. They may return. The plan designs for both cases.
 
 Assumed (not verified):
-- Release asset image URLs render in issues on private repos for people with access. This worked on khub per its master plan rule 10; not re-tested.
+- Release asset image URLs render in issues on private repos for people with access. This worked on acme-portal per its master plan rule 10; not re-tested.
 - Claude Code reads the version from this repo's `plugin.json` (observed once at 1.1.1, not proven). The release steps bump both places anyway.
 - Token use is not visible from inside a session in every harness.
 
@@ -718,7 +718,7 @@ Extra check after prompt 1's go: reply exactly "keep executing" and confirm it w
 | Qik has no general backup recipe in the qik skill | publish-gated mode points at missing content | Superfix stops and asks when no recipe covers the change; add a backup recipe to the qik skill as separate work (local repo, not this plan) |
 | Qik "supported" without its own test prompt | over-claim | "provisional" until prompt 6 passes |
 | Token ceiling is not measurable in every harness | budget is partly a proxy | agent dispatch count as proxy; listed here honestly |
-| Release asset images on private repos may not render for everyone | broken images | worked on khub; check the URL in a browser at T11 |
+| Release asset images on private repos may not render for everyone | broken images | worked on acme-portal; check the URL in a browser at T11 |
 | Redaction by pattern misses a secret | leak | "if unsure, redact"; re-read after posting; prompt 1 token test |
 | Gap issues on a public repo | private details exposed | cleaned template, filed only on yes |
 | Owner's guess removed from briefs may drop real knowledge | slower diagnosis | the guess is kept as one hypothesis in the main thread, just not given to fan-out agents |
