@@ -278,7 +278,7 @@ t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/
 t skill-has-settings-line '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'Settings:'
 dashes() { local f rc=0; for f in "$@"; do [ -f "$f" ] || continue; LC_ALL=C grep -q -e $'\xe2\x80\x94' -e $'\xe2\x80\x93' "$f" && rc=1; done; [ "$rc" = 0 ] && echo CLEAN || echo FOUND; }
 t no-em-en-dashes '^CLEAN$' dashes "$ROOT/skills/superfix/references/project.md" "$ROOT/skills/superfix/references/project.py" "$ROOT/skills/superfix/SKILL.md" "$ROOT/README.md" "$ROOT/.github/workflows/skill-sync-check.yml" "$ROOT/tests/project-tests.sh"
-cap() { local n; n=$(wc -l < "$ROOT/skills/superfix/SKILL.md"); [ "$n" -le 374 ] && echo "CAP-OK $n"; }
+cap() { local n; n=$(wc -l < "$ROOT/skills/superfix/SKILL.md"); [ "$n" -le 352 ] && echo "CAP-OK $n"; }
 t skill-under-cap 'CAP-OK' cap
 
 echo "RESULT: $pass passed, $fail failed"

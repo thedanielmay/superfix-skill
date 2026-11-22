@@ -72,11 +72,7 @@ State it in conversation if no issue.
 ## GitHub Issue as Work Journal
 When working from a GitHub issue, the issue is the single source of truth for the work. The body template, the progress comment triggers and the comment format are in `references/journal.md` (in this skill's base directory). Read it in full as soon as an issue is referenced or the file-mode journal is needed, before the first comment, body edit or journal entry, and write `Loaded: journal.md` in the decision comment.
 
-Labels follow the Status line (journal.md, Labels): "Waiting for you", "Stopped" or "Ready for review"
-means `superfix:awaiting-decision`, "Fixing" means `superfix:approved`, else neither. After every
-Status change run journal.md's label commands; each prints one word, never silenced. Copy LABELS-NOW
-into the `Labels:` field. Failed or skipped: never stop; the field reads `not set (<word>); marker
-superfix-awaiting-decision` (or superfix-approved) and the body carries the marker (journal.md).
+Labels follow the Status line. The Status-to-label table, the label commands and what to do when a label step fails are in journal.md (Labels). After every Status change run those commands, each printing one word and never silenced, and copy LABELS-NOW into the `Labels:` field. Labels are never a reason to stop.
 When the owner says the pull request is merged, set the Status to "Done" and run the label
 commands, so a closed issue keeps no label.
 
@@ -96,9 +92,7 @@ Never name a row without the quoted trigger and the evidence.
 A report with several problems: check each problem separately. Problems in
 "Everything else" are fixed only in criteria mode (references/criteria.md), never by the code path.
 Each Everything else problem with no checkable criterion (it stops at diagnosis), each criterion with no tool or access to check it, and each partial problem (its row's tools missing) gets one
-gap note at the Stop gate: read references/gaps.md first. The note names the KIND of problem only;
-it goes to the private gap repo only when every gaps.md check passes, else to ~/.superfix/gaps/.
-Never the work repo or a public repo. Never edit this skill because of a gap note.
+gap note at the Stop gate: read references/gaps.md first (what a note holds, where it goes, and that a note never edits this skill).
 No gap note and no gap-list sentence for a problem that has checks proposed.
 Several problems are "P1, P2"; "compound" still means one issue spanning two types.
 
@@ -163,10 +157,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
 1. The issue body (or journal file) has the Status line, ## Problems, ## Options and ## Done when written (journal.md template) BEFORE the decision comment is posted. A comment without the body update is not a stop.
    The ## Done when section quotes the owner's own description of the problem (redacted):
    that is the acceptance criterion.
-   The decision comment's AI detail has the required `Pictures: TAKEN <n> | NONE (no screen: <why>) | NO-BROWSER | HELD (<why>) | LOCAL (public repo) | NOT-POSTED (<why>)` line (journal.md); a stop without it is not complete.
-   It also has `Labels: <LABELS-NOW>`, `Diagram: ASKED (<why>) | NONE (<why>)` and
-   `Gap note: FILED <n> | SEEN-AGAIN <n> | LOCAL <n> | NONE (supported)`; a stop without them is not complete.
-   It also has `Criteria: PROPOSED <n> (P<k>, ...) | APPROVED <n> (...) | NONE (no Everything else problem)`; in criteria mode, criteria.md's check prints CRITERIA-OK first.
+   The decision comment's AI detail has every required line: `Pictures:`, `Labels:`, `Diagram:`, `Gap note:`, `Work order:`, `Criteria:` and `Criteria check:`. Their exact forms and the lines check are in journal.md (Decision message); a stop without them is not complete. In criteria mode, criteria.md's check prints CRITERIA-OK first.
 2. Status line: "Waiting for you: <N> questions".
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
@@ -222,10 +213,7 @@ Pattern hits are only reported and you decide: code reading a variable
 (`password = request.form[...]`) is fine. Never write [redacted] into source
 code; a real credential in the diff means stop and ask. Post only with
 --body-file, never inline --body; a --title from chat goes in a file and is
-checked first. A credential in the reporter's original issue body: stop, post
-nothing, ask the owner to edit it. If something already leaked: delete the comment (never edit it,
-GitHub keeps edit history), tell the owner to rotate the credential, and say
-what leaked where.
+checked first. A credential in the reporter's original issue body, or something that already leaked: references/redaction.md (The reporter's own issue body, Leak handling).
 Pictures: no upload except through evidence.md's upload command; a pattern hit in a picture blocks it.
 
 ## Phase 2 - Design & Plan
@@ -236,7 +224,7 @@ At go (Moderate, Complex): Read references/execute.md and references/phase2.md i
 Invoke `expert-panel` [opus/high] after the plan is written, before any implementation. The format, the 2-pass limit and the owner escalation are in references/phase2.md (Expert panel).
 
 ## Phase 3 - Execute
-Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type, the code review rules and the test scope. Write `Loaded: execute.md` in the final comment, or in your next message to the user if there is no issue.
+Before implementing, Read `references/execute.md` in full (this skill's base directory). It holds the execute sequences by type (the Simple row is the main-thread chain), the code review rules and the test scope. Write `Loaded: execute.md` in the final comment, or in your next message to the user if there is no issue.
 
 ### Budget
 Proposed in the decision message, fixed at approval. Defaults: Simple 6 commits,
@@ -257,7 +245,7 @@ BUDGET STOP; the main thread posts it (callout first), sets the status line to
 scope, 3 stop. Never continue past a limit on your own.
 
 ### Qik configuration (provisional)
-Load the `qik` skill first. No branch. The backup and draft-only rules, the Moderate and Complex file places and the solved-check limit are in references/qik.md.
+Load the `qik` skill first. No branch. Rules: references/qik.md.
 
 ### Simple path (main thread, no agent)
 Create branch before touching any file (shared block, both paths):
@@ -268,12 +256,7 @@ git switch -c <fix|feature>/<N-or-date>-<slug> <approval-sha>   # the approved c
 ```
 `<N-or-date>` is the issue number, or today's date for freeform work. That prevents slug collisions.
 
-```
-create branch → (bug: failing test or repro command first) → implement → impacted tests
-→ simplify → re-run impacted tests → code-reviewer (issue text passed inline as the brief)
-→ code-security-audit ONLY IF the diff touches auth, input parsing, SQL, shell, secrets or dependencies
-→ verification-before-completion → PR
-```
+The chain is the Simple row of references/execute.md (Execute sequences by type).
 
 ### Moderate + Complex path (autonomous agent)
 Create the branch with the shared block above before dispatching (Qik: no branch; Architecture: a worktree from `<approval-sha>` instead). Then read references/phase2.md, section Moderate and Complex dispatch, in full and follow it.
@@ -315,17 +298,12 @@ Two failed run-2 attempts, whatever the cause given: stop. Post:
    Used 1 hour 10 minutes of 2 hours. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."
 Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
-### Execute sequences by type, code review rules, test scope
-These are in `references/execute.md`. Read it in full before implementing (see the start of Phase 3).
-
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. Unless `closing: refs` is set, the PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
 Criteria mode: the PR body says `Refs #<N>` in the cases in `references/criteria.md` section 16. `closing: closes` makes the closing keyword required, `closing: refs` forbids it, and `python3 -I "<skill dir>/references/project.py" --pr-body <body file> --issue <N> <repo>` must print `CLOSING-OK` before the PR is opened.
 ### Independent review (Moderate, Complex, or any gate or prompt text change)
-After the PR is open, dispatch one reviewer that gets the PR number and the owner's own words, and nothing else: no plan, no diff, no brief, no journal.
-It opens the PR itself, reads it, and posts one verdict comment with its confidence.
-The verdict line reads `INDEPENDENT-REVIEW PASS|FAIL <n> findings`; FAIL blocks the ready-for-review status.
-Mechanics in `references/execute.md` (Independent review).
+After the PR is open, dispatch one reviewer that gets the PR number and the owner's own words, and nothing else. The rules, mechanics and limits are in `references/execute.md` (Independent review).
+It posts one verdict line, `INDEPENDENT-REVIEW PASS|FAIL <n> findings`; FAIL blocks the ready-for-review status.
 If the repo has CI, run `gh pr checks <PR> --watch`; zero registered checks is NOT green. Run the `checks` commands from `python3 -I "<skill dir>/references/project.py" <repo>` before the PR. Fix red checks under the same review rules (two passes, then escalate).
 Merged tree and closing verify: `references/execute.md` (merged tree) and `references/journal.md` (closing state).
 Post the final comment only after checks are green, or after two fix passes with the red checks listed.
