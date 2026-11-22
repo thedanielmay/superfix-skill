@@ -27,7 +27,7 @@ is_skill_target() { # $1 = folder; prints SKILL-TARGET or NOT-SKILL
 ## Step 1: review
 
 - Confirm that the `expert-panel` skill is in the skill list and that its version is 1.1.0 or later (the first version with the skill-review mode).
-- If it is missing or older, stop. Say: "The expert-panel skill 1.1.0 or later is not installed, so the skill review cannot run. Nothing was filed." Give the install line from that skill's README.
+- If it is missing or older, stop. Say: "The expert-panel skill 1.1.0 or later is not installed, so the skill review cannot run. Nothing was filed." Give the install lines: `/plugin marketplace add thedanielmay/claude-marketplace`, then `/plugin install expert-panel@thedanielmay`.
   - Do not review by hand.
   - Do not fall back to the code path.
 - Repeat the mode's cost line to the owner before the run. The review costs about 320,000 tokens.
