@@ -60,10 +60,11 @@ Applies when the fix target is a skill repo (same test). It adds to the normal f
 - Add a `CHANGELOG.md` heading `## X.Y.Z - <date>`, newest first, with one plain bullet per change.
 - Tag the bump commit `vX.Y.Z` after the merge.
 - Run the repo's own preservation and test rules too.
-- A behaviour check asks a model what it would do. One answer proves little, because a model gives a different answer on each run.
+- A behaviour check asks a model what it would do. One answer proves little, because a model can give a different answer on each run.
   - Take at least 10 samples per version: 10 from the version without the fix, and 10 from the version with the fix.
   - Write the pass line as a count, for example "10 of 10". A single "pass" is not a pass line.
-  - Run the samples in parallel. Each takes about 12 seconds.
+  - The fixed version passes only at 10 of 10, unless the issue names another count before the samples run. The version without the fix must miss at least once. Write both counts.
+  - Run the samples in parallel. In todo-skill#1 each took about 12 seconds.
 
 ## Not in this route
 

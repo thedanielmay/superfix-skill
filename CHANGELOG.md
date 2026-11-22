@@ -2,7 +2,7 @@
 
 ## 1.8.1 - 2026-11-23
 
-- #155: `references/skill-route.md` now says a behaviour check takes at least 10 samples per version and that the pass line is a count, for example "10 of 10". Todo-skill#1 passed a "fix removed" run by chance with one sample.
+- #155: `references/skill-route.md` now says a behaviour check takes at least 10 samples per version and that the pass line is a count, for example "10 of 10". todo-skill#1 passed a "fix removed" run by chance with one sample.
   - `tests/skill-route-tests.sh` has two new cases that check the text is present.
   - `tests/preservation-1.8.1.md` records the version bump.
 
