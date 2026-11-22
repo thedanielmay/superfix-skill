@@ -16,6 +16,8 @@ import re, sys, pathlib
 root = pathlib.Path(sys.argv[1])
 files = [p for pat in ("SKILL.md", "README.md", "skills/*/SKILL.md", "skills/superfix/references/*.md") for p in sorted(root.glob(pat))]
 bare = re.compile(r"^wo-[a-z]+(-[a-z]+)*\s+\S")
+if not files:
+    print(f"SCAN-NO-FILES (wrong ROOT?)"); sys.exit(2)
 n = 0
 for f in files:
     for i, line in enumerate(f.read_text().splitlines(), 1):
