@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.3 - 2026-11-23
+
+- Marketplace file gains a description, so the full check passes again (thedanielmay/agent-tools#10).
+
 ## 1.8.2 - 2026-11-23
 
 - #156: a stale plugin copy is easy to spot after an update.

@@ -4,6 +4,9 @@
     "name": "Daniel May",
     "url": "https://github.com/thedanielmay"
   },
+  "metadata": {
+    "description": "Development orchestrator. Takes a GitHub issue or a plain description, diagnoses it, stops for your approval, then fixes it and drives the change to an opened pull request with CI green."
+  },
   "plugins": [
     {
       "name": "superfix",
