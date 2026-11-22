@@ -9,6 +9,7 @@
 - `briefs.md` now gives fix agents the same run 3 command as SKILL.md (#143).
 - `wo-lock` now refuses a new work order with no `KINDS:` line (`WORKORDER-KIND-MISSING`). `wo-check` on an older locked work order without one still passes and prints one NOTE line (#141).
 - `workorder.md` now says a squash inside round 1 cannot be detected (git shows one commit), so the attempt count reads 1 (#142).
+- Fixed 9 failing rows in `tests/workorder-criteria-tests.sh`: its `docrun.py` helper now strips the leading `python3 -I "D/crit.py"` that #134 added to the documented commands. CI now also runs the three work order test files on macOS, since they need `sandbox-exec` (#147).
 
 ## 1.7.3 - 2026-11-22
 

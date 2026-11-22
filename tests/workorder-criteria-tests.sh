@@ -82,6 +82,7 @@ md, k1, k2, rd, rf, dest, body, head, findings, cf = (sys.argv + [""] * 11)[1:11
 md = open(md).read()
 line = next(l for l in md.splitlines() if k1 in l and k2 in l)
 cmd = next(m.group(1) for m in re.finditer(r"`([^`]*)`", line) if k1 in m.group(1))
+cmd = re.sub(r'^python3 -I ("?)[^\s"]*crit\.py\1 ', "", cmd)
 cmd = cmd.replace('"F/workorder.md"', f'"{rf}/workorder.md"').replace('"D"', f'"{rd}"').replace('"F"', f'"{rf}"')
 cmd = cmd.replace("<destination>", dest).replace("<new folder>", dest).replace("<journal file>", body)
 cmd = cmd.replace('"<criteria folder>/attempts"', f'"{cf}/attempts"').replace('"<criteria folder>"', f'"{cf}"')
