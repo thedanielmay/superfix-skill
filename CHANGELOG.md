@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.7 - 2026-11-22
+
+- #144 step C: `journal.md` is split so a run reads only the parts it needs. SKILL.md has the same 342 lines plus one (343, cap stays 352): each pointer now names the new file.
+  - `journal.md` keeps what every issue run needs before or at the stop: the body template, Status line, comment triggers and format, Depth by tier, Labels, the Decision message and the lines check. 402 lines became 279.
+  - New `references/journal-nofile.md`: the File-mode journal and the Create-issue question, read in full only by a run with no issue (SKILL.md Input Handling).
+  - New `references/journal-close.md`: the Final comment, Side findings and the closing verify, read in full at Phase 4 (SKILL.md Phase 4).
+  - `references/phase2.md` now also holds the Plan comment and the Context file template (Moderate and Complex, read at go). `execute.md`, `criteria.md` and `redaction.md` pointers name the new homes.
+  - Moved sections are word for word; each new file says that "above" means `journal.md`. Tests that looked for moved text read the new file. `tests/preservation-1.7.7.md` justifies every removed line.
+
 ## 1.7.6 - 2026-11-22
 
 - #144 step B, one owner per rule, with #118 folded in. Each rule that was written in SKILL.md and in a reference now lives once, in the file the model reads when the rule applies; the other place keeps a pointer naming the file and heading. SKILL.md goes from 364 to 342 lines (cap 352).

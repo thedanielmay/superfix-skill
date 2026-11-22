@@ -99,7 +99,7 @@ A locked job keeps the tool it was locked with: when the criteria folder's `lock
 
 Every command below starts `python3 -I "$HOME/.superfix/runs/<run-key>/crit.py"`. The same arguments recur, always written out in full:
 - `--run "$HOME/.superfix/runs/<run-key>"`: the run folder (redaction.md), deleted at the end of the run;
-- `--scripts "<criteria folder>"`: `$HOME/.superfix/journal/<name>/criteria/<run-key>` (`<name>` as in journal.md's file-mode path: `<owner>-<repo>`, or the folder name without a remote). It holds the measure scripts, the `lock` file, the `attempts` file, the tool's own `records/` and the owner's `VERIFY.txt`, never data, so it outlives the run (a `later` re-check needs them);
+- `--scripts "<criteria folder>"`: `$HOME/.superfix/journal/<name>/criteria/<run-key>` (`<name>` as in journal-nofile.md's file-mode path: `<owner>-<repo>`, or the folder name without a remote). It holds the measure scripts, the `lock` file, the `attempts` file, the tool's own `records/` and the owner's `VERIFY.txt`, never data, so it outlives the run (a `later` re-check needs them);
 - `--attempts "<criteria folder>/attempts"`;
 - the body: `--issue '<owner>/<repo>#<N>'` when an issue exists (the tool fetches the body itself with `gh issue view --json body`, so it never trusts a file for it); `--body "<journal file>"` in file mode, where the journal file is the record and the tool stores its sha256 in each attempt line.
 
@@ -109,7 +109,7 @@ Every path argument is resolved to its real path before the tool changes folder.
 
 **Honest limit: the tool is DETECTIVE, not preventive.** It finds changed, missing or hand-made records (a hash chain, run ids, record hashes), and it re-runs the locked scripts itself, but a model that can edit files can still forge a record by working the chain out. The owner's own check is one line: each attempt writes `<criteria folder>/VERIFY.txt`, a command that first prints the sha256 of the copy of the tool it runs (to compare with the posted `Internal: crit-sha` line; `CRIT-SHA-MISMATCH` when they differ), checks every script against the lock, then re-runs the scripts on the files named, which the owner may replace with his own copy (Superfix's work copies are deleted at the end): the same file gives `VERIFY-OK <n>` or `VERIFY-MISMATCH <id> attempts <a> now <b>`; another file gives `VERIFY-DIFFERENT-DATA <id>` with both numbers, for information, never a false alarm; a file that is gone gives `VERIFY-NO-FILE`. The decision comment and the final comment say where it is: `To check my numbers yourself, run the command in <criteria folder>/VERIFY.txt on your Mac.`
 
-After `RUN-MOVED` (journal.md, the create-issue question), move the criteria folder to the issue key too, before the lock:
+After `RUN-MOVED` (journal-nofile.md, the create-issue question), move the criteria folder to the issue key too, before the lock:
 
 ```bash
 S="$HOME/.superfix/journal/<name>/criteria/<journal run-key>"; T="$HOME/.superfix/journal/<name>/criteria/<owner>+<repo>+<N>"; if [ ! -d "$S" ]; then echo "CRITERIA-FOLDER-NONE $S"; elif [ -e "$T" ]; then echo "REFUSED-EXISTS $T"; else mv "$S" "$T" && echo CRITERIA-FOLDER-MOVED; fi

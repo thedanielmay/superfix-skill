@@ -24,7 +24,7 @@ Plan must document:
 - For narrowing a gate: fail closed by exempting only the named prose uses and keeping everything else flagged, with the old-vs-new table over both directions before the pattern is chosen
 
 ### Context file
-After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/journal.md` (Context file).
+After plan is written, create the context file `docs/superpowers/plans/<slug>-context.md` from the template in `references/phase2.md` (Context file).
 
 **Pass this file path to every execution subagent.** Every execution subagent reads the same source of truth. Diagnosis agents get the fan-out brief instead (`references/diagnose.md`).
 
