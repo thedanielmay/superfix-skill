@@ -6,6 +6,7 @@
 - The root `SKILL.md` copy and the root `references` link are gone: `skills/superfix/` is the only copy. An OpenCode or `~/.agents` link to the repo root must now point at `<clone>/skills/superfix` (#135).
 - Stopped tracking a compiled Python file in `tests/`.
 - Added `tests/leak-check.sh`, which runs in CI and fails on a home path with a real user name, an email-shaped Drive path, or a tracked compiled file. It prints file and line only. It cannot know a client or repo name, so those still depend on the writing rule.
+- `briefs.md` now gives fix agents the same run 3 command as SKILL.md (#143).
 
 ## 1.7.3 - 2026-11-22
 
