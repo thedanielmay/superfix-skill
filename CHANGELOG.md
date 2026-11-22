@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.2 - 2026-11-23
+
+- #156: a stale plugin copy is easy to spot after an update.
+  - `SKILL.md` body line 1 now reads `# Superfix Orchestrator (version X.Y.Z)`. It replaces the old heading, so the file stays 348 lines (cap 352).
+  - `CONTRIBUTING.md`: the release steps end with "Restart Claude Code", and say how to read the version after the restart.
+  - `tests/skill-text-tests.sh` (run in CI) checks that body line 1 and `metadata.version` equal `plugin.json`, that a wrong version is caught, and that the last release step is the restart.
+  - `tests/preservation-1.8.2.md` records the version and heading changes.
+
 ## 1.8.1 - 2026-11-23
 
 - #155: `references/skill-route.md` now says a behaviour check takes at least 10 samples per version and that the pass line is a count, for example "10 of 10". todo-skill#1 passed a "fix removed" run by chance with one sample.
