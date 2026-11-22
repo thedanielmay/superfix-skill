@@ -34,7 +34,7 @@ Every code type runs one shared chain. The table after it gives what each type a
 
 Shared chain:
 1. Start step: write the failing check first (the table says when).
-2. Implement. On Complex, use `superpowers:subagent-driven-development`.
+2. Implement. On Complex `bug`, `architecture` and `feature` only, use `superpowers:subagent-driven-development`; `performance`, `ux` and `security` implement directly at every tier.
 3. Run tests: impacted files only (`pytest <file> -n auto` / `npm run test -- --run <file>`).
 4. The type's added steps (the table), before simplify.
 5. `simplify`.
