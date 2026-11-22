@@ -311,6 +311,8 @@ skills/
       project.py                The settings reader, run in Phase 0 before the type is chosen (1.6.3)
       explore.md                Exploration by type
       execute.md                Execute sequences by type, review rules, test scope, merged tree
+      qik.md                    Qik configuration: the backup, draft-only and close rules (1.7.5)
+      phase2.md                 Expert panel and the Moderate and Complex dispatch, main thread only (1.7.5)
       inventory.md              Every skill used, with its opencode name or fallback
 docs/
   guide/
