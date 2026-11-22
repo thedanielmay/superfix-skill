@@ -64,7 +64,7 @@ Solved check (copy into the brief; `<s1>`, `<s3>` are new folders from `mktemp -
 ```bash
 git worktree add --detach <s1> <approval-sha> && git -C <s1> checkout <branch> -- <new or changed test paths>   # run 1 in <s1>: must fail
 # run 2: the same check on the branch: must pass
-git worktree add --detach <s3> HEAD && git -C <s3> diff <approval-sha>..HEAD -- . ':!test' ':!tests' ':!*.test.*' | git -C <s3> apply -R   # run 3 in <s3>: must fail
+git worktree add --detach <s3> HEAD && git -C <s3> checkout <approval-sha> -- <fix files that existed, no test paths>; git -C <s3> rm -q -f -- <files the fix added> (skip this rm when the fix added no file)   # run 3 in <s3>: must fail
 git worktree remove --force <path>; git worktree prune   # after each run, and whenever a step fails
 ```
 
