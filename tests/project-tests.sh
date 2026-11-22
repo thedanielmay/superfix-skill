@@ -276,8 +276,6 @@ t newline-path-one-line '^PROJECT-REFUSED x[?]PROJECT-OK is not a folder$' 1 $P 
 has() { grep -q -- "$2" "$1" && echo FOUND || echo MISSING; }
 t skill-names-reader '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'references/project.py'
 t skill-has-settings-line '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'Settings:'
-same() { diff -q "$1" "$2" > /dev/null 2>&1 && echo SAME || echo DIFFERENT; }
-t skill-copies-identical '^SAME$' same "$ROOT/SKILL.md" "$ROOT/skills/superfix/SKILL.md"
 dashes() { local f rc=0; for f in "$@"; do [ -f "$f" ] || continue; LC_ALL=C grep -q -e $'\xe2\x80\x94' -e $'\xe2\x80\x93' "$f" && rc=1; done; [ "$rc" = 0 ] && echo CLEAN || echo FOUND; }
 t no-em-en-dashes '^CLEAN$' dashes "$ROOT/skills/superfix/references/project.md" "$ROOT/skills/superfix/references/project.py" "$ROOT/skills/superfix/SKILL.md" "$ROOT/README.md" "$ROOT/.github/workflows/skill-sync-check.yml" "$ROOT/tests/project-tests.sh"
 cap() { local n; n=$(wc -l < "$ROOT/skills/superfix/SKILL.md"); [ "$n" -le 440 ] && echo "CAP-OK $n"; }

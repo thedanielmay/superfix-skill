@@ -11,12 +11,12 @@ has() { grep -q -F -- "$2" "$1" && echo FOUND || echo MISSING; }
 absent() { grep -q -F -- "$2" "$1" && echo PRESENT || echo ABSENT; }
 
 # item 2: run 3 reverts only the fix's own named files, and runs 1 and 3 name the failing guard
-t run3-named-files '^FOUND$' has "$ROOT/SKILL.md" "checkout <approval-sha> -- <fix files that existed, no test paths>; git -C <s3> rm -q -f -- <files the fix added>"
-t run3-no-range-revert '^ABSENT$' absent "$ROOT/SKILL.md" "diff <approval-sha>..HEAD -- . ':!test' ':!tests'"
-t run1-names-guard '^FOUND$' has "$ROOT/SKILL.md" "name the expected failing guard and check its line fired"
-t run3-same-guard '^FOUND$' has "$ROOT/SKILL.md" "expect failure through the same named guard"
+t run3-named-files '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "checkout <approval-sha> -- <fix files that existed, no test paths>; git -C <s3> rm -q -f -- <files the fix added>"
+t run3-no-range-revert '^ABSENT$' absent "$ROOT/skills/superfix/SKILL.md" "diff <approval-sha>..HEAD -- . ':!test' ':!tests'"
+t run1-names-guard '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "name the expected failing guard and check its line fired"
+t run3-same-guard '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "expect failure through the same named guard"
 # run 3 behaves on a real repo: the fix modifies one file and ADDS another (the case that used to error and revert nothing)
-R3="$(grep -F 'git -C <s3> checkout <approval-sha> --' "$ROOT/SKILL.md" | head -1 | sed 's/^ *`//; s/`; *$//')"
+R3="$(grep -F 'git -C <s3> checkout <approval-sha> --' "$ROOT/skills/superfix/SKILL.md" | head -1 | sed 's/^ *`//; s/`; *$//')"
 run3() { local d; d="$(mktemp -d "${TMPDIR:-/tmp}/run3-test.XXXXXX")"; ( cd "$d" && git init -q r && cd r && git config user.email a@b && git config user.name n && echo a > a.txt && git add . && git commit -qm base \
   && A="$(git rev-parse HEAD)" && echo b >> a.txt && echo new > new.txt && git add . && git commit -qm fix && git worktree add -q --detach ../s3 HEAD \
   && cmd="${R3//<s3>/..\/s3}"; cmd="${cmd//<approval-sha>/$A}"; cmd="${cmd//<fix files that existed, no test paths>/a.txt}"; cmd="${cmd//<files the fix added>/new.txt}" \
@@ -26,8 +26,8 @@ t run3-reverts-modified-and-added '^REVERTED-BOTH$' run3
 t merged-tree-reprove '^FOUND$' has "$ROOT/skills/superfix/references/execute.md" "merge main into the branch and re-prove"
 t merged-tree-not-tested '^FOUND$' has "$ROOT/skills/superfix/references/execute.md" "merged tree not re-tested"
 # item 4: zero registered checks is not green, via the 1.6.3 checks key
-t zero-checks-not-green '^FOUND$' has "$ROOT/SKILL.md" "zero registered checks is NOT green"
-t checks-key-pointer '^FOUND$' has "$ROOT/SKILL.md" 'python3 -I "<skill dir>/references/project.py" <repo>'
+t zero-checks-not-green '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" "zero registered checks is NOT green"
+t checks-key-pointer '^FOUND$' has "$ROOT/skills/superfix/SKILL.md" 'python3 -I "<skill dir>/references/project.py" <repo>'
 # item 5: closing verify lives in journal.md
 t closing-refs '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" "closingIssuesReferences"
 t close-by-hand '^FOUND$' has "$ROOT/skills/superfix/references/journal.md" "close it by hand with a comment"
