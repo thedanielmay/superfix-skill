@@ -445,21 +445,27 @@ mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/wo
 t wo-stop-sendback-refused 'NO-PROGRESS' python3 -I "$S_RD/crit.py" wo-sendback --run "$S_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r4" --attempts "$S_RCRC/attempts" --scripts "$S_RCRC" --body "$S_BODYDEC"
 t wo-stop-cleans-rounds 'NO-DATA' python3 "$T/nodata.py" "$S_RD" "$S_DEST" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9"
 
-# ---- CAP RIG (five moving returns, then the cap) ----
+# ---- CAP RIG (CAP moving returns, then the cap) ----
+# CAP is WO_LIMIT in crit.py (the return cap). The criteria send-back refusal
+# comes from MAX_ATTEMPTS (the 1.5 progress cap), so the rig needs both equal.
+# Do not add a test between here and wo-cap-cleans-rounds: every call below counts toward the return cap.
+capof() { python3 -I -c 'import re,sys;print(re.search(r"^"+sys.argv[2]+r" = (\d+)",open(sys.argv[1]).read(),re.M).group(1))' "$S_RD/crit.py" "$1"; }
+CAP=$(capof WO_LIMIT); MAXA=$(capof MAX_ATTEMPTS)
+[ -n "$CAP" ] && [ "$CAP" = "$MAXA" ] || { echo "CANNOT RUN: cap rig needs WO_LIMIT ($CAP) = MAX_ATTEMPTS ($MAXA)"; exit 2; }
 eval "$(python3 "$T/mkrig-k.py" "$HOME" test-cap-wo thedanielmay+superfix-testbed+cap-wo1 "$T/src/members-export.csv" work/members-export.csv K)"
 [ -n "$K_RD" ] || { echo "CANNOT RUN: cap rig build failed"; exit 2; }
-export K_RD K_RF K_RCRC K_DEST K_BODYDEC
+export CAP K_RD K_RF K_RCRC K_DEST K_BODYDEC
 python3 -I "$K_RD/crit.py" wo-lock --run "$K_RD" --folder "$K_RF" --dest "$K_DEST" --body "$K_BODYDEC" >/dev/null 2>&1
-for n in 1 2 3 4 5; do
+for n in $(seq 1 "$CAP"); do
   rm -rf "$T/Kret$n"; mkdir -p "$T/Kret$n"; cp -r "$K_DEST" "$T/Kret$n/folder"
   python3 "$T/dedupe.py" "$T/Kret$n/folder/work/members-export.csv" "$T/Kret$n/folder/work/members-export.csv" "$n"
   python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret$n/folder" --body "$K_BODYDEC" >/dev/null 2>&1
   doattempt "$K_RD" "$K_RCRC" "$K_BODYDEC" "wo$n" "$K_RD/work/wo$n-members-export.csv" >/dev/null 2>&1
   python3 -I "$K_RD/crit.py" wo-verify --run "$K_RD" --head "wo$n" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC" >/dev/null 2>&1
 done
-t wo-cap-sixth-return-refused 'RETURN-CAP 6 of 5' sh -c 'rm -rf "$T/Kret6"; cp -r "$K_DEST" "$T/Kret6"; mkdir -p "$T/Kret6/work"; cp "$K_RD/work/wo5-members-export.csv" "$T/Kret6/work/members-export.csv"; python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret6" --body "$K_BODYDEC"'
-t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7/work/stale.csv"; python3 -I "$K_RD/crit.py" wo-sendback --run "$K_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r6" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC"'
-t wo-cap-cleans-rounds 'NO-DATA' python3 "$T/nodata.py" "$K_RD" "$K_DEST" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r7"
+t wo-cap-sixth-return-refused "RETURN-CAP $((CAP + 1)) of $CAP" sh -c 'rm -rf "$T/Kret6"; cp -r "$K_DEST" "$T/Kret6"; mkdir -p "$T/Kret6/work"; cp "$K_RD/work/wo${CAP}-members-export.csv" "$T/Kret6/work/members-export.csv"; python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret6" --body "$K_BODYDEC"'
+t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work/stale.csv"; python3 -I "$K_RD/crit.py" wo-sendback --run "$K_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 1))" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC"'
+t wo-cap-cleans-rounds 'NO-DATA' python3 "$T/nodata.py" "$K_RD" "$K_DEST" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))"
 
 # ---- KPROG RIG (distinct members fall: NO-PROGRESS worse) ----
 eval "$(python3 "$T/mkrig-k.py" "$HOME" test-kprog-wo thedanielmay+superfix-testbed+kprog-wo1 "$T/src/members-export.csv" work/members-export.csv W)"
