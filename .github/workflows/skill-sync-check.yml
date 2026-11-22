@@ -36,5 +36,5 @@ jobs:
         with:
           fetch-depth: 0
       - run: bash tests/workorder-kinds-tests.sh
-      - run: bash tests/workorder-tests.sh
+      # tests/workorder-tests.sh clones the private superfix-testbed repo, so it runs by hand (TESTBED=<clone> bash tests/workorder-tests.sh), not in CI.
       - run: bash tests/workorder-criteria-tests.sh
