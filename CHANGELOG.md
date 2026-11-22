@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0 - 2026-11-23
+
+- #167: criteria clean-up redesign (entry is completed in the last commit of this release).
+
 ## 1.8.5 - 2026-11-23
 
 - #166: the cap rig in `tests/workorder-criteria-tests.sh` reads its loop count and round names from `WO_LIMIT` in `crit.py`, refuses to run when `MAX_ATTEMPTS` differs from it, and a fence comment says no test goes inside the rig.

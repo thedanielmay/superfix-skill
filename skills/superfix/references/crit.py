@@ -2818,6 +2818,334 @@ def woc_clean_work_path(w, base):
     return str(w)
 
 
+def woc_fd_ok():
+    """True when this Python can delete through directory descriptors (3.9 and newer have all the calls)."""
+    return {"open", "unlink", "rmdir", "stat"} <= {f.__name__ for f in os.supports_dir_fd} and os.scandir in os.supports_fd
+
+
+def woc_fd_name(name):
+    """A single path part, never "", "." or ".." and never with a slash: else ValueError."""
+    if not isinstance(name, str) or name in ("", ".", "..") or name != os.path.basename(name) or "/" in name:
+        raise ValueError("not a single folder or file name: " + repr(name))
+    return name
+
+
+def woc_id_ok(wid):
+    """A work-order id that cannot climb out of ~/superfix-workorders and has no leading dot."""
+    return bool(re.fullmatch(r"[A-Za-z0-9+_-][A-Za-z0-9+_.-]*", wid or ""))
+
+
+def woc_fd_base():
+    """(home_fd, base_fd) for ~/superfix-workorders. $HOME is not ours, so it is followed; the base is opened
+    O_NOFOLLOW (a link gives OSError). base_fd is None when the base is missing. The caller closes both."""
+    home = os.open(str(pathlib.Path.home()), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        try:
+            base = os.open("superfix-workorders", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=home)
+        except FileNotFoundError:
+            return home, None
+        if os.fstat(base).st_uid != os.geteuid():
+            os.close(base)
+            raise OSError("superfix-workorders belongs to another user")
+        return home, base
+    except BaseException:
+        os.close(home)
+        raise
+
+
+def woc_fd_child(dir_fd, name, want=None):
+    """Open a real sub-folder of dir_fd that we own, or None. The lstat before the open and the fstat after it
+    must name the same device and inode (and equal `want` when given), so a folder swapped in between is refused."""
+    woc_fd_name(name)
+    try:
+        ls = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        if not stat.S_ISDIR(ls.st_mode) or (want is not None and (want.st_dev, want.st_ino) != (ls.st_dev, ls.st_ino)):
+            return None
+        fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=dir_fd)
+    except OSError:
+        return None
+    try:
+        fs = os.fstat(fd)
+        if (fs.st_dev, fs.st_ino) == (ls.st_dev, ls.st_ino) and fs.st_uid == os.geteuid():
+            return fd
+    except OSError:
+        pass
+    os.close(fd)
+    return None
+
+
+def woc_fd_read(dir_fd, name):
+    """The bytes of a regular file `name` in dir_fd (never a link), or None."""
+    woc_fd_name(name)
+    try:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        with os.fdopen(os.dup(fd), "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
+def woc_fd_sub(dir_fd, name, path, st, dev, log):
+    """Clear then remove one sub-folder (st is its lstat from the listing). Returns [(path, reason)] kept."""
+    if st.st_dev != dev:
+        return [(path, "on another disk")]
+    cfd = woc_fd_child(dir_fd, name, want=st)
+    if cfd is None:
+        return [(path, "this folder changed while Superfix was deleting, or cannot be read: check it, then delete it yourself")]
+    try:
+        kept = woc_fd_clear(cfd, path, dev, log)
+    finally:
+        os.close(cfd)
+    if not kept:
+        try:
+            os.rmdir(name, dir_fd=dir_fd)
+            log.append(path + "/")
+        except OSError:
+            kept.append((path, "cannot be removed"))
+    return kept
+
+
+def woc_fd_clear(dir_fd, path, dev, log):
+    """Delete everything under dir_fd, every step through a held descriptor. Links, FIFOs and sockets are unlinked,
+    never followed or opened. Returns [(path, reason)] for what stayed; appends each deleted path to log (a folder ends in /)."""
+    try:
+        ents = sorted(os.scandir(dir_fd), key=lambda e: e.name)
+    except OSError:
+        return [(path, "cannot be read")]
+    kept = []
+    for e in ents:
+        p = os.path.join(path, e.name)
+        try:
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            kept.append((p, "cannot be read"))
+            continue
+        if stat.S_ISDIR(st.st_mode):
+            kept.extend(woc_fd_sub(dir_fd, e.name, p, st, dev, log))
+            continue
+        try:
+            os.unlink(e.name, dir_fd=dir_fd)
+            log.append(p)
+        except OSError:
+            kept.append((p, "locked against deletion"))
+    return kept
+
+
+def woc_fd_top(dir_fd, path, dev, log, rounds=None, stub=None):
+    """Clean the top of a job or round folder: work/ and checks/ are cleared and removed; a regular file with one
+    name is unlinked; a link, a special file, a file with another name elsewhere or another folder is kept.
+    With `rounds` (the job top only) an r<n> folder is a round when n is in rounds and its workorder.md equals
+    `stub`; a numbered folder with a changed workorder.md has only its work/ cleared; any other r<n> stays."""
+    try:
+        ents = sorted(os.scandir(dir_fd), key=lambda e: e.name)
+    except OSError:
+        return [(path, "cannot be read")]
+    kept = []
+    for e in ents:
+        p = os.path.join(path, e.name)
+        try:
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            kept.append((p, "cannot be read"))
+            continue
+        if stat.S_ISDIR(st.st_mode):
+            if e.name in ("work", "checks"):
+                kept.extend(woc_fd_sub(dir_fd, e.name, p, st, dev, log))
+                continue
+            m = re.fullmatch(r"r(\d+)", e.name) if rounds is not None else None
+            if not m or st.st_dev != dev:
+                kept.append((p, "a folder Superfix did not make"))
+                continue
+            rfd = woc_fd_child(dir_fd, e.name, want=st)
+            if rfd is None:
+                kept.append((p, "this folder changed while Superfix was deleting, or cannot be read: check it, then delete it yourself"))
+                continue
+            try:
+                inside = []
+                if int(m.group(1)) in rounds and stub is not None and woc_fd_read(rfd, "workorder.md") == stub:
+                    inside = woc_fd_top(rfd, p, dev, log)
+                else:
+                    if int(m.group(1)) in rounds:
+                        try:
+                            wst = os.stat("work", dir_fd=rfd, follow_symlinks=False)
+                            if stat.S_ISDIR(wst.st_mode):
+                                inside = woc_fd_sub(rfd, "work", p + "/work", wst, dev, log)
+                        except OSError:
+                            pass
+                    inside.append((p, "a folder Superfix did not make"))
+            finally:
+                os.close(rfd)
+            if inside:
+                kept.extend(inside)
+            else:
+                try:
+                    os.rmdir(e.name, dir_fd=dir_fd)
+                    log.append(p + "/")
+                except OSError:
+                    kept.append((p, "cannot be removed"))
+            continue
+        if stat.S_ISREG(st.st_mode) and st.st_nlink == 1:
+            try:
+                os.unlink(e.name, dir_fd=dir_fd)
+                log.append(p)
+            except OSError:
+                kept.append((p, "locked against deletion"))
+        elif stat.S_ISLNK(st.st_mode):
+            kept.append((p, "a link"))
+        elif stat.S_ISREG(st.st_mode):
+            kept.append((p, "a file with another name elsewhere"))
+        else:
+            kept.append((p, "a special file"))
+    return kept
+
+
+def woc_job_record(D):
+    """(st_dev, st_ino) from the lock's `jobdir <dev> <ino>` line, or None for a job locked by an older version."""
+    try:
+        for l in (pathlib.Path(D) / "workorder" / "lock").read_text().splitlines():
+            m = re.fullmatch(r"jobdir (\d+) (\d+)", l)
+            if m:
+                return int(m.group(1)), int(m.group(2))
+    except OSError:
+        pass
+    return None
+
+
+def woc_job_stat(wid):
+    """(st_dev, st_ino) of ~/superfix-workorders/<wid> opened through held descriptors, or None."""
+    if not woc_id_ok(wid) or not woc_fd_ok():
+        return None
+    try:
+        home, base = woc_fd_base()
+    except OSError:
+        return None
+    try:
+        jfd = woc_fd_child(base, wid) if base is not None else None
+        if jfd is None:
+            return None
+        try:
+            s = os.fstat(jfd)
+            return s.st_dev, s.st_ino
+        finally:
+            os.close(jfd)
+    finally:
+        os.close(home)
+        if base is not None:
+            os.close(base)
+
+
+def woc_clean_job(D, wid, rec, log):
+    """Delete the job folder ~/superfix-workorders/<wid>, its r<n> rounds and any older <wid>-r<n> sibling folders,
+    through descriptors held from the base folder down. Anything that is not the folder Superfix made, or not
+    an expected shape, is kept and returned as [(path, reason)]; nothing is read as a link. Every deleted path
+    goes into log. The base folder stays."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    if not woc_id_ok(wid):
+        return [(str(base), "not a work-order id Superfix made: nothing was deleted")]
+    job = base / wid
+    try:
+        jst = os.lstat(job)
+    except FileNotFoundError:
+        jst = None
+    except OSError:
+        return [(str(job), "cannot be read")]
+    if jst is not None:
+        if stat.S_ISLNK(jst.st_mode):
+            return [(str(job), "a link, not a folder: nothing it points to was touched; remove the link yourself")]
+        if not woc_guard(job, base):
+            return [(str(job), "a folder Superfix did not make")]
+    if not woc_fd_ok():
+        return [(str(job), "this Python cannot delete safely: nothing was deleted; delete the folder yourself")]
+    try:
+        home, bfd = woc_fd_base()
+    except OSError:
+        return [(str(base), "a link or not a folder: nothing was deleted")]
+    kept = []
+    try:
+        if bfd is None:
+            return []
+        try:
+            stub = (pathlib.Path(D) / "workorder" / "folder" / "workorder.md").read_bytes()
+        except OSError:
+            stub = None
+        rounds = set(range(2, len(woc_returns(D)) + 2))
+        jfd = woc_fd_child(bfd, wid) if jst is not None else None
+        if jfd is None and jst is not None:
+            kept.append((str(job), "this folder changed while Superfix was deleting, or cannot be read: check it, then delete it yourself"))
+        elif jfd is not None:
+            try:
+                s = os.fstat(jfd)
+                if rec is not None and (s.st_dev, s.st_ino) != rec:
+                    kept.append((str(job), "this folder is not the one Superfix made, for example a copy restored from a backup: nothing in it was deleted; delete it yourself when you no longer need it"))
+                else:
+                    kept.extend(woc_fd_top(jfd, str(job), s.st_dev, log, rounds, stub))
+            finally:
+                os.close(jfd)
+            if not kept:
+                try:
+                    os.rmdir(wid, dir_fd=bfd)
+                    log.append(str(job) + "/")
+                except OSError:
+                    kept.append((str(job), "cannot be removed"))
+        base_, cands = woc_round_cands(wid)
+        for d in (cands or [])[1:]:
+            if not re.fullmatch(re.escape(wid) + r"-r\d+", d.name):
+                kept.append((str(d), "a link" if d.is_symlink() else "a folder Superfix did not make"))
+                continue
+            try:
+                st = os.stat(d.name, dir_fd=bfd, follow_symlinks=False)
+            except OSError:
+                continue
+            if not stat.S_ISDIR(st.st_mode):
+                kept.append((str(d), "a link" if stat.S_ISLNK(st.st_mode) else "a folder Superfix did not make"))
+                continue
+            sfd = woc_fd_child(bfd, d.name, want=st)
+            if sfd is None:
+                kept.append((str(d), "this folder changed while Superfix was deleting, or cannot be read: check it, then delete it yourself"))
+                continue
+            try:
+                txt = woc_fd_read(sfd, "workorder.md")
+                other = re.search(rb"^WORK-ORDER: (.*)$", txt or b"", re.M)
+                if other and other.group(1).decode("utf-8", "replace").strip() != wid:
+                    continue
+                inside = woc_fd_top(sfd, str(d), os.fstat(sfd).st_dev, log)
+            finally:
+                os.close(sfd)
+            if inside:
+                kept.extend(inside)
+            else:
+                try:
+                    os.rmdir(d.name, dir_fd=bfd)
+                    log.append(str(d) + "/")
+                except OSError:
+                    kept.append((str(d), "cannot be removed"))
+    finally:
+        os.close(home)
+        if bfd is not None:
+            os.close(bfd)
+    return kept
+
+
+def woc_log_cleanup(D, log):
+    """Append every deleted path to D/workorder/cleanup-log (owner-only, local, never printed or posted)."""
+    if not log:
+        return
+    p = pathlib.Path(D) / "workorder" / "cleanup-log"
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    fd = os.open(str(p), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        os.write(fd, "".join(f"{stamp} removed {x}\n" for x in log).encode("utf-8", "replace"))
+    finally:
+        os.close(fd)
+
+
 def woc_round_ok(d, base):
     """True when d passes the lstat plus realpath gates: a real directory inside base."""
     d = pathlib.Path(d)
