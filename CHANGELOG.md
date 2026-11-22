@@ -2,7 +2,15 @@
 
 ## 1.7.6 - 2026-11-22
 
-- #144 step B (draft, filled in before the last commit).
+- #144 step B, one owner per rule, with #118 folded in. Each rule that was written in SKILL.md and in a reference now lives once, in the file the model reads when the rule applies; the other place keeps a pointer naming the file and heading. SKILL.md goes from 364 to 342 lines (cap 352).
+  - Labels: the table, commands and failure fallback stay in `journal.md`; SKILL.md keeps one pointer and the Done-after-merge sentence.
+  - Required decision comment lines: forms stay in `journal.md`; SKILL.md names all seven lines (it had missed `Work order:` and `Criteria check:`).
+  - Independent review: rules and limits stay in `execute.md`; SKILL.md keeps the heading, the verdict word and the FAIL rule.
+  - Leak and reporter-body credential rules stay in `redaction.md`; the gate rules stay in SKILL.md. Gap note placement stays in `gaps.md`. The pre-approval writes line in `evidence.md` points to SKILL.md Phase 1. The work order comment gate bullet in `workorder.md` points to SKILL.md Stop gate step 3 and keeps only what a work order adds.
+  - #118: `execute.md` has one shared chain (10 steps) and a table of what each type adds or skips (bug, performance, ux, architecture, security, feature, and a Simple row that replaces the chain that was in SKILL.md). 85 lines became 23.
+  - `briefs.md` solved-check comments now carry SKILL.md's stricter clauses (name the failing guard; run 3 fails through the same guard).
+  - Left as two copies on purpose: the review header (`diagnose.md` is read before go, `execute.md` by fix agents), the budget commands (SKILL.md for the main thread, `briefs.md` for agents), the Qik four rules (`qik.md` and `briefs.md`), the solved check (SKILL.md and `briefs.md`), the repo settings paragraph, and the work order trigger.
+  - `tests/preservation-1.7.6.md` justifies every removed line; the SKILL.md line caps in two tests drop from 374 to 352.
 
 ## 1.7.5 - 2026-11-22
 
