@@ -30,89 +30,29 @@ After plan is written, create the context file `docs/superpowers/plans/<slug>-co
 
 ### Execute sequences by type
 
-**`bug`**
-```
-superpowers:test-driven-development (write failing test first) [sonnet/high]
-→ implement fix (superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run tests (impacted files: pytest <file> -n auto / npm run test -- --run <file>)
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
+Every code type runs one shared chain. The table after it gives what each type adds or skips. The Simple row is the main-thread chain for any type on the Simple tier. Every step runs at [sonnet/high], except that the Simple row runs on the main thread.
 
-**`performance`**
+Shared chain:
+1. Start step: write the failing check first (the table says when).
+2. Implement. On Complex `bug`, `architecture` and `feature` only, use `superpowers:subagent-driven-development`; `performance`, `ux` and `security` implement directly at every tier.
+3. Run tests: impacted files only (`pytest <file> -n auto` / `npm run test -- --run <file>`).
+4. The type's added steps (the table), before simplify.
+5. `simplify`.
+6. Re-run impacted tests, before review starts.
+7. `pr-review-toolkit:code-reviewer`.
+8. `code-security-audit`, after the code review and never instead of it.
+9. `pr-review-toolkit:silent-failure-hunter`.
+10. `verification-before-completion`.
 
-TDD not required - the test suite guards correctness. If the performance change modifies logic (not just queries/caching/indexes), run `superpowers:test-driven-development` first.
-
-```
-implement improvement [sonnet/high]
-→ run tests
-→ measure again (confirm improvement vs baseline - must show measurable gain)
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`ux`**
-```
-superpowers:test-driven-development [sonnet/high]
-→ implement [sonnet/high]
-→ react-vite-best-practices (if React components changed) [sonnet/high]
-→ Playwright visual verification (example-skills:webapp-testing) [sonnet/high]
-→ accessibility (WCAG 2.2 check on changed components) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`architecture`**
-```
-implement (worktree via superpowers:using-git-worktrees; superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run full test suite
-→ improve-codebase-architecture (validate structural changes meet deep-module criteria) [sonnet/high]
-→ pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`security`**
-```
-implement fix [sonnet/high]
-→ run tests
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer (cross-check) [sonnet/high]
-→ code-security-audit (primary - 80%+ confidence threshold) [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
-
-**`feature` Moderate/Complex**
-```
-superpowers:test-driven-development [sonnet/high]
-→ implement (superpowers:subagent-driven-development for Complex) [sonnet/high]
-→ run tests
-→ pr-review-toolkit:type-design-analyzer (if diff contains new type/interface/class/dataclass) [sonnet/high]
-→ simplify [sonnet/high]
-→ re-run impacted tests
-→ pr-review-toolkit:code-reviewer [sonnet/high]
-→ code-security-audit [sonnet/high]
-→ pr-review-toolkit:silent-failure-hunter [sonnet/high]
-→ verification-before-completion [sonnet/high]
-```
+| Type | Start (step 1) | Step 3, tests | Added before simplify (step 4) | Other change |
+|------|----------------|---------------|--------------------------------|--------------|
+| `bug` | `superpowers:test-driven-development` | impacted files | none | none |
+| `performance` | none. TDD is not required, the test suite guards correctness; if the change modifies logic (not just queries, caching or indexes), run `superpowers:test-driven-development` first | impacted files | measure again: confirm the improvement against the baseline, which must show a measurable gain | step 2 is "implement improvement" |
+| `ux` | `superpowers:test-driven-development` | skipped (impacted tests first run at step 6) | in order: `react-vite-best-practices` (if React components changed); Playwright visual verification (`example-skills:webapp-testing`); `accessibility` (WCAG 2.2 check on changed components) | none |
+| `architecture` | none | the full test suite | `improve-codebase-architecture` (validate that structural changes meet deep-module criteria); `pr-review-toolkit:type-design-analyzer` if the diff contains a new type, interface, class or dataclass | step 2 runs in a worktree via `superpowers:using-git-worktrees` |
+| `security` | none | impacted files | none | step 7 is a cross-check; step 8 is the primary check, with an 80%+ confidence threshold |
+| `feature` (Moderate, Complex) | `superpowers:test-driven-development` | impacted files | `pr-review-toolkit:type-design-analyzer` if the diff contains a new type, interface, class or dataclass | none |
+| Simple tier (main thread, any type) | `bug`: failing test or repro command first; other types none | impacted files | none | create the branch first (SKILL.md, shared block); step 7 passes the issue text inline as the brief; step 8 only if the diff touches auth, input parsing, SQL, shell, secrets or dependencies; step 9 skipped; then the PR (Phase 4) |
 
 ### Criteria mode sequence (Everything else problems, after go; references/criteria.md)
 
@@ -137,8 +77,6 @@ criteria.md lockcheck (CRITERIA-LOCK-OK, else stop); every measure through crite
 - Fix every **high-confidence** finding - one issue, one fix, re-verify
 - Skip false positives - note and move on
 - Max 2 review passes (one pass is one run of the whole review chain over the full diff); if high-confidence issues remain after pass 2, escalate to user
-- Impacted tests re-run after `simplify`, before review starts
-- `code-security-audit` always runs after `code-reviewer`, not instead of it
 - Scale review depth to the diff: a small Simple fix does not run the whole chain; any skipped review goes under Not tested with why
 - Loose ends the review finds in things the change itself made are not scope creep: fix them and report them
 - Checklist for move-only refactors: move verbatim, re-import every name in the old module, prove byte identity per name AND whole-file identity, prove every global a moved function reads is bound in the new module, check `dir(module)` identical and import order; import-time side effects go under Not tested

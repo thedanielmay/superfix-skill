@@ -119,7 +119,7 @@ Before any picture upload the upload command checks the repo is PRIVATE. In 1.4.
 
 ### Leak handling
 
-Leak handling: comment: `gh api -X DELETE repos/<o>/<r>/issues/comments/<id>`.
+Leak handling: comment: delete it with `gh api -X DELETE repos/<o>/<r>/issues/comments/<id>`; never edit it, because GitHub keeps the edit history.
 Issue body: rewrite it, then tell the owner the old text stays in the edit
 history until they delete that revision in the GitHub page. Commit not pushed:
 amend or rebase before pushing. Pushed: tell the owner, rotate first.
