@@ -279,8 +279,11 @@ opencode reads the skill straight from a local checkout. Clone it once, then sym
 
 ```bash
 git clone https://github.com/thedanielmay/superfix-skill.git ~/projects/superfix-skill
-ln -s ~/projects/superfix-skill ~/.agents/skills/superfix
+ln -s ~/projects/superfix-skill/skills/superfix ~/.agents/skills/superfix
+ln -s ~/projects/superfix-skill/skills/superfix ~/.config/opencode/skills/superfix
 ```
+
+Link `skills/superfix`, not the repo root. The repo root no longer holds a `SKILL.md`. If you linked the root earlier, remove the old link and make the new one.
 
 Keep the clone on `main` when you are not mid-edit, so opencode runs released text. There is no install or update step beyond `git pull`.
 
@@ -289,8 +292,6 @@ Keep the clone on `main` when you are not mid-edit, so opencode runs released te
 ## What's inside
 
 ```
-SKILL.md                        Root manifest (skills CLI discovery, kept in sync)
-references                      Symlink to skills/superfix/references (for the root copy)
 skills/
   superfix/
     SKILL.md                    Full skill implementation and phase definitions

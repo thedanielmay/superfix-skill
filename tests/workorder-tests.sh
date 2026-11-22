@@ -251,9 +251,7 @@ t skill-work-order-two-kinds 'or every problem is a criteria-mode file' cat "$RO
 t skill-no-read-no-work-order 'No workorder.md read, no work order: run as normal\.' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-data-questions 'Does <file> hold names or contact details|May I put the copy in the folder|Data yes:' cat "$ROOT/skills/superfix/SKILL.md"
 t skill-stop-gate-post-required 'posting this comment on the issue is required' cat "$ROOT/skills/superfix/SKILL.md"
-t skill-stop-gate-post-required-root 'posting this comment on the issue is required' cat "$ROOT/SKILL.md"
 t skill-label-done-after-merge 'set the Status to "Done" and run the label' cat "$ROOT/skills/superfix/SKILL.md"
-t skill-label-done-after-merge-root 'set the Status to "Done" and run the label' cat "$ROOT/SKILL.md"
 # the gate tools in tests/gates/ must parse and must carry no em dash or en dash
 gatesok() { local f rc=0 n=0; for f in "$ROOT"/tests/gates/*; do [ -f "$f" ] || continue; n=$((n+1));
   case "$f" in *.sh) sh2="$(head -1 "$f")"; case "$sh2" in *zsh) zsh -n "$f" >/dev/null 2>&1;; *) bash -n "$f" >/dev/null 2>&1;; esac; [ $? = 0 ] || { echo "SYNTAX-FAIL $f"; rc=1; };; *.py) python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$f" >/dev/null 2>&1 || { echo "SYNTAX-FAIL $f"; rc=1; };; *.md) : ;; *) echo "UNKNOWN-KIND $f"; rc=1;; esac

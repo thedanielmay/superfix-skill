@@ -4,7 +4,7 @@
 # Usage: bash tests/skill-text-tests.sh
 # ROOT=<another checkout> runs these tests against that checkout's files (used to show a test fails before its fix).
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-D="$ROOT/skills/superfix/references"; S="$ROOT/SKILL.md"
+D="$ROOT/skills/superfix/references"; S="$ROOT/skills/superfix/SKILL.md"
 pass=0; fail=0
 t() { local name="$1" want="$2" rc=""; shift 2; if [[ "$1" =~ ^[0-9]+$ ]]; then rc="$1"; shift; fi; local out rcgot; out="$("$@" 2>&1)"; rcgot=$?
   if printf '%s' "$out" | tr '\n' '|' | grep -qE "$want" && { [ -z "$rc" ] || [ "$rcgot" = "$rc" ]; }; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: want /$want/ rc ${rc:-any} got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-300) (rc $rcgot)"; fi; }
