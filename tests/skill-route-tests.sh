@@ -23,6 +23,8 @@ t route-file-flag '^FOUND$' has "$R" '--skill-review'
 t route-file-check '^FOUND$' has "$R" "the skill repo's own checker"
 t route-file-missing '^FOUND$' has "$R" 'not installed'
 t route-file-away '^FOUND$' has "$R" 'is not a pick'
+t route-file-samples '^FOUND$' has "$R" 'at least 10 samples per version'
+t route-file-samples-count '^FOUND$' has "$R" '10 of 10'
 t route-no-owner-path '^ABSENT$' hasnot "$R" '/Users/'
 t route-no-copy-stage '^ABSENT$' hasnot "$R" 'Stage 3'
 t route-no-copy-critic '^ABSENT$' hasnot "$R" 'critic-'

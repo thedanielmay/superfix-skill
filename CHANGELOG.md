@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.1 - 2026-11-23
+
+- #155: `references/skill-route.md` now says a behaviour check takes at least 10 samples per version and that the pass line is a count, for example "10 of 10". Todo-skill#1 passed a "fix removed" run by chance with one sample.
+  - `tests/skill-route-tests.sh` has two new cases that check the text is present.
+  - `tests/preservation-1.8.1.md` records the version bump.
+
 ## 1.8.0 - 2026-11-22
 
 - Skill route (agent-tools#8 stage 4): a plain "superfix it" on a skill now runs the expert-panel skill review and files only the findings the owner picks.
