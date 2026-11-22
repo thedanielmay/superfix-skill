@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.2 - 2026-11-22
+
+- The comment gate commands in SKILL.md and workorder.md now name `crit.py` (`python3 -I ".../crit.py" wo-scan-comment ...`). Before, they read as programs on the PATH, and a run that could not find them posted a comment without the gate (#134).
+- Added `tests/bare-command-tests.sh`, which fails when a backticked `wo-...` command is written without `crit.py`, and runs in CI.
+
 ## 1.7.1 - 2026-11-22
 
 - Added a marketplace manifest, an MIT licence and this changelog.
