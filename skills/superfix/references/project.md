@@ -8,9 +8,11 @@ The reader is `references/project.py`. It judges the file and prints one item pe
 runs, expands or fetches anything: a checks command is validated, not executed, and only runs when
 the run reaches Phase 3 with the owner's go.
 
+`<skill dir>` is this skill's base directory, shown as "Base directory for this skill" when the skill loads, written out in full, never a path relative to the repo folder.
+
 ````
-python3 references/project.py <repo>        # <repo> defaults to the current folder
-python3 references/project.py --pr-body <file> --issue <N> <repo>   # the closing check
+python3 -I "<skill dir>/references/project.py" <repo>        # <repo> defaults to the current folder
+python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> <repo>   # the closing check
 ````
 
 ## The file
@@ -51,7 +53,7 @@ closes on merge, or `Refs #<N>` when a criteria-mode problem still has a `later`
 is a process, or still matches the owner's description. `closes` makes the closing keyword required.
 `refs` forbids every closing keyword (`Closes`, `Fixes`, `Resolves`) and needs a `Refs #<N>` line. A
 keyword inside a code fence does not count, and a closing keyword naming a different issue is refused.
-The checker is `python3 references/project.py --pr-body <file> --issue <N> <repo>`, which prints
+The checker is `python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> <repo>`, which prints
 `CLOSING-OK` or `CLOSING-BAD <why>` and exits 1.
 
 A keyword counts in three forms only: `Closes #12`, `Closes owner/repo#12` or
@@ -116,6 +118,7 @@ instruction.
 | `PROJECT-OK` | 0 | applies every `SETTING` line |
 | `PROJECT-UNKNOWN-KEY <key>` | 0 | applies the `SETTING` lines, shows `IGNORED <key>` in the Profile, continues |
 | `PROJECT-REFUSED <key>` | 1 | stops and asks at the Stop gate |
+| `PROJECT-REFUSED <path> is not a folder` or `PROJECT-REFUSED unknown option <arg>` | 1 | stops and asks at the Stop gate; the repo path or the options were wrong, not the settings |
 | `PROJECT-CHECK-REFUSED <key>` | 1 | stops and asks at the Stop gate |
 | `PROJECT-BAD-VALUE <key>` | 1 | stops and asks at the Stop gate |
 | `SETTINGS-NONE` | 0 | no file, or no settings: nothing changes |
