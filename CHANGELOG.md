@@ -2,7 +2,14 @@
 
 ## 1.9.0 - 2026-11-23
 
-- #167: criteria clean-up redesign (entry is completed in the last commit of this release).
+- #167: the criteria clean-up deletes one job folder, through file handles it holds open.
+  - Send-back rounds go inside the job folder as `<id>/r2/`, `<id>/r3/`. Round 1 stays at `<id>/`. A job locked by an older version keeps its `<id>-r<n>/` folders, and its next round goes to `<id>/r<n>/`.
+  - The lock records the job folder's device and inode. A restored or swapped folder is refused: nothing in it is deleted.
+  - The job folder is deleted by `wo-cleanup` as the very last step, after the final comment is posted. A pass, a refused send-back and a stop no longer delete it.
+  - Every deleted path is written to `workorder/cleanup-log` in the run folder. The log is local and no command prints it.
+  - New words: `WORKORDER-ID-BAD`, `WORKORDER-JOB-MOVED` and `KEPT <path> (<reason>)`. The empty `~/superfix-workorders` folder stays.
+  - `tests/cleanup-fd-tests.py` holds the swap-race tests. `docs/guide/versions.md` no longer says safe deletion needs Python 3.11.
+  - `tests/preservation-1.9.0.md` records the changed lines.
 
 ## 1.8.5 - 2026-11-23
 

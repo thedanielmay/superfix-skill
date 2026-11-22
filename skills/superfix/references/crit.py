@@ -2388,6 +2388,9 @@ def woc_lock(a):
     D, F = pathlib.Path(a.run), real(a.folder)
     t = (F / "workorder.md").read_text()
     h = wo_head(t)
+    if not woc_id_ok(h.get("WORK-ORDER", "")):
+        print(f"WORKORDER-ID-BAD {h.get('WORK-ORDER', '')} (a work-order id is letters, digits and + _ . -, not starting with a dot)")
+        return 1
     if woc_check(argparse.Namespace(wo=str(F / "workorder.md"), run=a.run, body=getattr(a, "body", None),
                                     issue=getattr(a, "issue", None)), t) \
             or woc_baseline(argparse.Namespace(folder=str(F), body=getattr(a, "body", None),
@@ -2418,6 +2421,10 @@ def woc_lock(a):
     (W / "lock").write_text("".join(f"{sha_file(F / n)}  folder/{n}\n" for n in names)
                             + f"origsha {origsha}\norigpath {origpath}\n"
                             + f"critsha {woc_body_critsha(a)}\n")
+    js = woc_job_stat(h["WORK-ORDER"])    # the job folder's device and inode: clean-up deletes only this one
+    if js is not None:
+        with open(W / "lock", "a") as f:
+            f.write(f"jobdir {js[0]} {js[1]}\n")
     woc_copy_folder(F, dest, t)
     woc_lock_modes(dest)
     notes = W / "notes"
@@ -2738,25 +2745,6 @@ def woc_round_cands(work_id):
         return base, None
     safe = "".join(f"[{c}]" if c in "*?[" else c for c in work_id)
     return base, [base / work_id] + sorted(base.glob(safe + "-r[0-9]*"))
-
-
-def woc_cleanup_rounds(work_id, bundled=None):
-    """Delete work/ inside every send-back round folder: personal data must not linger past an ending.
-    Every candidate goes through lstat plus realpath checks: links, non-dirs and
-    outside paths are listed, never touched. A linked base or an id outside the
-    safe charset lists the base and skips the scan. Returns [paths still present]."""
-    base, cands = woc_round_cands(work_id)
-    if cands is None:
-        return [str(base)]
-    try:
-        if stat.S_ISLNK(os.lstat(base).st_mode):
-            return [str(base)]
-    except OSError:
-        pass
-    left = []
-    for d in cands:
-        left.extend(woc_clean_round(d, base, bundled))
-    return left
 
 
 def woc_guard(p, base):
@@ -3094,7 +3082,7 @@ def woc_clean_job(D, wid, rec, log):
                     log.append(str(job) + "/")
                 except OSError:
                     kept.append((str(job), "cannot be removed"))
-        base_, cands = woc_round_cands(wid)
+        cands = woc_round_cands(wid)[1]
         for d in (cands or [])[1:]:
             if not re.fullmatch(re.escape(wid) + r"-r\d+", d.name):
                 kept.append((str(d), "a link" if d.is_symlink() else "a folder Superfix did not make"))
@@ -3146,94 +3134,15 @@ def woc_log_cleanup(D, log):
         os.close(fd)
 
 
-def woc_round_ok(d, base):
-    """True when d passes the lstat plus realpath gates: a real directory inside base."""
-    d = pathlib.Path(d)
-    try:
-        st = os.lstat(d)
-    except OSError:
-        return False
-    if not stat.S_ISDIR(st.st_mode):
-        return False
-    try:
-        return os.path.dirname(str(real(d))) == str(real(base))
-    except OSError:
-        return False
-
-
-def woc_verified_round_dirs(work_id):
-    """Round-folder candidates passing the gates; missing paths skipped
-    (woc_clean_round lists the ones that fail)."""
-    base, cands = woc_round_cands(work_id)
-    if cands is None:
-        return []
-    try:
-        if stat.S_ISLNK(os.lstat(base).st_mode):
-            return []
-    except OSError:
-        pass
-    return [d for d in cands if woc_round_ok(d, base)]
-
-
-def woc_clean_round(d, base, bundled=None):
-    """Delete d/work when d passes the gates: missing is clean, anything failing
-    the lstat plus realpath checks is listed, never touched. Round checks/ files
-    outside the bundled set are deleted too (failures listed). Returns [left]."""
-    d = pathlib.Path(d)
-    try:
-        os.lstat(d)
-    except FileNotFoundError:
-        return []
-    except OSError:
-        return [str(d)]
-    if not woc_round_ok(d, base):
-        return [str(d)]
-    got = woc_clean_work_path(d / "work", d)
-    left = [got] if got else []
-    if bundled is None:
-        return left
-    cdir = d / "checks"
-    try:
-        cst = os.lstat(cdir)
-    except FileNotFoundError:
-        return left
-    except OSError:
-        return left + [str(cdir)]
-    if not stat.S_ISDIR(cst.st_mode) or not woc_guard(cdir, d):
-        return left + [str(cdir)]
-    for q in sorted(cdir.iterdir()):
-        if not woc_guard(q, d):
-            left.append(str(q))
-            continue
-        try:
-            qst = os.lstat(q)
-        except OSError:
-            left.append(str(q))
-            continue
-        if not stat.S_ISREG(qst.st_mode):
-            left.append(str(q))
-            continue
-        try:
-            same = bundled.get(q.name) is not None and sha_file(q) == bundled[q.name]
-        except OSError:
-            left.append(str(q))
-            continue
-        if same:
-            continue
-        try:
-            q.unlink()
-        except OSError:
-            left.append(str(q))
-    return left
-
-
-def woc_cleanup_full(D, keep=True):
-    """Every ending: the rounds work/ folders, the stub work/ copy, and the run work/
-    data files. With keep (a pass) the verified copies stay until taken or stop;
+def woc_cleanup_full(D, keep=True, job=False, log=None):
+    """The stub work/ copy and the run work/ data files go at every ending; the job
+    folder ~/superfix-workorders/<id> (its rounds, strays and checks) goes only with
+    job=True, which only wo-cleanup passes, at the very end of the job after the final
+    comment is posted. With keep (a pass) the verified copies stay until taken or stop;
     without it (stop, later, finish) everything goes. A .sf-orig record whose data
     file is gone goes with it once its named original hashes unchanged, so finish
     finds no orphan record. Round folders that fail the lstat plus realpath checks
-    are listed, never touched. Records (lock, returns.json, attempts) stay for
+    are listed, never touched (see woc_clean_job). Records (lock, returns.json, attempts) stay for
     audit. A .sf-orig record is not data: it holds one sha256 and one path, so it
     is kept and named (CLEANUP-KEPT) when its named original moved, is on cloud or
     online-only, or cannot be read. A file named .sf-orig that does not parse as a
@@ -3247,18 +3156,19 @@ def woc_cleanup_full(D, keep=True):
         wid = wo_head((D / "workorder" / "folder" / "workorder.md").read_text()).get("WORK-ORDER", "")
     except OSError:
         wid = ""
-    st = woc_lock_state(D)
-    bundled = {}
-    if st is not None:
-        bundled = {n[len("folder/checks/"):]: s for n, s in st[0].items() if n.startswith("folder/checks/")}
-    left = woc_cleanup_rounds(wid, bundled) if wid else []
+    left = []
+    log = [] if log is None else log
+    if job and wid:
+        for p, why in woc_clean_job(D, wid, woc_job_record(D), log):
+            print(f"KEPT {p} ({why})")
+            left.append(p)
+        woc_log_cleanup(D, log)
     kept = []          # records that are not data: one hash and one path
     got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
     if got:
         left.append(got)
-    round_dirs = woc_verified_round_dirs(wid) if wid else []
     WOC_KEEP_TOP = {"work", "checks", "workorder.md", "key"}   # work and checks are cleaned above
-    for d in [D / "workorder" / "folder"] + round_dirs:
+    for d in [D / "workorder" / "folder"]:
         try:
             dst = os.lstat(d)
         except FileNotFoundError:
@@ -3466,13 +3376,16 @@ def cmd_wo_cleanup(a):
         print("CLEANUP-NOT-CRITERIA (a code run has no criteria folders: finish covers its work/); "
               "its scan receipts are deleted")
         return 1
-    wid, ok = woc_cleanup_full(D, keep=False)
+    log = []
+    wid, ok = woc_cleanup_full(D, keep=False, job=True, log=log)
     if not wid:
         print("CLEANUP-NO-WORKORDER (no stub workorder.md in the run folder)")
         return 1
     if not ok:
         return 1
-    print(f"CLEANUP-OK {wid} (rounds, stub and run copies deleted; records kept)")
+    n = sum(1 for x in log if x.endswith("/"))
+    print(f"CLEANUP-OK {wid} (removed {len(log) - n} files and {n} folders under ~/superfix-workorders, every path listed in "
+          f"{D / 'workorder' / 'cleanup-log'}; stub and run copies deleted; records kept)")
     return 0
 
 
@@ -3499,7 +3412,10 @@ def woc_sendback(a):
         woc_cleanup_sendback_note(D)
         print("SENDBACK-NOTHING (the last return passed every check)")
         return 1
-    want = real(pathlib.Path.home() / "superfix-workorders" / f"{h['WORK-ORDER']}-r{len(rs) + 1}")
+    if not woc_id_ok(h["WORK-ORDER"]):
+        print(f"WORKORDER-ID-BAD {h['WORK-ORDER']} (a work-order id is letters, digits and + _ . -, not starting with a dot)")
+        return 1
+    want = real(pathlib.Path.home() / "superfix-workorders" / h["WORK-ORDER"] / f"r{len(rs) + 1}")
     if real(a.dest) != want:
         print(f"WORKORDER-PATH {a.dest} (criteria send-backs go only to the default path)")
         return 1
@@ -3509,6 +3425,10 @@ def woc_sendback(a):
     hit = woc_symlink_hit(a.dest)
     if hit is not None:
         print(f"WORKORDER-SYMLINK {hit} (a link in the work-order path: use a plain local folder)")
+        return 1
+    rec = woc_job_record(D)
+    if rec is not None and woc_job_stat(h["WORK-ORDER"]) != rec:
+        print(f"WORKORDER-JOB-MOVED {want.parent} (this folder is not the one Superfix made for the job: nothing was written; ask the owner whether to stop the job)")
         return 1
     text = woc_body(a)
     base = woc_base_name((F / "workorder.md").read_text()) or "the file"

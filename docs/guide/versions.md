@@ -32,7 +32,7 @@ In plain words: the clean-up step now removes the leftovers it used to call clea
 
 Known limits in the release note: rolling back from 1.6.1 to 1.6.0 breaks a job locked under 1.6.1 (`CRIT-SHA-MISMATCH`), so a locked job is finished on the version it was locked under; a job locked under 1.5.0 keeps the 1.5.0 tool, including the weakness 1.6.0 closed, because moving it to a newer version would change its checks mid-run; the `crit.py` sha256 changes in 1.6.5, and jobs locked under 1.6.4 keep their own copy.
 
-Not done, as the release note says: single-directory cleanup with rounds as subfolders needs a migration decision, because it moves where folders are handed off and returned; file-descriptor-safe deletion needs Python 3.11 and defends a same-user race that stays out of scope; an executor running as the same user on the same Mac stays out of scope.
+Not done, as the release note says: single-directory cleanup with rounds as subfolders needs a migration decision, because it moves where folders are handed off and returned; file-descriptor-safe deletion was left for a later release (the calls it needs exist in Python 3.9) and defends a same-user race that stays out of scope; an executor running as the same user on the same Mac stays out of scope.
 
 Tests reported: new `cleanup-tests` (15), `wo-dedupe-tests` (11) and `workorder-kinds-tests` (11); the existing suites unchanged and passing, work order 115, criteria 240, project 52, redaction 16, solved check 11 and skill text 29.
 

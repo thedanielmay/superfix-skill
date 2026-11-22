@@ -126,6 +126,147 @@ def fd_id_ok():
         assert not crit.woc_id_ok(bad), bad
 
 
+# ---- swap races (Task 4): the folder is swapped between its lstat and its open ----
+def rig(wid="jobx"):
+    """A fresh HOME holding one locked-looking job and a decoy with a canary. Returns (D, job, rec, decoy)."""
+    t = fresh()
+    os.environ["HOME"] = str(t / "home")
+    job = t / "home" / "superfix-workorders" / wid
+    (job / "work" / "sub").mkdir(parents=True)
+    (job / "work" / "sub" / "data.csv").write_text("x")
+    (job / "work" / "top.csv").write_text("x")
+    (job / "workorder.md").write_text("WORK-ORDER: " + wid + "\n")
+    D = t / "run"
+    (D / "workorder" / "folder").mkdir(parents=True)
+    (D / "workorder" / "folder" / "workorder.md").write_text("WORK-ORDER: " + wid + "\n")
+    decoy = t / "decoy"
+    (decoy / wid / "work").mkdir(parents=True)
+    (decoy / wid / "work" / "canary.csv").write_text("canary")
+    (decoy / "work").mkdir()
+    (decoy / "work" / "canary.csv").write_text("canary")
+    s = os.stat(job)
+    return D, job, (s.st_dev, s.st_ino), decoy
+
+
+def swapping(name, action):
+    """Run `action` once, just before crit opens a path called `name`."""
+    real_open, fired = os.open, []
+
+    def wrapped(path, flags, *a, **k):
+        if path == name and not fired:
+            fired.append(1)
+            action()
+        return real_open(path, flags, *a, **k)
+    return wrapped
+
+
+def run_clean(D, wid, rec, name, action):
+    real_open = os.open
+    os.open = swapping(name, action)
+    try:
+        log = []
+        return crit.woc_clean_job(D, wid, rec, log), log
+    finally:
+        os.open = real_open
+
+
+def decoy_ok(*files):
+    return all(f.read_text() == "canary" for f in files)
+
+
+@case
+def clean_job_plain():
+    D, job, rec, _ = rig()
+    kept = crit.woc_clean_job(D, "jobx", rec, [])
+    assert kept == [] and not job.exists() and job.parent.is_dir(), kept
+
+
+@case
+def job_inode_mismatch_refused():
+    D, job, rec, _ = rig()
+    kept = crit.woc_clean_job(D, "jobx", (rec[0], rec[1] + 1), [])
+    assert kept and "not the one Superfix made" in kept[0][1] and (job / "work" / "top.csv").exists(), kept
+
+
+def race_base_link(legacy=False):
+    D, job, rec, decoy = rig()
+    base = job.parent
+
+    def act():
+        os.rename(base, base.parent / "moved")
+        os.symlink(decoy, base)
+    kept, _ = run_clean(D, "jobx", None if legacy else rec, "superfix-workorders", act)
+    assert kept and decoy_ok(decoy / "jobx" / "work" / "canary.csv"), kept
+    assert (base.parent / "moved" / "jobx" / "work" / "top.csv").exists()
+
+
+def race_job_link(legacy=False):
+    D, job, rec, decoy = rig()
+
+    def act():
+        os.rename(job, job.parent / "aside")
+        os.symlink(decoy / "jobx", job)
+    kept, _ = run_clean(D, "jobx", None if legacy else rec, "jobx", act)
+    assert kept and decoy_ok(decoy / "jobx" / "work" / "canary.csv"), kept
+
+
+def race_job_real_decoy(legacy=False):
+    D, job, rec, decoy = rig()
+
+    def act():
+        os.rename(job, job.parent / "aside")
+        shutil.copytree(decoy / "jobx", job)
+    kept, _ = run_clean(D, "jobx", None if legacy else rec, "jobx", act)
+    assert kept and decoy_ok(job / "work" / "canary.csv"), kept
+
+
+def race_subdir_link(legacy=False):
+    D, job, rec, decoy = rig()
+    sub = job / "work" / "sub"
+
+    def act():
+        os.rename(sub, job / "work" / "sub-aside")
+        os.symlink(decoy / "work", sub)
+    kept, _ = run_clean(D, "jobx", None if legacy else rec, "sub", act)
+    assert kept and decoy_ok(decoy / "work" / "canary.csv"), kept
+
+
+def race_subdir_real_decoy(legacy=False):
+    D, job, rec, decoy = rig()
+    sub = job / "work" / "sub"
+
+    def act():
+        os.rename(sub, job / "work" / "sub-aside")
+        shutil.copytree(decoy / "work", sub)
+    kept, _ = run_clean(D, "jobx", None if legacy else rec, "sub", act)
+    assert kept and decoy_ok(sub / "canary.csv"), kept
+
+
+
+def reg(fn, legacy):
+    def t():
+        fn(legacy)
+    t.__name__ = fn.__name__ + ("_legacy" if legacy else "")
+    case(t)
+
+
+for _f in (race_base_link, race_job_link, race_job_real_decoy, race_subdir_link, race_subdir_real_decoy):
+    reg(_f, False)
+    reg(_f, True)  # no inode in the lock (a job from an older version): only the lstat/fstat compare protects
+
+
+@case
+def no_dirfd_refuses():
+    D, job, rec, _ = rig()
+    real_ok = crit.woc_fd_ok
+    crit.woc_fd_ok = lambda: False
+    try:
+        kept = crit.woc_clean_job(D, "jobx", rec, [])
+    finally:
+        crit.woc_fd_ok = real_ok
+    assert kept and "cannot delete safely" in kept[0][1] and (job / "work" / "top.csv").exists(), kept
+
+
 if __name__ == "__main__":
     shutil.rmtree(TMP, ignore_errors=True)
     print("RESULT: %d passed, %d failed" % (passed, failed))

@@ -21,6 +21,7 @@ jobs:
       - run: n=$(wc -l < skills/superfix/references/criteria.md); if [ "$n" -gt 390 ]; then echo "CRITERIA-TOO-LONG $n"; exit 1; fi; echo "criteria.md $n lines"
       - run: python3 tests/crit-15-check.py skills/superfix/references/crit.py
       - run: bash tests/project-tests.sh
+      - run: python3 tests/cleanup-fd-tests.py
       - run: python3 tests/docs-check.py .
       - run: bash tests/redact-check-tests.sh
       - run: bash tests/style-check-tests.sh
@@ -36,6 +37,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - run: python3 tests/cleanup-fd-tests.py
+      - run: bash tests/cleanup-tests.sh
       - run: bash tests/workorder-kinds-tests.sh
       # tests/workorder-tests.sh clones the private superfix-testbed repo, so it runs by hand (TESTBED=<clone> bash tests/workorder-tests.sh), not in CI.
       - run: bash tests/workorder-criteria-tests.sh
