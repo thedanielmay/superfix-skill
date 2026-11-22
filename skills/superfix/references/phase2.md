@@ -1,6 +1,6 @@
 # Phase 2 and dispatch (Moderate and Complex)
 
-New in 1.7.5 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Phase 2) says when to read this file: in full, at go, before Phase 2, together with execute.md, on every Moderate or Complex run. These are rules for the main thread, so briefs.md (which is pasted into the fix agent's prompt) does not hold them. The blocks moved here word for word from SKILL.md. Simple runs never read this file. "The shared block above" in the dispatch section is SKILL.md's branch block under Simple path.
+New in 1.7.5 ([superfix-skill#144](https://github.com/thedanielmay/superfix-skill/issues/144)). SKILL.md (Phase 2) says when to read this file: in full, at go, before Phase 2, together with execute.md, on every Moderate or Complex run. These are rules for the main thread, so briefs.md (which is pasted into the fix agent's prompt) does not hold them. The blocks moved here word for word from SKILL.md. The plan comment and the context file template moved here word for word from `journal.md` in 1.7.7 (#144 step C); "Comment format above" in the plan comment means `journal.md` (Comment format). Simple runs never read this file. "The shared block above" in the dispatch section is SKILL.md's branch block under Simple path.
 
 ### Expert panel
 Invoke `expert-panel` [opus/high] after plan is written, at the plan→implementation joint.
@@ -9,7 +9,7 @@ Invoke `expert-panel` [opus/high] after plan is written, at the plan→implement
 - Must-fix findings addressed before implementation proceeds
 - Update the plan with any must-fix resolutions
 - Post comment if issue exists:
-  the plan comment in `references/journal.md`, posted with `--body-file`.
+  the plan comment (Plan comment, below), posted with `--body-file`.
 
 **Max 2 expert panel passes.** If must-fix items remain after pass 2, escalate to the user with specific questions.
 
@@ -37,3 +37,44 @@ Agent runs the full execute sequence autonomously. Surfaces only:
 
 The agent may commit, push and open the PR only after the redaction checks pass (briefs.md states the rule). Issue comments and the Status line are posted by the main thread, which re-runs the budget commands and the redaction checks itself first.
 The agent ticks the plan file's task checkboxes as each task completes.
+
+### Plan comment (Moderate, Complex, after the expert panel)
+
+```
+> **In plain English:** The plan passed expert review and I am starting the fix. Nothing needed from you now.
+
+Plan: docs/superpowers/plans/<filename>.md
+Key decisions: [brief summary]
+Labels: <LABELS-NOW>
+```
+Post it with `--body-file` (Comment format above).
+
+### Context file (Moderate, Complex)
+
+After plan is written, create `docs/superpowers/plans/<slug>-context.md` using this structure:
+
+```markdown
+# Context: <slug>
+
+## Problem Profile
+- Primary type: <type>
+- Secondary type: <type or none>
+- Complexity: <tier>
+- Skill manifest: <ordered list>
+
+## Problem Description
+<full issue text or conversation summary>
+
+## Plan
+Path: docs/superpowers/plans/<plan-filename>.md
+
+## Key Decisions from Exploration
+- <decision 1>
+- <decision 2>
+
+## Relevant Files
+- <path>: <why relevant>
+
+## Evidence
+<copied from ## Problems in the issue body or journal file>
+```

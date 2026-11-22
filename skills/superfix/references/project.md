@@ -74,7 +74,7 @@ A side finding is something the run found and did not fix. `side-findings: list`
 default all keep every one of them under `## Not tested` only. `file` also files each one as its own issue
 in the repo the run works in: after the redaction checks pass, at most 5 a run, labelled
 `superfix:side-finding`, assigned to the main issue's assignee or else the `gh` user, with the evidence
-file and line and nothing from the owner's data (references/journal.md).
+file and line and nothing from the owner's data (references/journal-close.md, Side findings).
 
 The owner's yes to the `Settings:` line at the Stop gate is that pre-authorisation: the line shows
 `side-findings=file` when the run may file, so the owner sees and approves it with everything else, and

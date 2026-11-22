@@ -65,9 +65,9 @@ t p125-lines '^MAX-352-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 3
 t p127-side-findings-row '^FOUND$' has "$D/project.md" '| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |'
 t p127-side-findings-settings '^FOUND$' has "$D/project.md" '`side-findings=file` when the run may file'
 t p127-side-findings-skill '^FOUND$' has "$S" '`superfix:side-finding` and assigned'
-t p127-side-findings-journal '^FOUND$' has "$D/journal.md" 'Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)'
-t p127-side-finding-label '^FOUND$' has "$D/journal.md" 'colour `1D76DB`'
-t p127-side-findings-cap '^FOUND$' has "$D/journal.md" 'At most 5 a run; the sixth and later stay under'
+t p127-side-findings-journal '^FOUND$' has "$D/journal-close.md" 'Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)'
+t p127-side-finding-label '^FOUND$' has "$D/journal-close.md" 'colour `1D76DB`'
+t p127-side-findings-cap '^FOUND$' has "$D/journal-close.md" 'At most 5 a run; the sixth and later stay under'
 
 # 1.7.0 part two (superfix-skill#127): the research type and its one validation pass
 t p127-research-type '^FOUND$' has "$S" '| Labels: `research` with no change requested; the owner asks what is true, to find out, to investigate or to compare, and asks for no change | `research` |'
