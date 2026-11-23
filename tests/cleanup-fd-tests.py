@@ -250,6 +250,8 @@ def reg(fn, legacy):
     case(t)
 
 
+# Note: the race-*-link tests pass with or without O_NOFOLLOW in woc_fd_child, because the lstat/fstat
+# compare also refuses a swapped-in link. O_NOFOLLOW is a second guard that these tests do not isolate.
 for _f in (race_base_link, race_job_link, race_job_real_decoy, race_subdir_link, race_subdir_real_decoy):
     reg(_f, False)
     reg(_f, True)  # no inode in the lock (a job from an older version): only the lstat/fstat compare protects

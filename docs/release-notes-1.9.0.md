@@ -5,8 +5,10 @@ Issue: [superfix-skill#167](https://github.com/thedanielmay/superfix-skill/issue
 ## What changes
 
 - A finished criteria job leaves no folder under `~/superfix-workorders/<id>`.
-  - `wo-cleanup` deletes the whole job folder as the very last step, after the final comment is posted.
-  - A pass, a refused send-back and a stop no longer delete the job folder. They delete only the stub and run copies, as before.
+  - `wo-cleanup` is the last step of every ending except a send-back, after the final comment is posted. No ending deletes the job folder by itself.
+  - Until `wo-cleanup` runs, the data stays in `~/superfix-workorders`.
+  - A pass keeps only the verified copy and leaves the job folder empty. When you take the copy or say stop, `wo-cleanup --all` deletes the copy and the job folder.
+  - Every other ending (RETURN-CAP, NO-PROGRESS, a stop, a refused send-back) deletes everything.
   - The empty `~/superfix-workorders` folder stays.
 - Send-back rounds now live inside the job folder: `<id>/r2/`, not `<id>-r2/`. Round 1 stays at `<id>/`.
   - A job already running keeps its old `<id>-r2/` folder, and its next round goes into `<id>/r3/`.
@@ -23,7 +25,8 @@ Issue: [superfix-skill#167](https://github.com/thedanielmay/superfix-skill/issue
 
 ## What to know
 
-- A stray item keeps the folder in place. The output has a `KEPT <path> (<reason>)` line for it.
+- A stray item keeps the folder in place. The output has a `KEPT <path> (<reason>)` line for it, naming the top-level item and a count, never a name from inside `work/`.
+- An older `<id>-r<n>/` folder with no `workorder.md`, or one that names another id, is left alone.
 - Folders from jobs that finished before this version are not swept. An empty one is safe to delete.
   - To clean one that still holds files, run `wo-cleanup --run <old run folder>`.
 - A job id with a slash or a leading dot is refused with `WORKORDER-ID-BAD`.

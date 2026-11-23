@@ -16,7 +16,8 @@ has() { printf '%s' "$2" | grep -qE "$1" && echo FOUND || echo MISSING; }
 cat > "$T/mk.py" <<'PY'
 import hashlib, pathlib, sys
 home, wid = pathlib.Path(sys.argv[1]), sys.argv[2]
-new = len(sys.argv) > 3 and sys.argv[3] == "new"
+new = len(sys.argv) > 3 and sys.argv[3] in ("new", "pass")
+passed = len(sys.argv) > 3 and sys.argv[3] == "pass"
 D = home / ".superfix" / "runs" / ("r-" + wid)
 F = D / "workorder" / "folder"
 for d in (F / "work", F / "checks"):
@@ -40,7 +41,13 @@ if new:
     s = os.stat(R)
     with open(D / "workorder" / "lock", "a") as f:
         f.write(f"jobdir {s.st_dev} {s.st_ino}\n")
-    (D / "workorder" / "returns.json").write_text(json.dumps([{"n": 1}]))
+    rets = [{"n": 1}]
+    if passed:
+        (D / "work").mkdir()
+        (D / "work" / "wo1-data.csv").write_text("email\nx@x.org\n")
+        (D / "work" / "other.csv").write_text("email\ny@x.org\n")
+        rets = [{"n": 1, "failing": 0, "copy": str(D / "work" / "wo1-data.csv")}]
+    (D / "workorder" / "returns.json").write_text(json.dumps(rets))
     (R / "r2" / "work").mkdir(parents=True)
     (R / "r2" / "work" / "data.csv").write_text("email\nx@x.org\n")
     (R / "r2" / "workorder.md").write_bytes((F / "workorder.md").read_bytes())
@@ -108,7 +115,7 @@ t other-job-untouched 'x@x.org' cat "$(R ob)/work/data.csv"
 D="$(mk sa new)"; mk sa-r2 new >/dev/null; cleanup "$D" >/dev/null
 t sibling-other-job-untouched 'x@x.org' cat "$(R sa-r2)/work/data.csv"
 t sibling-job-itself-gone 'GONE' sh -c 'test ! -e "$T/home/superfix-workorders/sa" && echo GONE'
-D="$(mk leg)"; mkdir -p "$(R leg)-r2/work"; echo x > "$(R leg)-r2/work/x.csv"; echo s > "$(R leg)-r2/sendback.md"
+D="$(mk leg)"; mkdir -p "$(R leg)-r2/work"; echo x > "$(R leg)-r2/work/x.csv"; echo s > "$(R leg)-r2/sendback.md"; echo "WORK-ORDER: leg" > "$(R leg)-r2/workorder.md"
 t legacy-siblings-cleaned '^CLEANUP-OK' cleanup "$D"
 t legacy-siblings-gone 'GONE' sh -c 'test ! -e "$T/home/superfix-workorders/leg" && test ! -e "$T/home/superfix-workorders/leg-r2" && echo GONE'
 D="$(mk inode new)"; mv "$(R inode)" "$T/inode-aside"; cp -R "$T/inode-aside" "$(R inode)"; echo c > "$(R inode)/work/canary.txt"
@@ -129,6 +136,47 @@ t id-dotdot-refused 'CLEANUP-INCOMPLETE' env HOME="$T/home2" $C wo-cleanup --run
 t id-dotdot-canary 'x@x.org' cat "$T/home2/work/data.csv"
 D="$(mk straydir2)"; mkdir -p "$(R straydir2)/notes"; echo keep > "$(R straydir2)/notes/a.txt"; cleanup "$D" >/dev/null
 t stray-dir-keeps-job 'FOUND' has 'notes' "$(ls "$(R straydir2)" | tr '\n' ' ')"
+
+# ---- review fixes on #167 ----
+# MUST-FIX 1: a legacy sibling is deleted only on a positive match of its workorder.md id
+D="$(mk budget)"; mkdir -p "$(R budget)-r2"; echo mine > "$(R budget)-r2/personal-notes.txt"
+out="$(cleanup "$D")"
+t sibling-no-workorder-survives 'mine' cat "$(R budget)-r2/personal-notes.txt"
+t sibling-no-workorder-named 'KEPT .*budget-r2' echo "$out"
+t sibling-no-workorder-contents-unnamed 'MISSING' has 'personal-notes' "$out"
+D="$(mk bud2)"; mkdir -p "$(R bud2)-r2"; echo mine > "$(R bud2)-r2/personal-notes.txt"; echo "WORK-ORDER: someone-else" > "$(R bud2)-r2/workorder.md"
+cleanup "$D" >/dev/null
+t sibling-other-id-survives 'mine' cat "$(R bud2)-r2/personal-notes.txt"
+
+# MUST-FIX 2: a pass keeps only the verified copy; the second run (or --all) removes the rest
+D="$(mk jobp pass)"; out="$(cleanup "$D")"
+t pass-cleanup-ok 'CLEANUP-OK jobp.*checked copy' echo "$out"
+t pass-keeps-only-copy 'wo1-data.csv' sh -c 'ls "$1/work"' x "$D"
+t pass-drops-other-copy 'MISSING' has 'other.csv' "$(ls "$D/work")"
+t pass-drops-rounds-and-work 'EMPTY' sh -c 'test -d "$1" && test -z "$(ls -A "$1")" && echo EMPTY' x "$(R jobp)"
+t pass-second-run-all 'CLEANUP-OK' sh -c 'HOME="$T/home" '"$C"' wo-cleanup --run "$1" --all' x "$D"
+t pass-all-removes-job 'GONE' sh -c 'test ! -e "$1" && test ! -e "$2/work/wo1-data.csv" && echo GONE' x "$(R jobp)" "$D"
+D="$(mk jobq pass)"; cleanup "$D" >/dev/null; rm "$D/work/wo1-data.csv"
+t pass-copy-taken-then-clean 'CLEANUP-OK' cleanup "$D"
+t pass-copy-taken-job-gone 'GONE' sh -c 'test ! -e "$1" && echo GONE' x "$(R jobq)"
+
+# SHOULD-FIX b: KEPT names the top folder and a count, never a nested name
+if command -v chflags >/dev/null; then
+  D="$(mk nest new)"; echo a > "$(R nest)/work/alice-smith.csv"; chflags uchg "$(R nest)/work/alice-smith.csv"
+  out="$(cleanup "$D")"
+  t kept-no-nested-name 'MISSING' has 'alice' "$out"
+  t kept-top-name-and-count 'KEPT .*nest/work \(1 item' echo "$out"
+  t kept-full-path-in-log 'alice-smith.csv' cat "$D/workorder/cleanup-log"
+  chflags nouchg "$(R nest)/work/alice-smith.csv"
+fi
+
+# SHOULD-FIX c: the log is opened without following a link and is forced to mode 600
+D="$(mk logmode new)"; : > "$D/workorder/cleanup-log"; chmod 644 "$D/workorder/cleanup-log"; cleanup "$D" >/dev/null
+t log-existing-forced-600 '^600$' stat -f %Lp "$D/workorder/cleanup-log"
+D="$(mk loglink new)"; echo canary > "$T/log-canary.txt"; ln -s "$T/log-canary.txt" "$D/workorder/cleanup-log"
+t log-symlink-refused 'CLEANUP-LOG-REFUSED' cleanup "$D"
+t log-symlink-canary-intact '^canary$' cat "$T/log-canary.txt"
+t log-symlink-job-kept 'x@x.org' cat "$(R loglink)/work/data.csv"
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -104,6 +104,14 @@ t wo-baseline-ok '^BASELINE-OK$' python3 -I "$M_RD/crit.py" wo-baseline --run "$
 t wo-baseline-mismatch 'BASELINE-MISMATCH P1-C1' bash -c 'restore; python3 "$T/dedupe.py" "$M_RF/work/members-export.csv" "$M_RF/work/members-export.csv" 8; python3 -I "$M_RD/crit.py" wo-baseline --run "$M_RD" --folder "$M_RF" --body "$M_BODYDEC"; restore'
 
 # ---- LOCK ----
+cat > "$T/lockfail.py" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("crit", sys.argv[1]); c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
+c.woc_job_stat = lambda wid: None
+sys.argv = ["crit.py"] + sys.argv[2:]
+sys.exit(c.main())
+PY
+t wo-lock-no-jobdir-refused 'WORKORDER-LOCK-REFUSED.*job folder' python3 "$T/lockfail.py" "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"
 t wo-lock-ok 'WORKORDER-LOCKED' python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$M_RF" --dest "$M_DEST" --body "$M_BODYDEC"
 t wo-lock-records-jobdir 'JOBDIR-OK' sh -c 'want="jobdir $(stat -f "%d %i" "$M_DEST")"; grep -qx "$want" "$M_RD/workorder/lock" && echo JOBDIR-OK'
 t wo-lock-id-dotdot 'WORKORDER-ID-BAD' sh -c 'rm -rf "$T/dd"; cp -R "$M_RF" "$T/dd"; sed -i "" "s/^WORK-ORDER: .*/WORK-ORDER: ../" "$T/dd/workorder.md"; python3 -I "$M_RD/crit.py" wo-lock --run "$M_RD" --folder "$T/dd" --dest "$HOME/superfix-workorders/.." --body "$M_BODYDEC"'
@@ -302,11 +310,11 @@ retfix Eret1 "$E_DEST" 8
 python3 -I "$E_RD/crit.py" wo-return --run "$E_RD" --folder "$T/Eret1/folder" --body "$E_BODYDEC" >/dev/null 2>&1
 doattempt "$E_RD" "$E_RCRC" "$E_BODYDEC" wo1 "$E_RD/work/wo1-members-export.csv" >/dev/null 2>&1
 mkdir -p "$E_RD/work/neg/sub"; cp "$T/src/members-export.csv" "$E_RD/work/neg/neg-p9.csv"; cp "$T/src/members-export.csv" "$E_RD/work/neg/sub/neg-p8.csv"
-mkdir -p "$E_DEST-r9/work"; echo stale > "$E_DEST-r9/work/stale.csv"
+mkdir -p "$E_DEST-r9/work"; echo stale > "$E_DEST-r9/work/stale.csv"; echo "WORK-ORDER: $(basename "$E_DEST")" > "$E_DEST-r9/workorder.md"
 t wo-doc-verify-ok 'VERIFY-PASS' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-verify "--head wo" "$E_RD" "$E_RF" "$T/docdest" "$E_BODYDEC" 1 "$T/find-ok.txt" "$E_RCRC")"'
 t wo-ending-pass-keeps-copy 'KEPT-COPY' sh -c 'test "$(find "$E_RD/work" -name "*.csv")" = "$E_RD/work/wo1-members-export.csv" && echo KEPT-COPY'
 t pass-keeps-job-folder 'JOB-KEPT' sh -c 'test -f "$E_DEST/work/members-export.csv" && test -f "$E_DEST-r9/work/stale.csv" && echo JOB-KEPT'
-t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$E_DEST-r2"; mkdir -p "$E_DEST-r8/work"; echo stale > "$E_DEST-r8/work/stale.csv"; mkdir -p "$E_DEST/work"; echo rebuilt > "$E_DEST/work/rebuilt.csv"; python3 -I "$E_RD/crit.py" wo-sendback --run "$E_RD" --dest "$E_DEST-r2" --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC"'
+t wo-sendback-nothing 'SENDBACK-NOTHING' sh -c 'rm -rf "$E_DEST-r2"; mkdir -p "$E_DEST-r8/work"; echo stale > "$E_DEST-r8/work/stale.csv"; echo "WORK-ORDER: $(basename "$E_DEST")" > "$E_DEST-r8/workorder.md"; mkdir -p "$E_DEST/work"; echo rebuilt > "$E_DEST/work/rebuilt.csv"; python3 -I "$E_RD/crit.py" wo-sendback --run "$E_RD" --dest "$E_DEST-r2" --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC"'
 t wo-sendback-nothing-keeps-job 'JOB-KEPT' sh -c 'test "$(find "$E_RD/work" -name "*.csv")" = "$E_RD/work/wo1-members-export.csv" && test -f "$E_DEST-r8/work/stale.csv" && test -f "$E_DEST/work/rebuilt.csv" && echo JOB-KEPT'
 t wo-reverify-after-ending 'VERIFY-PASS' python3 -I "$E_RD/crit.py" wo-verify --run "$E_RD" --head wo1 --attempts "$E_RCRC/attempts" --scripts "$E_RCRC" --body "$E_BODYDEC" --findings "$T/find-ok.txt"
 t wo-orphan-finish-clean 'WORK-DELETED' python3 -I "$E_RD/crit.py" finish --run "$E_RD"
@@ -391,7 +399,7 @@ export F_RD F_RF F_RCRC F_DEST F_BODYDEC
 python3 -I "$F_RD/crit.py" wo-lock --run "$F_RD" --folder "$F_RF" --dest "$F_DEST" --body "$F_BODYDEC" >/dev/null 2>&1
 t wo-finish-permission-message 'WORK-PERMISSION-DENIED' sh -c 'echo x > "$F_RD/work/locked.csv"; chflags uchg "$F_RD/work/locked.csv"; python3 -I "$F_RD/crit.py" wo-finish --run "$F_RD"; chflags nouchg "$F_RD/work/locked.csv"'
 t wo-finish-doc-records 'RECORDED-ORIGINAL' sh -c 'grep -q "for each recorded original" "$ROOT/skills/superfix/references/criteria.md" && grep -q "wo-finish" "$ROOT/skills/superfix/references/criteria.md" && echo RECORDED-ORIGINAL'
-t wo-cleanup-doc-verified 'NOTHING-SPARED' sh -c 'grep -q "with nothing spared" "$ROOT/skills/superfix/references/workorder.md" && echo NOTHING-SPARED'
+t wo-cleanup-doc-verified 'NOTHING-SPARED' sh -c 'grep -q "keeps only the verified copy" "$ROOT/skills/superfix/references/workorder.md" && grep -q "the data stays in .~/superfix-workorders." "$ROOT/skills/superfix/references/workorder.md" && echo NOTHING-SPARED'
 t wo-suite-trap-cleanup 'TRAP-CLEANUP' sh -c 'grep -q "trap .rm -rf" "$ROOT/tests/workorder-criteria-tests.sh" && grep -q "trap .rm -rf" "$ROOT/tests/workorder-tests.sh" && echo TRAP-CLEANUP'
 
 # ---- PROGRESS RIG (8 then 3 then 1: every return moved, send-back goes) ----
@@ -407,7 +415,7 @@ retfix Pret2 "$P_DEST" 7
 python3 -I "$P_RD/crit.py" wo-return --run "$P_RD" --folder "$T/Pret2/folder" --body "$P_BODYDEC" >/dev/null 2>&1
 doattempt "$P_RD" "$P_RCRC" "$P_BODYDEC" wo2 "$P_RD/work/wo2-members-export.csv" >/dev/null 2>&1
 t wo-prog-verify2 'VERIFY-FAIL' python3 -I "$P_RD/crit.py" wo-verify --run "$P_RD" --head wo2 --attempts "$P_RCRC/attempts" --scripts "$P_RCRC" --body "$P_BODYDEC"
-sed -i '' '/^jobdir /d' "$P_RD/workorder/lock"; mkdir -p "$P_DEST-r2/work"; echo old > "$P_DEST-r2/work/old.csv"
+sed -i '' '/^jobdir /d' "$P_RD/workorder/lock"; mkdir -p "$P_DEST-r2/work"; echo old > "$P_DEST-r2/work/old.csv"; echo "WORK-ORDER: $(basename "$P_DEST")" > "$P_DEST-r2/workorder.md"
 t wo-doc-sendback-ready 'SENDBACK-READY' bash -c 'eval "$(python3 "$T/docrun.py" "$ROOT/skills/superfix/references/workorder.md" wo-sendback --attempts "$P_RD" "$P_RF" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1/r3" "$P_BODYDEC" 1 "$T/find-ok.txt" "$P_RCRC")"'
 t wo-sendback-modes 'MODES-OK' python3 "$T/modes.py" "$HOME/superfix-workorders/thedanielmay+superfix-testbed+prog-wo1/r3"
 t legacy-midflight-sendback-nested 'NESTED-OK' sh -c 'test -f "$P_DEST/r3/workorder.md" && test ! -e "$P_DEST-r3" && test -f "$P_DEST-r2/work/old.csv" && echo NESTED-OK'
@@ -454,7 +462,7 @@ sret Sret3 5 3,4
 python3 -I "$S_RD/crit.py" wo-return --run "$S_RD" --folder "$T/Sret3/folder" --body "$S_BODYDEC" >/dev/null 2>&1
 doattempt "$S_RD" "$S_RCRC" "$S_BODYDEC" wo3 "$S_RD/work/wo3-members-export.csv" >/dev/null 2>&1
 python3 -I "$S_RD/crit.py" wo-verify --run "$S_RD" --head wo3 --attempts "$S_RCRC/attempts" --scripts "$S_RCRC" --body "$S_BODYDEC" >/dev/null 2>&1
-mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work/stale.csv"
+mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work/stale.csv"; echo "WORK-ORDER: thedanielmay+superfix-testbed+stop-wo1" > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/workorder.md"
 t wo-stop-sendback-refused 'NO-PROGRESS' python3 -I "$S_RD/crit.py" wo-sendback --run "$S_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1/r4" --attempts "$S_RCRC/attempts" --scripts "$S_RCRC" --body "$S_BODYDEC"
 t wo-stop-cleans-run 'NO-DATA' python3 "$T/nodata.py" "$S_RD"
 t stop-keeps-job-until-end 'JOB-KEPT' sh -c 'test -f "$S_DEST/work/members-export.csv" && test -f "$HOME/superfix-workorders/thedanielmay+superfix-testbed+stop-wo1-r9/work/stale.csv" && echo JOB-KEPT'
@@ -480,7 +488,7 @@ for n in $(seq 1 "$CAP"); do
   python3 -I "$K_RD/crit.py" wo-verify --run "$K_RD" --head "wo$n" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC" >/dev/null 2>&1
 done
 t wo-cap-sixth-return-refused "RETURN-CAP $((CAP + 1)) of $CAP" sh -c 'rm -rf "$T/Kret6"; cp -r "$K_DEST" "$T/Kret6"; mkdir -p "$T/Kret6/work"; cp "$K_RD/work/wo${CAP}-members-export.csv" "$T/Kret6/work/members-export.csv"; python3 -I "$K_RD/crit.py" wo-return --run "$K_RD" --folder "$T/Kret6" --body "$K_BODYDEC"'
-t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work/stale.csv"; python3 -I "$K_RD/crit.py" wo-sendback --run "$K_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1/r$((CAP + 1))" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC"'
+t wo-cap-sendback-refused 'RETURN-CAP' sh -c 'mkdir -p "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work"; echo stale > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/work/stale.csv"; echo "WORK-ORDER: thedanielmay+superfix-testbed+cap-wo1" > "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1-r$((CAP + 2))/workorder.md"; python3 -I "$K_RD/crit.py" wo-sendback --run "$K_RD" --dest "$HOME/superfix-workorders/thedanielmay+superfix-testbed+cap-wo1/r$((CAP + 1))" --attempts "$K_RCRC/attempts" --scripts "$K_RCRC" --body "$K_BODYDEC"'
 t wo-cap-cleans-run 'NO-DATA' python3 "$T/nodata.py" "$K_RD"
 t cap-keeps-job-until-end 'JOB-KEPT' sh -c 'test -f "$K_DEST/work/members-export.csv" && echo JOB-KEPT'
 t cap-end-cleanup-removes-job 'CLEANUP-OK' python3 -I "$K_RD/crit.py" wo-cleanup --run "$K_RD"
@@ -528,7 +536,7 @@ doattempt "$U_RD" "$U_RCRC" "$U_BODYDEC" wo1 "$U_RD/work/wo1-cut.csv" >/dev/null
 printf 'for each duplicate, the row kept is the earliest joined date: met (lines 14, 15)\n' > "$T/find-cut.txt"
 t wo-cut-verify-pass 'VERIFY-PASS' python3 -I "$U_RD/crit.py" wo-verify --run "$U_RD" --head wo1 --attempts "$U_RCRC/attempts" --scripts "$U_RCRC" --body "$U_BODYDEC" --findings "$T/find-cut.txt"
 t wo-cut-verify-cleans 'KEPT-COPY' sh -c 'test "$(find "$U_RD/work" -name "*.csv")" = "$U_RD/work/wo1-cut.csv" && test -f "$U_DEST/work/cut.csv" && echo KEPT-COPY'
-t wo-stop-deletes-all 'NO-DATA' sh -c 'python3 -I "$U_RD/crit.py" wo-cleanup --run "$U_RD" >/dev/null 2>&1; python3 "$T/nodata.py" "$U_RD" "$U_DEST"'
+t wo-stop-deletes-all 'NO-DATA' sh -c 'python3 -I "$U_RD/crit.py" wo-cleanup --run "$U_RD" --all >/dev/null 2>&1; python3 "$T/nodata.py" "$U_RD" "$U_DEST"'
 
 # ---- I: process drafts allowed; dead locals scan ----
 eval "$(python3 "$T/mkrig-k.py" "$HOME" test-proc-wo thedanielmay+superfix-testbed+proc-wo1 "$T/src/members-export.csv" work/members-export.csv Q)"
@@ -905,7 +913,7 @@ CHANGED = ("woc_cleanup_full", "woc_distinctive_values", "woc_comment_corpus", "
            "woc_rules_lines", "woc_style_check",
            "woc_cleanup_rounds", "woc_round_ok", "woc_verified_round_dirs", "woc_clean_round", "woc_fd_ok",
            "woc_fd_name", "woc_id_ok", "woc_fd_base", "woc_fd_child", "woc_fd_read", "woc_fd_sub", "woc_fd_clear",
-           "woc_fd_top", "woc_job_record", "woc_job_stat", "woc_clean_job", "woc_log_cleanup",
+           "woc_fd_top", "woc_job_record", "woc_job_stat", "woc_clean_job", "woc_log_cleanup", "woc_open_log", "woc_kept_tops",
            "woc_lock", "woc_sendback")
 def strip_bodies(text):
     out, skip = [], False

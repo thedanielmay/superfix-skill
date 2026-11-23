@@ -2422,9 +2422,12 @@ def woc_lock(a):
                             + f"origsha {origsha}\norigpath {origpath}\n"
                             + f"critsha {woc_body_critsha(a)}\n")
     js = woc_job_stat(h["WORK-ORDER"])    # the job folder's device and inode: clean-up deletes only this one
-    if js is not None:
-        with open(W / "lock", "a") as f:
-            f.write(f"jobdir {js[0]} {js[1]}\n")
+    if js is None:
+        print("WORKORDER-LOCK-REFUSED (cannot read the job folder's identity: clean-up cannot tell later that it is the same folder; "
+              "check ~/superfix-workorders is a plain folder, then lock again)")
+        return 1
+    with open(W / "lock", "a") as f:
+        f.write(f"jobdir {js[0]} {js[1]}\n")
     woc_copy_folder(F, dest, t)
     woc_lock_modes(dest)
     notes = W / "notes"
@@ -3029,11 +3032,13 @@ def woc_job_stat(wid):
             os.close(base)
 
 
-def woc_clean_job(D, wid, rec, log):
+def woc_clean_job(D, wid, rec, log, keep_dir=False):
     """Delete the job folder ~/superfix-workorders/<wid>, its r<n> rounds and any older <wid>-r<n> sibling folders,
     through descriptors held from the base folder down. Anything that is not the folder Superfix made, or not
     an expected shape, is kept and returned as [(path, reason)]; nothing is read as a link. Every deleted path
-    goes into log. The base folder stays."""
+    goes into log. The base folder stays. With keep_dir the job folder is emptied but not removed. An older
+    sibling folder is deleted only when its workorder.md names this job id; no workorder.md, or another id,
+    leaves it alone."""
     base = pathlib.Path.home() / "superfix-workorders"
     if not woc_id_ok(wid):
         return [(str(base), "not a work-order id Superfix made: nothing was deleted")]
@@ -3076,7 +3081,7 @@ def woc_clean_job(D, wid, rec, log):
                     kept.extend(woc_fd_top(jfd, str(job), s.st_dev, log, rounds, stub))
             finally:
                 os.close(jfd)
-            if not kept:
+            if not kept and not keep_dir:
                 try:
                     os.rmdir(wid, dir_fd=bfd)
                     log.append(str(job) + "/")
@@ -3101,7 +3106,11 @@ def woc_clean_job(D, wid, rec, log):
             try:
                 txt = woc_fd_read(sfd, "workorder.md")
                 other = re.search(rb"^WORK-ORDER: (.*)$", txt or b"", re.M)
-                if other and other.group(1).decode("utf-8", "replace").strip() != wid:
+                named = other.group(1).decode("utf-8", "replace").strip() if other else None
+                if named is None:
+                    kept.append((str(d), "no workorder.md names this job, so Superfix cannot tell the folder is its own: nothing in it was deleted"))
+                    continue
+                if named != wid:
                     continue
                 inside = woc_fd_top(sfd, str(d), os.fstat(sfd).st_dev, log)
             finally:
@@ -3121,25 +3130,67 @@ def woc_clean_job(D, wid, rec, log):
     return kept
 
 
-def woc_log_cleanup(D, log):
-    """Append every deleted path to D/workorder/cleanup-log (owner-only, local, never printed or posted)."""
-    if not log:
-        return
+def woc_open_log(D):
+    """Open D/workorder/cleanup-log for append, owner-only, never through a link; fchmod 600 even when it exists.
+    Returns the descriptor, or None when the path is a link or not a plain file."""
     p = pathlib.Path(D) / "workorder" / "cleanup-log"
-    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    fd = os.open(str(p), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     try:
-        os.write(fd, "".join(f"{stamp} removed {x}\n" for x in log).encode("utf-8", "replace"))
+        fd = os.open(str(p), os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError("not a plain file")
+        os.fchmod(fd, 0o600)
+    except OSError:
+        os.close(fd)
+        return None
+    return fd
+
+
+def woc_log_cleanup(fd, log, kept=None):
+    """Append every deleted path, and every kept path with its reason, to the open log (local, never printed or posted)."""
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        os.write(fd, "".join([f"{stamp} removed {x}\n" for x in log] + [f"{stamp} kept {p} ({why})\n" for p, why in (kept or [])]).encode("utf-8", "replace"))
     finally:
         os.close(fd)
+
+
+def woc_kept_tops(items, wid):
+    """Group kept (path, reason) items by the top-level name under the job folder (or the sibling folder), so a
+    printed line never holds a name from inside work/. Returns [(top path, text)]."""
+    base = pathlib.Path.home() / "superfix-workorders"
+    groups = {}
+    for p, why in items:
+        try:
+            parts = pathlib.PurePath(p).relative_to(base).parts
+        except ValueError:
+            parts = ()
+        top = base / parts[0] / parts[1] if len(parts) > 1 and parts[0] == wid else (base / parts[0] if parts else base)
+        groups.setdefault(str(top), []).append((p, why))
+    out = []
+    for top, g in sorted(groups.items()):
+        own = [w for p, w in g if p == top]
+        n = len(g) - len(own)
+        s = "s" if n != 1 else ""
+        if own and not n:
+            text = own[0]
+        elif own:
+            text = f"{own[0]}; {n} more item{s} inside kept, listed in the cleanup log"
+        else:
+            text = f"{n} item{s} inside kept: the full paths are in the cleanup log"
+        out.append((top, text))
+    return out
 
 
 def woc_cleanup_full(D, keep=True, job=False, log=None):
     """The stub work/ copy and the run work/ data files go at every ending; the job
     folder ~/superfix-workorders/<id> (its rounds, strays and checks) goes only with
     job=True, which only wo-cleanup passes, at the very end of the job after the final
-    comment is posted. With keep (a pass) the verified copies stay until taken or stop;
-    without it (stop, later, finish) everything goes. A .sf-orig record whose data
+    comment is posted. With keep (a pass) the verified copies stay and the job folder
+    is emptied but its name stays, until the owner takes the copy or says stop; a later
+    wo-cleanup without keep removes them. Without keep everything goes. A .sf-orig record whose data
     file is gone goes with it once its named original hashes unchanged, so finish
     finds no orphan record. Round folders that fail the lstat plus realpath checks
     are listed, never touched (see woc_clean_job). Records (lock, returns.json, attempts) stay for
@@ -3159,10 +3210,17 @@ def woc_cleanup_full(D, keep=True, job=False, log=None):
     left = []
     log = [] if log is None else log
     if job and wid:
-        for p, why in woc_clean_job(D, wid, woc_job_record(D), log):
-            print(f"KEPT {p} ({why})")
-            left.append(p)
-        woc_log_cleanup(D, log)
+        lfd = woc_open_log(D)
+        if lfd is None:
+            lp = D / "workorder" / "cleanup-log"
+            print(f"CLEANUP-LOG-REFUSED {lp} (a link or not a plain file: the job folder was not touched; remove it, then clean up again)")
+            left.append(str(lp))
+        else:
+            items = woc_clean_job(D, wid, woc_job_record(D), log, keep_dir=keep)
+            woc_log_cleanup(lfd, log, items)
+            for p, text in woc_kept_tops(items, wid):
+                print(f"KEPT {p} ({text})")
+                left.append(p)
     kept = []          # records that are not data: one hash and one path
     got = woc_clean_work_path(D / "workorder" / "folder" / "work", D / "workorder" / "folder")
     if got:
@@ -3365,8 +3423,13 @@ def cmd_wo_finish(a):
 
 
 def cmd_wo_cleanup(a):
-    """CLEANUP: the model runs this on a stop, a later, or finish (the pass, cap and
-    no-progress paths run the same cleanup themselves)."""
+    """CLEANUP: the model runs this as the very last step of every ending except a
+    send-back (a pass, RETURN-CAP, NO-PROGRESS, a stop, a refused send-back), after
+    the final comment is posted. It deletes the whole job folder ~/superfix-workorders/<id>,
+    the stub copy and the run copies, and keeps the records. On a pass the verified copy
+    stays, and the job folder is emptied but its name stays, until the owner takes the
+    copy or says stop. Then a second wo-cleanup deletes the rest: it does so by itself
+    once no verified copy remains on disk, and wo-cleanup --all does it at once."""
     D = pathlib.Path(a.run)
     if not woc_run_is_criteria(D):
         left = woc_drop_scan_receipts(D)
@@ -3377,15 +3440,22 @@ def cmd_wo_cleanup(a):
               "its scan receipts are deleted")
         return 1
     log = []
-    wid, ok = woc_cleanup_full(D, keep=False, job=True, log=log)
+    held = []
+    if not getattr(a, "all", False):
+        for r in woc_returns(D):
+            if r.get("failing") == 0 and r.get("copy") and pathlib.Path(r["copy"]).is_file():
+                held.append(r["copy"])
+    wid, ok = woc_cleanup_full(D, keep=bool(held), job=True, log=log)
     if not wid:
         print("CLEANUP-NO-WORKORDER (no stub workorder.md in the run folder)")
         return 1
     if not ok:
         return 1
     n = sum(1 for x in log if x.endswith("/"))
+    tail = (f"; the checked copy stays at {held[-1]} until you take it or say stop, then run wo-cleanup --all"
+            if held else "")
     print(f"CLEANUP-OK {wid} (removed {len(log) - n} files and {n} folders under ~/superfix-workorders, every path listed in "
-          f"{D / 'workorder' / 'cleanup-log'}; stub and run copies deleted; records kept)")
+          f"{D / 'workorder' / 'cleanup-log'}; stub and run copies deleted; records kept{tail})")
     return 0
 
 
@@ -4321,7 +4391,7 @@ def main():
         if name == "wo-verify":
             s.add_argument("--findings"); s.add_argument("--attempts"); s.add_argument("--scripts")
     s = p("wo-files", cmd_wo_files, "run", "folder", body=True); s.add_argument("--clone")
-    s = p("wo-cleanup", cmd_wo_cleanup, "run")
+    s = p("wo-cleanup", cmd_wo_cleanup, "run"); s.add_argument("--all", action="store_true")
     s = p("wo-finish", cmd_wo_finish, "run"); s.add_argument("--asked", action="store_true")
     s = p("wo-scan-comment", cmd_wo_scan_comment, "run"); s.add_argument("--comment", required=True)
     s.add_argument("--data", action="append"); s.add_argument("--no-data", action="store_true")
