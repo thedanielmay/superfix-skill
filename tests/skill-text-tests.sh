@@ -102,5 +102,11 @@ PY
 t v156-preservation-ignores-version-tail '^SAME$' pcheck_same
 t v156-contributing-restart-last '^FOUND$' bash -c "l=\$(sed -n '/^## Releasing and deploying/,/^## /p' '$C' | grep -E '^[0-9]+\. ' | tail -1); printf '%s' \"\$l\" | grep -qi 'restart Claude Code' && echo FOUND || echo \"MISSING: \$l\""
 
+# issue 172: check visibility before the first post; a public security run posts neutral text only
+t i172-skill-visibility '^FOUND$' has "$S" 'Visibility: PUBLIC|PRIVATE|INTERNAL'
+t i172-skill-security '^FOUND$' has "$S" 'the full diagnosis stays in the file-mode journal'
+t i172-journal-visibility '^FOUND$' has "$D/journal.md" 'gh repo view <owner>/<repo> --json visibility -q .visibility'
+t i172-journal-security '^FOUND$' has "$D/journal.md" 'Security problem diagnosed; details are in the local journal'
+
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

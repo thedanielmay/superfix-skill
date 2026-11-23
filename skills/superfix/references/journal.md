@@ -220,6 +220,22 @@ Read back (prints `LABELS-NOW <list>`, `LABELS-NOW none`, or `LABELS-READ-FAILED
 R='<owner>/<repo>'; if S="$(gh issue view <N> --repo "$R" --json labels -q '[.labels[].name | select(startswith("superfix:"))] | join(",")')"; then echo "LABELS-NOW ${S:-none}"; else echo LABELS-READ-FAILED; exit 1; fi
 ```
 
+### Visibility and public security
+
+Before the first comment, label or body edit on an issue, run this once and keep the value for the run:
+
+```bash
+gh repo view <owner>/<repo> --json visibility -q .visibility
+```
+
+Write `Visibility: PUBLIC|PRIVATE|INTERNAL` in the AI detail of the decision comment. Use the value from the command. Never guess the value from the repo name or the URL.
+
+On a PUBLIC repo, when the primary type or the secondary type is `security`, the decision comment, every progress comment, every body section and the PR description hold no exploit detail. This covers `## Summary`, `## Problems`, `## Options`, `## Proposed solution` and `## Done when`. Do not write the failing input, the payload, the vulnerable code path or the reproduction steps in any of them. Each of them carries only this line:
+
+> Security problem diagnosed; details are in the local journal
+
+Write that line in the decision comment's "In plain English" opening and in each progress comment. Keep the full diagnosis in the file-mode journal outside the repo. The journal holds the failing check, its output, the cause and the steps that reproduce the problem. Tell the owner in chat to consider GitHub private vulnerability reporting for this issue. On a PRIVATE or INTERNAL repo, use the normal detail rules in this file.
+
 ### Decision message (posted at the Stop gate)
 
 ONE comment, or one journal entry, per run. It holds every question for this run, numbered, each with the recommended answer, the effort and the budget.
@@ -234,6 +250,7 @@ Reply in one line, for example "1 yes, 2 option two". "Keep executing" means yes
 
 ---
 <AI detail: Coverage block, Problem Profile, Tools used, failing check output, hypotheses table>
+Visibility: PUBLIC|PRIVATE|INTERNAL
 Pictures: <TAKEN n | NONE (no screen: why) | NO-BROWSER | HELD (why) | LOCAL (public repo) | NOT-POSTED (why)>
 Labels: <LABELS-NOW, or not set (<word>); marker superfix-awaiting-decision>
 Diagram: <ASKED (why) | NONE (why)>

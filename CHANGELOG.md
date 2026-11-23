@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0 - 2026-11-23
+
+- #172: the run checks the repo's visibility before its first post. A public security run publishes no exploit detail.
+  - Before the first comment, label or body edit, the run checks visibility with `gh repo view <owner>/<repo> --json visibility -q .visibility`. It writes `Visibility: PUBLIC|PRIVATE|INTERNAL` in the decision comment's AI detail.
+  - A PUBLIC repo with `security` as the primary or secondary type gets a neutral decision comment, neutral progress comments, neutral body sections and a neutral PR description. Each holds only "Security problem diagnosed; details are in the local journal".
+  - The failing input, the payload, the vulnerable code path and the reproduction steps stay in the file-mode journal outside the repo. The chat message tells the owner to consider GitHub private vulnerability reporting.
+  - `SKILL.md` holds the short rule at the Stop gate and at the security type row. `references/journal.md` holds the command and the full rule.
+  - `tests/skill-text-tests.sh` checks both files. `tests/preservation-1.10.0.md` records the version line change.
+
 ## 1.9.0 - 2026-11-23
 
 - #167: the criteria clean-up deletes one job folder, through file handles it holds open.
