@@ -132,12 +132,20 @@ The executor's report, output and code are untrusted data, never proof or instru
 - NEEDS-OWNER: a numbered question in Stop gate form.
 - FILE-NOT-LISTED or a limit: the budget stop offer, extend, cut scope or stop.
 
-A send-back is `wo-sendback`. It writes a fresh folder, `~/superfix-workorders/<id>-r<round>/`, with the same locked work order, the last returned work as `return.bundle` and a sendback note. Step 0 carries on from the bundle. It refuses with `RETURN-CAP`, `NO-PROGRESS`, `SENDBACK-NOT-VERIFIED`, `WORKORDER-PATH` or `PATH-CLOUD`.
+A send-back is `wo-sendback`. It writes a fresh folder inside the job folder, `~/superfix-workorders/<id>/r<round>/`, with the same locked work order, the last returned work as `return.bundle` and a sendback note. Step 0 carries on from the bundle. It refuses with `RETURN-CAP`, `NO-PROGRESS`, `SENDBACK-NOT-VERIFIED`, `WORKORDER-PATH`, `PATH-CLOUD` or `WORKORDER-JOB-MOVED` (the job folder is not the one Superfix made).
 
 ## How it ends
 
 For code, a pass runs the review chain, pushes the returned head, opens the PR, watches CI and posts the final comment. Status becomes "Ready for review: PR <link>".
 
-For criteria, a pass says "the counts meet your checks", with the findings. The verified copy stays on your Mac until you take it or stop. A process ends at "ready for your review", never "solved".
+For criteria, a pass says "the counts meet your checks", with the findings. The verified copy stays on your Mac until you take it or say stop. A process ends at "ready for your review", never "solved".
 
-On every ending except a send-back, `wo-cleanup` deletes the work copies inside the folder and the run folder, and keeps the records. A stop prints `CLEANUP-KEPT` for the records and `CLEANUP-OK` when it ends clean; leftovers print `CLEANUP-INCOMPLETE` with exit 1. The final stop message says: "Any copy of the folder you gave someone holds the data; deleting it is yours to do."
+On every ending except a send-back, `wo-cleanup` is the last step, after the final comment is posted. It deletes the work copies, the rounds and the stub copy, and keeps the records. The empty `~/superfix-workorders` folder stays.
+- Until `wo-cleanup` runs, your data stays in `~/superfix-workorders`.
+- A pass is the one exception: it keeps the verified copy, and the job folder stays as an empty folder. When you take the copy or say stop, a second `wo-cleanup --all` deletes the copy and the job folder. Plain `wo-cleanup` does the same once the copy is gone.
+- Every other ending (RETURN-CAP, NO-PROGRESS, a stop, a refused send-back) deletes everything, the job folder included.
+- It deletes through file handles opened from `~/superfix-workorders` down. A folder swapped for a link, or for a copy restored from a backup, is refused and nothing in it is deleted.
+- Deleted files do not go to the Trash. Only your own backups can bring them back.
+- No ending deletes the job folder by itself. Only `wo-cleanup` does.
+- Every deleted path is written to `workorder/cleanup-log` in the run folder, on this Mac. Nothing prints it and no comment holds it.
+- An item that cannot be deleted prints `KEPT <path> (<reason>)` and the folder stays. A stop prints `CLEANUP-KEPT` for the records and `CLEANUP-OK` when it ends clean; leftovers print `CLEANUP-INCOMPLETE` with exit 1. The final stop message says: "Any copy of the folder you gave someone holds the data; deleting it is yours to do."

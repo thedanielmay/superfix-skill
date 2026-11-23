@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.9.0 - 2026-11-23
+
+- #167: the criteria clean-up deletes one job folder, through file handles it holds open.
+  - Send-back rounds go inside the job folder as `<id>/r2/`, `<id>/r3/`. Round 1 stays at `<id>/`. A job locked by an older version keeps its `<id>-r<n>/` folders, and its next round goes to `<id>/r<n>/`.
+  - The lock records the job folder's device and inode. A restored or swapped folder is refused: nothing in it is deleted.
+  - `wo-cleanup` is the last step of every ending except a send-back (a pass, RETURN-CAP, NO-PROGRESS, a stop, a refused send-back), after the final comment is posted. No ending deletes the job folder by itself.
+    - A pass keeps only the verified copy and leaves the job folder empty. A second `wo-cleanup --all` (or plain `wo-cleanup` once the copy is gone) deletes the copy and the job folder. Every other ending deletes everything.
+    - Until `wo-cleanup` runs, the data stays in `~/superfix-workorders`.
+  - An older `<id>-r<n>/` folder is deleted only when its `workorder.md` names this job id. Without one, or with another id, it is left alone.
+  - `wo-lock` refuses when it cannot read the job folder's identity, so every new lock carries the inode record.
+  - `KEPT` lines print the top-level name and a count, not nested names. The full paths go to the log.
+  - The log opens without following a link and is forced to mode 600; a link at the log path prints `CLEANUP-LOG-REFUSED` and nothing is deleted.
+  - Every deleted path is written to `workorder/cleanup-log` in the run folder. The log is local and no command prints it.
+  - New words: `WORKORDER-ID-BAD`, `WORKORDER-JOB-MOVED` and `KEPT <path> (<reason>)`. The empty `~/superfix-workorders` folder stays.
+  - `tests/cleanup-fd-tests.py` holds the swap-race tests. `docs/guide/versions.md` no longer says safe deletion needs Python 3.11.
+  - `tests/preservation-1.9.0.md` records the changed lines.
+
 ## 1.8.5 - 2026-11-23
 
 - #166: the cap rig in `tests/workorder-criteria-tests.sh` reads its loop count and round names from `WO_LIMIT` in `crit.py`, refuses to run when `MAX_ATTEMPTS` differs from it, and a fence comment says no test goes inside the rig.
