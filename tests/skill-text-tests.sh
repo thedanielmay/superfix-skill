@@ -9,6 +9,7 @@ pass=0; fail=0
 t() { local name="$1" want="$2" rc=""; shift 2; if [[ "$1" =~ ^[0-9]+$ ]]; then rc="$1"; shift; fi; local out rcgot; out="$("$@" 2>&1)"; rcgot=$?
   if printf '%s' "$out" | tr '\n' '|' | grep -qE "$want" && { [ -z "$rc" ] || [ "$rcgot" = "$rc" ]; }; then pass=$((pass+1)); echo "ok   $name"; else fail=$((fail+1)); echo "FAIL $name: want /$want/ rc ${rc:-any} got: $(printf '%s' "$out" | tr '\n' '|' | cut -c1-300) (rc $rcgot)"; fi; }
 has() { grep -q -F -- "$2" "$1" && echo FOUND || echo MISSING; }
+absent() { grep -q -F -- "$2" "$1" && echo PRESENT || echo ABSENT; }
 
 # item 6 (diagnose.md)
 t d108-hypotheses '^FOUND$' has "$D/diagnose.md" "issue said X, measured Y"
@@ -46,7 +47,7 @@ t x86-merge-exempt '^FOUND$' has "$D/execute.md" "Merge commits are exempt from 
 
 # issue 121, the trimmed Red Flags: a line budget on SKILL.md, one change-pipeline ban, and the two kept bullets
 count_where() { bash -c "$2" "$1"; }
-t i121-lines '^MAX-352-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 352 ]; then echo MAX-352-OK; else echo "MAX-352-FAIL $n"; fi'
+t i121-lines '^MAX-400-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 400 ]; then echo MAX-400-OK; else echo "MAX-400-FAIL $n"; fi'
 t i121-ban-once '^BAN-ONCE-OK$' count_where "$S" 'n=$(grep -c change-pipeline "$0"); if [ "$n" -eq 1 ]; then echo BAN-ONCE-OK; else echo "BAN-ONCE-FAIL $n"; fi'
 t i121-two-bullets '^BULLETS-2$' count_where "$S" 'n=$(awk "/^## Red Flags/,/^## Out of Scope/" "$0" | grep -c "^- "); echo "BULLETS-$n"'
 # 1.7.0 part one (superfix-skill#125): the two new settings keys
@@ -60,7 +61,7 @@ t p125-review-heading '^FOUND$' has "$S" "### Independent review (Moderate, Comp
 t p125-review-verdict '^FOUND$' has "$S" 'INDEPENDENT-REVIEW PASS|FAIL <n> findings'
 t p125-review-limits '^FOUND$' has "$D/execute.md" "Limits:"
 t p125-review-exec '^FOUND$' has "$D/execute.md" 'One verdict comment on the PR: `INDEPENDENT-REVIEW PASS|FAIL <n> findings`'
-t p125-lines '^MAX-352-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 352 ]; then echo MAX-352-OK; else echo "MAX-352-FAIL $n"; fi'
+t p125-lines '^MAX-400-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 400 ]; then echo MAX-400-OK; else echo "MAX-400-FAIL $n"; fi'
 # 1.7.0 part two (superfix-skill#127): the side-findings key and its filing rules
 t p127-side-findings-row '^FOUND$' has "$D/project.md" '| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |'
 t p127-side-findings-settings '^FOUND$' has "$D/project.md" '`side-findings=file` when the run may file'
@@ -111,6 +112,23 @@ t i172-journal-security '^FOUND$' has "$D/journal.md" 'Security problem diagnose
 # issue 173: a full-suite baseline before the fix, and a single-test re-run before calling a test new
 t i173-baseline-run '^FOUND$' has "$D/execute.md" "run the full test suite once at approval-sha"
 t i173-flaky-rerun '^FOUND$' has "$D/execute.md" "re-run that single test once; if the re-run passes, call it flaky"
+
+# issue 174: narrow the trigger, lighten a Simple fix with one problem
+t i174-trigger-name '^FOUND$' has "$S" 'starts on "superfix", on an issue'
+t i174-trigger-issue-forms '^FOUND$' has "$S" '"issue #N", "fix #N", "implement #N"'
+t i174-trigger-pull-request '^FOUND$' has "$S" 'to take a change through to a pull request'
+t i174-trigger-criteria '^FOUND$' has "$S" 'or data clean-up against criteria the owner approves'
+t i174-trigger-no-catchall '^ABSENT$' absent "$S" 'a request to fix, build or'
+t i174-simple-body '^FOUND$' has "$S" 'the body holds only the Status line, ## Problems and ## Done when'
+t i174-simple-labels '^FOUND$' has "$S" 'not set (simple)'
+t i174-simple-diagram '^FOUND$' has "$S" 'The diagram question never applies to Simple'
+t i174-simple-journal-body '^FOUND$' has "$D/journal.md" 'writes only the Status line, ## Problems and ## Done when in the body'
+t i174-simple-journal-labels '^FOUND$' has "$D/journal.md" 'not set (simple)'
+t i174-simple-three-lines '^FOUND$' has "$D/journal.md" 'three lines (problem, fix, effort) and "Go?"'
+
+# issue 175: define the run folder where it is first used in SKILL.md
+t i175-run-folder '^FOUND$' has "$S" '`<D>` is the run folder, `$HOME/.superfix/runs/<run-key>`'
+t i175-run-folder-pointer '^FOUND$' has "$S" 'references/redaction.md, Run folder'
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

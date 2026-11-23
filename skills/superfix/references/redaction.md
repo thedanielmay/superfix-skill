@@ -19,13 +19,13 @@ Rules that hold everywhere:
 New in 1.3.1. Each run keeps its credential list and its scratch files in its own folder, `~/.superfix/runs/<run-key>/`, never in a shared file.
 
 - `<run-key>` is built from facts the run already has, so it needs no remembered variable and comes out the same after a restart. It is always all lowercase, with `+` between the parts (`+` cannot appear in a GitHub owner or repo name, so two different owner and repo pairs never give the same key):
-  - With an issue: `<owner>+<repo>+<issue number>`, for example `thedanielmay+superfix-skill+48`.
-  - Without an issue: `<owner>+<repo>+<journal file name without .md>`, for example `thedanielmay+superfix-skill+2026-10-19-login-loop`.
+  - With an issue: `<owner>+<repo>+<issue number>`, for example `owner+repo+48`.
+  - Without an issue: `<owner>+<repo>+<journal file name without .md>`, for example `owner+repo+2026-10-19-login-loop`.
   - No remote: `local+<repo folder name>+<journal file name without .md>`.
   - To print it lowercased: `printf '%s+%s+%s\n' '<owner>' '<repo>' '<issue number or journal file name>' | tr '[:upper:]' '[:lower:]'`.
   - A journal run that later creates its issue moves the folder to the issue key (journal-nofile.md, the create-issue question) and uses the issue key from then on.
   - On a restart: the run key named on the journal's issue line if there is one, else the issue key if the journal or the conversation says an issue exists, else the journal key. If that folder is missing the check prints `NO-RUN-FOLDER`: stop and rebuild the key from the facts. If the rebuilt key still has no folder, the list is gone: tell the owner, and ask for any credential again before creating the folder anew.
-- Write the literal folder in every command, for example `$HOME/.superfix/runs/thedanielmay+superfix-skill+48`. A variable set in an earlier Bash call is gone.
+- Write the literal folder in every command, for example `$HOME/.superfix/runs/owner+repo+48`. A variable set in an earlier Bash call is gone.
 - Create the folder as soon as the key is known, before any credential could be given: on an issue, before the first command of Phase 0; without one, as soon as the journal file name is chosen. It holds a `key` file with the literal key, which the checks look for:
 
 ```bash

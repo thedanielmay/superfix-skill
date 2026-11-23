@@ -44,10 +44,10 @@ from collections import Counter
 
 SKILL_DIR = "skills/superfix"
 RELEASE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
-CRIT_START = "# --- crit.py start ---"
-CRIT_END = "# --- crit.py end ---"
-CRIT_NEW = "skills/superfix/references/crit.py"
-CRIT_NEW_PLACE = CRIT_NEW + " > (whole file)"
+SCRIPT_START = re.compile(r"^# --- (\S+\.py) start ---$")
+SCRIPT_END = re.compile(r"^# --- \S+\.py end ---$")
+SCRIPT_DIR = "skills/superfix/references"
+SCRIPT_NAMES = ("crit.py", "shot.py")
 
 
 class CannotRun(Exception):
@@ -69,11 +69,12 @@ VERSION_TAIL = re.compile(r" \(version \d+\.\d+\.\d+\)$")
 def places(text, fname):
     """Yield (stripped line, place) for every non-blank line.
 
-    A crit.py block inside an .md file counts as one synthetic line
-    holding the block's sha256, so the moved tool (Fix 60) is one moved
-    line; any byte change inside it changes the sha and shows up as an
-    unjustified change. The unit runs from the start marker through the
-    end marker, markers included, to match the whole new crit.py file.
+    A marked script block inside an .md file counts as one synthetic line
+    holding the block's sha256 (crit.py from Fix 60, shot.py from 1.12.0),
+    so a verbatim move is one moved line and any byte change inside it
+    changes the sha and shows up as an unjustified change. The unit runs
+    from the start marker through the end marker, markers included, to
+    match the whole script file.
     """
     heading, fence, seen = "(start of file)", None, Counter()
     lines = text.splitlines()
@@ -84,18 +85,21 @@ def places(text, fname):
         s = raw.strip()
         if not s:
             continue
-        if s == CRIT_START:
-            unit = [CRIT_START]
-            while k < len(lines) and lines[k].strip() != CRIT_END:
+        marker = SCRIPT_START.match(s)
+        if marker:
+            name = marker.group(1)
+            end = f"# --- {name} end ---"
+            unit = [s]
+            while k < len(lines) and lines[k].strip() != end:
                 unit.append(lines[k])
                 k += 1
             if k < len(lines):
-                unit.append(CRIT_END)
+                unit.append(end)
                 k += 1
             h = hashlib.sha256(("\n".join(unit) + "\n").encode()).hexdigest()
-            yield f"crit.py-sha256:{h}", f"{fname} > {heading}"
+            yield f"{name}-sha256:{h}", f"{fname} > {heading}"
             continue
-        if s == CRIT_END:
+        if SCRIPT_END.match(s):
             continue
         place = f"{fname} > {heading}"
         if fence is None and (s.startswith("```") or s.startswith("~~~")):
@@ -151,10 +155,11 @@ def run(a):
     new = Counter()
     for p in new_files:
         new += count(p.read_text(), str(p.relative_to(root)))
-    crit_py = root / CRIT_NEW
-    if crit_py.exists():
-        h = hashlib.sha256(crit_py.read_bytes()).hexdigest()
-        new[(f"crit.py-sha256:{h}", CRIT_NEW_PLACE)] += 1
+    for name in SCRIPT_NAMES:
+        script = root / SCRIPT_DIR / name
+        if script.exists():
+            h = hashlib.sha256(script.read_bytes()).hexdigest()
+            new[(f"{name}-sha256:{h}", f"{SCRIPT_DIR}/{name} > (whole file)")] += 1
     print(f"Old files ({len(old_files)}): {', '.join(old_files)}")
     print(f"New files ({len(new_files)}): "
           f"{', '.join(str(p.relative_to(root)) for p in new_files)}")

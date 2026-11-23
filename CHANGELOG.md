@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.12.0 - 2026-11-23
+
+- #174: the trigger names issue-led and explicitly requested runs only. A Simple fix with one problem drops the label and diagram ceremony.
+  - `SKILL.md` description starts on "superfix", an issue number, an explicit request to take a change to a pull request, or a document or data clean-up against approved criteria. The catch-all code-change trigger is gone. Criteria mode, work orders and Qik stay in this skill.
+  - `SKILL.md` Stop gate states the Simple path once: three-line decision, body with the Status line, ## Problems and ## Done when, `not set (simple)` for Labels, no label commands, no diagram question. Moderate and Complex keep the full process.
+  - `references/journal.md` agrees on the shorter body and the `not set (simple)` Labels line.
+  - `tests/skill-text-tests.sh` checks the new trigger, the Simple rule and the run folder definition.
+- #175: the run folder is defined where it is first used, the evidence script is a script file, and examples are neutral.
+  - `SKILL.md` defines `<D>` at the comment gate as `$HOME/.superfix/runs/<run-key>`, the folder in `references/redaction.md`.
+  - The 754-line `shot.py` block moves from `references/evidence.md` to `references/shot.py` byte for byte. evidence.md keeps one line naming the script and its copy command. No script behaviour changed.
+  - Run-key and work-order examples use `owner/repo` instead of the maintainer's own accounts. The real expert-panel marketplace command stays.
+  - Prose lines over about 200 characters are wrapped. The four line-cap checks move from 352 to 400 lines because wrapping adds lines without adding rules.
+  - `tests/preservation-check.py` treats a marked script block like the marked `crit.py` block: one hash line, so a verbatim move is one justified MOVED line. `tests/preservation-1.12.0.md` records every removed line.
+
 ## 1.11.0 - 2026-11-23
 
 - #173: the full test suite runs at approval-sha before the fix, and a flaky test is named in the PR body.
