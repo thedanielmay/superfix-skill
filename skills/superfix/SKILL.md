@@ -10,10 +10,10 @@ description: >-
   It diagnoses first and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.9.0"
+  version: "1.10.0"
 ---
 
-# Superfix Orchestrator (version 1.9.0)
+# Superfix Orchestrator (version 1.10.0)
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
 Supersedes `change-pipeline` - do not invoke change-pipeline.
@@ -116,6 +116,7 @@ A process is never called solved: Superfix drafts the change and says "change dr
 | Everything else | `feature` |
 
 If a security signal and another type both match (for example "XSS error"), `security` is primary and the other type is secondary (see Compound issues).
+On a PUBLIC repo, a `security` type (primary or secondary) posts only the neutral status in comments, the body and the PR; the full diagnosis stays in the file-mode journal (journal.md, Visibility and public security).
 A `research` run changes nothing: no branch, no PR, no code edit. Read `references/research.md` in full before Phase 1; it holds the flow, the report shape and the validation pass.
 
 ### Complexity tier (provisional from issue text; confirmed after exploration)
@@ -171,6 +172,7 @@ Every tier, every run, unless the fast lane was asked for in this run.
    No issue was given and the repo has a GitHub remote: the LAST numbered question is always
    the create-issue question (journal-nofile.md). Never leave it out or move it.
    The request's "use gh to read it" is not a read-only instruction: posting this comment on the issue is required, not optional.
+   Before the first comment, label or body edit, check the repo's visibility with the command in journal.md (Visibility and public security) and write `Visibility: PUBLIC|PRIVATE|INTERNAL` in the decision comment's AI detail.
    Every comment you post from the run (this one, a work order's final comment, a stop, a budget or plan notice) goes through `python3 -I "<skill dir>/references/crit.py" wo-scan-comment --comment <the file you post> --run "<D>" --repo "<the repo clone>" --data <the data file the run read>` and then `python3 -I "<skill dir>/references/crit.py" wo-post --comment <the file you post> --run "<D>"` (wo-scan-comment and wo-post are subcommands of `references/crit.py`, not programs on the PATH. `<skill dir>` is this skill's base directory, shown as "Base directory for this skill" when the skill loads, written out in full, never a path relative to the repo folder.), and you post it only when wo-post prints POST-OK (or POST-OK-DECLARED, when the run holds no data file and says so with --no-data): a scan with no data file to compare prints SCAN-NO-DATA and writes no receipt, so a run that holds data names that file with --data (a cloud data file prints ASK-FIRST: ask the owner, then add --asked), and a run that holds none says so with --no-data.
 4. Say the same in chat and END THE TURN. Do not create a branch, edit a
    tracked file, write to Qik, read references/execute.md or
