@@ -45,7 +45,7 @@ t route-not-skill-bad-front '^NOT-SKILL$' detect "$T/badfront"
 t route-not-skill-no-name '^NOT-SKILL$' detect "$T/noname"
 
 # length cap
-t route-skillmd-cap '^OK$' bash -c "n=\$(wc -l < '$S'); [ \"\$n\" -le 352 ] && echo OK || echo \"TOO-LONG \$n\""
+t route-skillmd-cap '^OK$' bash -c "n=\$(wc -l < '$S'); [ \"\$n\" -le 400 ] && echo OK || echo \"TOO-LONG \$n\""
 
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -35,11 +35,11 @@ Any other `CHECKS-KIND:` prints `WORKORDER-KIND <value>` when writing and `RETUR
 
 ### 4. The template (shown with the CSV example; Superfix fills every value)
 ~~~~
-# Work order: CSV and JSON export (superfix-testbed issue 109)
-WORK-ORDER: thedanielmay+superfix-testbed+109-wo1
+# Work order: CSV and JSON export (owner/repo issue 109)
+WORK-ORDER: owner+repo+109-wo1
 CHECKS-KIND: code
 KINDS: code
-REPO: https://github.com/thedanielmay/superfix-testbed (private; clone needs read access)
+REPO: https://github.com/owner/repo (private; clone needs read access)
 BASE: baecc4813fafefc66934fd83c7e0ae85cf5f094b
 BRANCH: wo/109-csv-json-export
 FILES: report.js, export.js, cli.js, server.js, test/export.test.js, test/cli.test.js (new), test/server.test.js (new)
@@ -63,7 +63,7 @@ The stock report prints as text only. Add CSV and JSON from one shared column li
 bash <<'STEP0'
 W="$(pwd)"; WO="$W/workorder.md"; [ -f "$WO" ] || { echo "RESULT: RETURNED NEEDS-OWNER (run Step 0 inside the work order folder)"; exit 0; }
 B=baecc4813fafefc66934fd83c7e0ae85cf5f094b; R="$(mktemp -d "${TMPDIR:-/tmp}/superfix-wo-109-wo1.XXXXXX")/repo"; IFS=',' read -ra FL <<< "$(sed -n 's/^FILES: //p' "$WO")"; F=(); N=(); for f in "${FL[@]}"; do f="${f# }"; case "$f" in *" (new)") N+=("${f% (new)}");; *) F+=("$f");; esac; done
-git clone -q https://github.com/thedanielmay/superfix-testbed.git "$R" || { echo "RESULT: RETURNED NEEDS-OWNER (cannot clone)"; exit 0; }
+git clone -q https://github.com/owner/repo.git "$R" || { echo "RESULT: RETURNED NEEDS-OWNER (cannot clone)"; exit 0; }
 cd "$R" && git cat-file -e "$B^{commit}" || { echo "RESULT: RETURNED STALE (base missing)"; exit 0; }
 [ -z "$(git diff --name-only "$B" origin/main -- "${F[@]}" "${N[@]}")" ] || { echo "RESULT: RETURNED STALE (files changed on main)"; exit 0; }
 git switch -q -c wo/109-csv-json-export "$B"
@@ -116,7 +116,7 @@ EXECUTOR: <model or person>, turns <n if known>, cost <if known>
 ### 4b. The criteria template (kind `criteria`, CSV example with real numbers; Superfix fills every value)
 ~~~~
 # Work order: dedupe members-export.csv (testbed seed-1.5)
-WORK-ORDER: thedanielmay+superfix-testbed+csv-wo1
+WORK-ORDER: owner+repo+csv-wo1
 CHECKS-KIND: criteria
 KINDS: criteria
 SOURCE: data/members-export.csv (a copy is in work/; you never get the original)

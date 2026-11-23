@@ -13,6 +13,8 @@ Keep the issue body current, but never overwrite what the reporter wrote.
 - After Phase 0 and after any plan is written or significantly revised, update those sections. They should always answer: "what are we building, why, and what's out of scope?"
 - Include the `## Plan` section only when a plan file exists (Moderate and Complex). Simple work has none.
 - After Phase 0 the update sets the Status line to `Diagnosing` and writes the Summary. `## Problems`, `## Options` and `## Done when` are filled at the Stop gate. `## Decision` stays empty until the owner answers.
+- A Simple fix with one problem writes only the Status line, ## Problems and ## Done when in the body. The untouched `## Original report` stays at the bottom.
+- A Simple fix leaves out ## Options, ## Proposed solution, ## Scope, ## Out of scope and ## Key decisions. Moderate and Complex use every section.
 - The body file is a fixed path in this run's folder `~/.superfix/runs/<run-key>/` (redaction.md says how to build `<run-key>`; write it out literally in each command), because the shell keeps no variables between calls. Build it (first block), run both checks in `references/redaction.md` on it and wait for `CLEAN` or `NO-LIST` (a `NO-RUN-FOLDER` stops) plus `PATTERN-CLEAN` or decided hits, then post it (second block). If a hit is inside `## Original report`, stop: see "The reporter's own issue body" in redaction.md.
 
 ```bash
@@ -127,6 +129,8 @@ Comment triggers:
 | PR open and CI green | final result: solved check, Not tested, PR link | Status |
 | Re-check, sign-off or export | final result or stop message | Status |
 
+The Simple one-problem stop writes Status, Problems and Done when only. It drops Options from the row above.
+
 Every message in this table carries the required Labels: line, and every Status change runs the label commands (Labels, below). Go's body update also adds the diagrams after they pass diagrams.md.
 
 - Any significant scope change or blocker encountered
@@ -188,6 +192,7 @@ New in 1.4.1. The labels follow the Status line, so the owner can list everythin
 - The `Labels:` field and the body's `**Labels:**` line are copied from `LABELS-NOW`, never typed from memory.
 - Labels are not a reason to stop. When the permission check says `LABELS-SKIPPED`, or a create or add fails, carry on: the field reads `not set (<word>); marker superfix-awaiting-decision` (or `superfix-approved`), and the body line reads `**Labels:** not set (<word>) <!-- marker superfix-awaiting-decision -->`. The visible text stays plain because the Status line already says "Waiting for you"; the marker sits in the body because the body is the current state (a comment would keep matching after the state moved on). GitHub search does find the marker inside the HTML comment, a few minutes after the edit (checked in 1.4.1), but it also matches any issue that mentions the same words.
 - No issue (file-mode journal): no label commands; `Labels: none (no issue)`.
+- A Simple fix with one problem runs no label commands and sets no superfix label. Its `Labels:` field reads `not set (simple)` and its body line reads `**Labels:** not set (simple)`.
 - On restart: read the Status line, the `**Labels:**` line and the live labels (read-back command), then run the commands so the labels match the Status line.
 
 Permission check, once per run before the first label (the owner test and workflow scan of the `assets` command in evidence.md, with the label words). It prints `LABELS-OK`, or `LABELS-SKIPPED not-owner`, `LABELS-SKIPPED hooks`, `LABELS-SKIPPED workflows` (with the `FLAG` and `UNREAD` lines) or `LABELS-SKIPPED could-not-list-files`. Any webhook on the repo (or a hook list it cannot read) means `hooks`. A workflow flags when its text, with quotes and YAML anchors (`&name`, `*name`) removed first, contains `issues`, `label`, `labeled` or `unlabeled` (any case), or writes `on:` in flow syntax; a file it cannot read is `UNREAD` and counts as a flag. GitHub Apps may still react to a label; they cannot be checked from here.
