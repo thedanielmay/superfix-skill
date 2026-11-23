@@ -10,10 +10,10 @@ description: >-
   It diagnoses first and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.10.0"
+  version: "1.11.0"
 ---
 
-# Superfix Orchestrator (version 1.10.0)
+# Superfix Orchestrator (version 1.11.0)
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
 Supersedes `change-pipeline` - do not invoke change-pipeline.
@@ -300,6 +300,7 @@ it is not counted as a pass:
     passes before and after instead
   - a brand-new module or feature, where taking the code out cannot fail
     meaningfully (only by import or missing command)
+Full-suite baseline, flaky re-run and pre-existing failure rules: `references/execute.md` ### Test scope.
 Two failed run-2 attempts, whatever the cause given: stop. Post:
   "My fix failed twice, so my diagnosis was wrong. Work kept on the branch.
    Used 1 hour 10 minutes of 2 hours. Reply 1 to re-diagnose (about 20 minutes) or 2 to stop."

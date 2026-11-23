@@ -102,7 +102,11 @@ Limits:
 ### Test scope
 
 - Impacted files only during implementation: `pytest <file> -n auto` / `npm run test -- --run <file>`
-- Full test suite once at end, before verification
+- Full test suite baseline: before any edit, run the full test suite once at approval-sha and save the list of failing tests as the baseline
+- Full test suite again at the end, before verification; compare its failing tests with the baseline
+  - New: a test that fails at the end and is absent from the baseline. Before calling it new, re-run that single test once; if the re-run passes, call it flaky and name it in the PR body, not new
+  - Pre-existing: a test in the baseline that still fails. List it in the PR body; never fix it silently and never hide it
+  - No test suite: say so in the PR body
 - Verification re-runs the failing check in ## Problems (solved check in SKILL.md) or the baseline on the real surface (test, curl, CLI, Playwright, or the measured timing for performance), pastes the output, and states whether the issue's stated goal is met
 - After pictures: SKILL.md Solved check and references/evidence.md
 - Labels, diagrams, gap notes: SKILL.md, journal.md, diagrams.md, gaps.md
