@@ -875,8 +875,8 @@ eval "$(python3 "$T/mkrig-k.py" "$HOME" test-roundchk-wo thedanielmay+superfix-t
 [ -n "$R2_RD" ] || { echo "CANNOT RUN: round checks rig build failed"; exit 2; }
 export R2_RD R2_RF R2_RCRC R2_DEST R2_BODYDEC
 python3 -I "$R2_RD/crit.py" wo-lock --run "$R2_RD" --folder "$R2_RF" --dest "$R2_DEST" --body "$R2_BODYDEC" >/dev/null 2>&1
-t wo-cleanup-round-checks-removed 'CHECKS-GONE' sh -c 'echo "smuggled data" > "$R2_DEST/checks/backup.csv"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD" >/dev/null 2>&1; test ! -e "$R2_DEST/checks/backup.csv" && echo CHECKS-GONE'
-t wo-notes-loop-guarded 'CLEANUP-INCOMPLETE.*RETURNED-9.md' sh -c 'mkdir -p "$R2_DEST"; echo linkme > "$T/notelink-target.md"; ln -s "$T/notelink-target.md" "$R2_DEST/RETURNED-9.md"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD"; rm -f "$R2_DEST/RETURNED-9.md"'
+t wo-notes-loop-guarded 'CLEANUP-INCOMPLETE.*RETURNED-9.md' sh -c 'echo linkme > "$T/notelink-target.md"; ln -s "$T/notelink-target.md" "$R2_DEST/RETURNED-9.md"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD"; rm -f "$R2_DEST/RETURNED-9.md"'
+t wo-cleanup-round-checks-removed 'CHECKS-GONE' sh -c 'mkdir -p "$R2_DEST/checks"; echo "smuggled data" > "$R2_DEST/checks/backup.csv"; python3 -I "$R2_RD/crit.py" wo-cleanup --run "$R2_RD" >/dev/null 2>&1; test ! -e "$R2_DEST/checks/backup.csv" && echo CHECKS-GONE'
 t wo-finish-wording 'wo-finish' sh -c 'grep -q "plain \`finish\` is not used for a work order" "$ROOT/skills/superfix/references/workorder.md" && echo wo-finish'
 t wo-values-wording 'row number and column' sh -c 'grep -q "row number and column" "$ROOT/skills/superfix/references/workorder.md" && echo "row number and column"'
 t wo-gate-docs-88 'FOREIGN-NOTE-DOCS-88' sh -c 'grep -q "wo-scan-comment" "$ROOT/skills/superfix/references/workorder.md" && echo FOREIGN-NOTE-DOCS-88'
