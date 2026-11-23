@@ -108,5 +108,9 @@ t i172-skill-security '^FOUND$' has "$S" 'the full diagnosis stays in the file-m
 t i172-journal-visibility '^FOUND$' has "$D/journal.md" 'gh repo view <owner>/<repo> --json visibility -q .visibility'
 t i172-journal-security '^FOUND$' has "$D/journal.md" 'Security problem diagnosed; details are in the local journal'
 
+# issue 173: a full-suite baseline before the fix, and a single-test re-run before calling a test new
+t i173-baseline-run '^FOUND$' has "$D/execute.md" "run the full test suite once at approval-sha"
+t i173-flaky-rerun '^FOUND$' has "$D/execute.md" "re-run that single test once; if the re-run passes, call it flaky"
+
 echo "RESULT: $pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.11.0 - 2026-11-23
+
+- #173: the full test suite runs at approval-sha before the fix, and a flaky test is named in the PR body.
+  - `references/execute.md` ### Test scope: run the full suite once at approval-sha before any edit and save the failing tests as the baseline.
+  - Run the full suite again at the end and compare its failures with the baseline.
+  - A test that fails only at the end is new. Re-run that single test once before calling it new. A pass on the re-run makes it flaky; name it in the PR body, not new.
+  - A test in the baseline that still fails is pre-existing. List it in the PR body. Never fix it silently and never hide it.
+  - A repo with no test suite is named in the PR body.
+  - `SKILL.md` gains one pointer line in the Solved check and stays under the 352 line cap.
+  - `tests/skill-text-tests.sh` checks the baseline run and the flaky re-run. `tests/preservation-1.11.0.md` records the version and replaced lines.
+
 ## 1.10.0 - 2026-11-23
 
 - #172: the run checks the repo's visibility before its first post. A public security run publishes no exploit detail.
