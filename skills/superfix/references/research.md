@@ -28,7 +28,7 @@ Evidence: <file:line, and what it says>; <the command, and the output trimmed to
 Certainty: confirmed | suspected
 ```
 
-Rules: no answer without evidence; a claim you could not check is `suspected` and says what would settle it; never a value from the owner's data (redaction.md); never a bare issue number (house style: a markdown link labelled `owner/repo#N`).
+Rules: no answer without evidence; a claim you could not check is `suspected` and says what would settle it; never a value from the owner's data (redaction.md); never a bare issue number (house style: a markdown link labelled `repo#N`).
 
 ## The validation pass, one agent and once
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.12.1 - 2026-11-26
+
+- Issue links in side findings and research reports use `<repo>#<N>` as the label. The link address keeps the owner.
+- Issues the skill creates or asks the owner to decide on are assigned to the `gh` user, by adding the person who must act (others stay assigned). A failed assignment is reported and does not stop the run.
+- CONTRIBUTING.md no longer asks for a version change in the marketplace list.
+
 ## 1.12.0 - 2026-11-23
 
 - #174: the trigger names issue-led and explicitly requested runs only. A Simple fix with one problem drops the label and diagram ceremony.

@@ -66,7 +66,7 @@ t p125-lines '^MAX-400-OK$' count_where "$S" 'n=$(wc -l < "$0"); if [ "$n" -le 4
 t p127-side-findings-row '^FOUND$' has "$D/project.md" '| `side-findings` | `list` or `file`; what the run does with a finding outside the job | no |'
 t p127-side-findings-settings '^FOUND$' has "$D/project.md" '`side-findings=file` when the run may file'
 t p127-side-findings-skill '^FOUND$' has "$S" '`superfix:side-finding` and assigned'
-t p127-side-findings-journal '^FOUND$' has "$D/journal-close.md" 'Found while working on [<owner>/<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)'
+t p127-side-findings-journal '^FOUND$' has "$D/journal-close.md" 'Found while working on [<repo>#<N>](https://github.com/<owner>/<repo>/issues/<N>)'
 t p127-side-finding-label '^FOUND$' has "$D/journal-close.md" 'colour `1D76DB`'
 t p127-side-findings-cap '^FOUND$' has "$D/journal-close.md" 'At most 5 a run; the sixth and later stay under'
 

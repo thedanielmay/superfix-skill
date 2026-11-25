@@ -40,15 +40,14 @@ Claude Code installs superfix through the marketplace repo `thedanielmay/claude-
 
 1. In this repo, change `version` in `.claude-plugin/plugin.json` (for example `1.0.0` to `1.1.0`). Change `metadata.version` in `skills/superfix/SKILL.md` and the version in its first heading, `# Superfix Orchestrator (version X.Y.Z)`, to the same number. A CI test fails when the three differ. Merge to `main`.
 2. Tag and push: `git tag v1.1.0 && git push origin v1.1.0`.
-3. In `thedanielmay/claude-marketplace`, change superfix's `version` in `.claude-plugin/marketplace.json` to the same number. Merge to `main`.
-4. Pull it into Claude Code:
+3. Pull it into Claude Code:
    - `claude plugin marketplace update thedanielmay`
    - `claude plugin update superfix@thedanielmay`
-5. Check it worked:
+4. Check it worked:
    - `~/.claude/plugins/installed_plugins.json` shows the new version and the new commit SHA for `superfix@thedanielmay`.
    - `diff ~/.claude/plugins/cache/thedanielmay/superfix/<version>/skills/superfix/SKILL.md skills/superfix/SKILL.md` prints nothing.
-6. opencode needs no deploy step. It already reads this checkout. Keep the clone on `main` when you are not mid-edit, so opencode runs released text.
-7. Restart Claude Code. The update only applies after a restart: until then the old cached copy keeps loading.
+5. opencode needs no deploy step. It already reads this checkout. Keep the clone on `main` when you are not mid-edit, so opencode runs released text.
+6. Restart Claude Code. The update only applies after a restart: until then the old cached copy keeps loading.
    - After the restart, load the skill. Line 1 of the skill body must read `# Superfix Orchestrator (version <new version>)`.
    - If it shows an older version, the old copy is still loaded. Restart again.
 
