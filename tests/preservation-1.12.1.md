@@ -1,9 +1,7 @@
 # Preservation 1.12.1
 
-The last two entries cover the CI default comparison against v1.10.0, which is
-the newest release tag reachable from HEAD~. They are unused in the explicit
-`--tag v1.11.0` comparison.
-
+Entries for earlier releases stay below and show as unused. The 1.12.1 entries
+are at the end.
 
 - skills/superfix/SKILL.md > (start of file) :: Intelligent development orchestrator - accepts a GitHub issue number or :: trigger narrowed in 1.12.0 issue 174; the folded description was rewritten in place and keeps the issue, pull-request and criteria forms
 - skills/superfix/SKILL.md > (start of file) :: It diagnoses first and stops for approval before fixing. :: trigger narrowed in 1.12.0 issue 174; the folded description was rewritten in place and keeps the issue, pull-request and criteria forms

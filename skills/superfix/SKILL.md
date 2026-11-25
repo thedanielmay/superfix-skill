@@ -190,7 +190,7 @@ A comment without the body update is not a stop.
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
    numbered, each with the recommended answer, the effort and the budget.
-   If an issue exists, assign it to the `gh` user (`gh api user -q .login`) or keep its current assignee (`gh issue edit --add-assignee`). Report a failed assignment and do not stop the run.
+   If an issue exists, add the person who must decide: `gh issue edit <N> --add-assignee <login>` (the `gh api user -q .login` user when the owner runs this). Others stay assigned. Report a failed assignment and do not stop the run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    Simple with one problem and no design decision: keep the three-line decision, but drop the ceremony: the body holds only the Status line, ## Problems and ## Done when.
    No superfix labels: the Labels field reads `not set (simple)` and no label commands run. The diagram question never applies to Simple (already true in diagrams.md).
