@@ -9,10 +9,10 @@ description: >-
   change to an opened PR with CI green, and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.12.0"
+  version: "1.12.1"
 ---
 
-# Superfix Orchestrator (version 1.12.0)
+# Superfix Orchestrator (version 1.12.1)
 Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green,
 ready for review) without requiring manual skill invocation or step breakdown.
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
@@ -190,6 +190,7 @@ A comment without the body update is not a stop.
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
    numbered, each with the recommended answer, the effort and the budget.
+   If an issue exists, assign it to the `gh` user (`gh api user -q .login`) or keep its current assignee (`gh issue edit --add-assignee`). Report a failed assignment and do not stop the run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    Simple with one problem and no design decision: keep the three-line decision, but drop the ceremony: the body holds only the Status line, ## Problems and ## Done when.
    No superfix labels: the Labels field reads `not set (simple)` and no label commands run. The diagram question never applies to Simple (already true in diagrams.md).
