@@ -223,13 +223,13 @@ def keyword_hits(lines, words):
 
 
 def owner_repo_from_url(url):
-    """owner/repo from a GitHub HTTPS address or an scp-style SSH address with any host alias.
+    """owner/repo from a GitHub HTTPS address or an scp-style SSH address with github.com or a host alias with no dot.
 
     None for an address that is not one of these forms. No Git command runs here.
     """
     for pat in (r"https?://(?:[^/@]+@)?github\.com/(%s)/?" % OWNER_REPO,
                 r"ssh://(?:[^/@]+@)?github\.com/(%s)/?" % OWNER_REPO,
-                r"(?:[^@/:]+@)?[^/:]+:(%s)/?" % OWNER_REPO):
+                r"(?:[^@/:]+@)?(?:github\.com|[^/:.]+):(%s)/?" % OWNER_REPO):
         m = re.fullmatch(pat, url, re.I)
         if m:
             return m.group(1).lower().removesuffix(".git")
