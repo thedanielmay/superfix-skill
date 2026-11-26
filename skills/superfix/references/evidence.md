@@ -26,7 +26,7 @@ D="$HOME/.superfix/runs/<run-key>"; if [ -d "$D/evidence" ]; then echo "PICTURES
 
 ### Finding the tools (every run, before the first picture)
 
-Follow the user's browser order rules first when the user has them. Take the picture with the first tool in that order that can run the blanking and checks below. Use the Playwright paths below only when that order cannot take the picture, or when the user asks for Playwright or a new browser. Without such a rule, keep the order below.
+Follow the user's browser order rules first when the user has them. Take the picture with the first tool in that order that can run the blanking and checks below. Use the Playwright paths below only when that order cannot take the picture, or when the user asks for Playwright or a new browser. Without such a rule, keep the order below. Never take a picture from a signed in browser. Any tool other than the capture script follows the MCP path rules: only after `NO-LIST`, and never on a logged in page.
 
 1. Look at your own tool list for `mcp__plugin_playwright_playwright__browser_run_code` (or any `mcp__*playwright*__browser_run_code`).
    - Listed in full: usable.
@@ -42,7 +42,7 @@ for p in python3 /usr/bin/python3; do command -v "$p" >/dev/null 2>&1 && "$p" -c
    - `BROWSER-SCRIPT <python>` printed before `PROBE-DONE`: the script path, with that interpreter written out as `<python>` in every command below (on a Mac with Xcode it is often `/usr/bin/python3`, because Homebrew's `python3` has no playwright module).
    - Else Playwright MCP usable AND the exact-string check in redaction.md prints `NO-LIST` (no credential given this run): `BROWSER-MCP`. The MCP path cannot read the secrets file without pasting it into a tool call, so it is never used when the list has any entry.
    - Else `NO-BROWSER`: no pictures; the Not tested line below.
-4. Claude in Chrome is never a picture source: it is the owner's real, signed-in browser. It stays a diagnosis aid, as in 1.3.1.
+4. Claude in Chrome is never a picture source: it is the owner's real, signed-in browser. It stays a diagnosis aid, as in 1.3.1. No signed in browser takes a picture. Every tool other than the capture script follows the MCP path rules above.
 5. Write what you found in `Tools used:`, for example `Pictures: BROWSER-SCRIPT /usr/bin/python3; Playwright MCP: deferred, loaded; tesseract and magick present.` or `Pictures: NO-BROWSER; Playwright MCP: absent.`
 
 ### The capture script (script path)

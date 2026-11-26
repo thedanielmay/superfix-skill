@@ -171,7 +171,7 @@ w 'closing: closes'
 pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
 t closing-body-closes-ok '^CLOSING-OK$' 0 issue_run
 pb 'Body.\n\nCloses #125'
-t closing-body-bare-hash-refused '^CLOSING-BAD no-closing-keyword$' 1 issue_run
+t closing-body-bare-hash-refused '^CLOSING-BAD closing-keyword-for #125$' 1 issue_run
 pb 'Body.\n\nCloses 125'
 t closing-body-bare-number '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
@@ -182,7 +182,7 @@ w 'closing: refs'
 pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
 t closing-body-refs-ok '^CLOSING-OK$' 0 issue_run
 pb 'Body.\n\nCloses #125'
-t closing-body-refs-bare-hash '^CLOSING-BAD no-refs-line$' 1 issue_run
+t closing-body-refs-bare-hash '^CLOSING-BAD closing-keyword line 3$' 1 issue_run
 pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
 t closing-body-refs-has-closing '^CLOSING-BAD closing-keyword line 3$' 1 issue_run
 pb 'Body.\n\n```\nCloses thedanielmay/superfix-skill#125\n```'
@@ -245,7 +245,48 @@ t closing-repo-identity-worktree '^CLOSING-OK$' 0 issue_run
 rm "$R/.git"
 t closing-qualified-without-repo '^CLOSING-BAD closing-keyword-for TheDanielMay/Superfix-Skill#125$' 1 issue_run
 pb 'Body.\n\nCloses #125'
-t closing-bare-hash-without-repo '^CLOSING-BAD no-closing-keyword$' 1 issue_run
+t closing-bare-hash-without-repo '^CLOSING-BAD closing-keyword-for #125$' 1 issue_run
+
+# ---- a bare closing hit is refused in every mode ----
+mkdir -p "$R/.git"
+printf '[remote "origin"]\nurl = https://github.com/thedanielmay/superfix-skill.git\n' > "$R/.git/config"
+w 'closing: refs'
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125\nCloses #12'
+t refs-bare-closing-keyword '^CLOSING-BAD closing-keyword line 4$' 1 issue_run
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125\nFixes #999'
+t refs-bare-fixes-keyword '^CLOSING-BAD closing-keyword line 4$' 1 issue_run
+pb 'Body.\n\nCloses: #12\nRefs thedanielmay/superfix-skill#125'
+t refs-colon-bare-closing '^CLOSING-BAD closing-keyword line 3$' 1 issue_run
+pb 'Body.\n\nRefs #12'
+t refs-bare-refs-line '^CLOSING-BAD no-refs-line$' 1 issue_run
+w 'closing: closes'
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125\nCloses #999'
+t closes-bare-second-hit '^CLOSING-BAD closing-keyword-for #999$' 1 issue_run
+pb 'Body.\n\nCloses #12'
+t closes-bare-only '^CLOSING-BAD closing-keyword-for #12$' 1 issue_run
+w 'closing: auto'
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125\nCloses #999'
+t auto-bare-second-hit '^CLOSING-BAD closing-keyword-for #999$' 1 issue_run
+pb 'Body.\n\nCloses #12'
+t auto-bare-only '^CLOSING-BAD closing-keyword-for #12$' 1 issue_run
+
+# ---- origin address forms, and an explicit issue repository ----
+w 'closing: closes'
+for remote in 'https://user@github.com/thedanielmay/superfix-skill.git' 'git@myalias:thedanielmay/superfix-skill.git'; do
+  printf '[remote "origin"]\nurl = %s\n' "$remote" > "$R/.git/config"
+  pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
+  t "closing-origin-form-$remote" '^CLOSING-OK$' 0 issue_run
+done
+printf '[remote "origin"]\nurl = https://github.com/elsewhere/unknown.git\n' > "$R/.git/config"
+pb 'Body.\n\nCloses upstream/other#125'
+t closing-no-override-refused '^CLOSING-BAD closing-keyword-for upstream/other#125$' 1 issue_run
+t closing-override-ok '^CLOSING-OK$' 0 $P --pr-body "$T/pr-body.md" --issue 125 --repo upstream/other "$R"
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
+t closing-override-wrong-repo '^CLOSING-BAD closing-keyword-for thedanielmay/superfix-skill#125$' 1 $P --pr-body "$T/pr-body.md" --issue 125 --repo upstream/other "$R"
+t closing-override-malformed '^CLOSING-BAD bad-repo' 1 $P --pr-body "$T/pr-body.md" --issue 125 --repo not-a-repo "$R"
+rm -rf "$R/.git"
+pb 'Body.\n\nCloses upstream/other#125'
+t closing-override-without-origin '^CLOSING-OK$' 0 $P --pr-body "$T/pr-body.md" --issue 125 --repo upstream/other "$R"
 
 # ---- model: the fix stage default (1.7.0 part one, superfix-skill#125) ----
 for v in sonnet opus default; do

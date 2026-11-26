@@ -18,8 +18,10 @@ Output, one line per item, the status line first:
   SETTINGS-NONE                  the file is absent or holds no settings
 Exit 0 for OK and UNKNOWN-KEY (the run continues), 1 for the three stops.
 
-With --pr-body <file> --issue <n> it reads closing: from the settings and checks
-the PR body instead: CLOSING-OK, or CLOSING-BAD <why> and exit 1.
+With --pr-body <file> --issue <n> [--repo <owner>/<repo>] it reads closing: from
+the settings and checks the PR body instead: CLOSING-OK, or CLOSING-BAD <why> and
+exit 1. --repo names the issue repository; without it the check falls back to
+origin. A bare #<n> closing hit is refused in every mode because GitHub closes it.
 """
 import configparser, pathlib, re, sys
 
@@ -49,12 +51,13 @@ FLAGS = ("-I", "-u", "-B", "-n")
 SCRIPT_EXT = (".py", ".sh", ".js")
 SHELL_META = set('|&;$`<>(){}!*?#~\\"\'')
 REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
-# The two forms a closing keyword or a refs line may name an issue in. Both close on
-# GitHub. A bare #<n> is not one of them, and neither is a markdown link: GitHub does
-# not read a link as a closing keyword.
+# The three forms a keyword may name an issue in. GitHub closes all three, so a
+# bare #<n> is matched and refused. A markdown link is not one of them: GitHub
+# does not read a link as a closing keyword.
 OWNER_REPO = r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+"
+REPO_ARG = re.compile(r"^%s$" % OWNER_REPO, re.I)
 ISSUE = (r"(?:https?://github\.com/(?P<url_repo>" + OWNER_REPO + r")/issues/(?P<url_num>\d+)\b|"
-         r"(?P<repo>" + OWNER_REPO + r")#(?P<num>\d+)\b)")
+         r"(?P<repo>" + OWNER_REPO + r")#(?P<num>\d+)\b|#(?P<local_num>\d+)\b)")
 LINK_FORM = re.compile(
     r"^\s*(%s)\s*:?\s*\[[^\]]*\]\(\s*https?://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/issues/\d+\s*\)"
     % "|".join(CLOSING_WORDS + ("refs",)),
@@ -206,21 +209,35 @@ def body_lines(text):
 
 
 def keyword_hits(lines, words):
-    """(line number, repository, issue number) for each keyword line that
-    names the issue as <owner>/<repo>#<n> or
-    https://github.com/<owner>/<repo>/issues/<n>. A bare #<n> is not a hit."""
+    """(line number, repository or None, issue number) for each keyword line that
+    names the issue as #<n>, <owner>/<repo>#<n> or
+    https://github.com/<owner>/<repo>/issues/<n>. A bare #<n> has repository None."""
     pat = re.compile(r"^\s*(%s)\s*:?\s*%s" % ("|".join(words), ISSUE), re.I)
     out = []
     for n, raw in lines:
         m = pat.match(raw)
         if m:
             out.append((n, m.group("url_repo") or m.group("repo"),
-                        int(m.group("url_num") or m.group("num"))))
+                        int(m.group("url_num") or m.group("num") or m.group("local_num"))))
     return out
 
 
+def owner_repo_from_url(url):
+    """owner/repo from a GitHub HTTPS address or an scp-style SSH address with any host alias.
+
+    None for an address that is not one of these forms. No Git command runs here.
+    """
+    for pat in (r"https?://(?:[^/@]+@)?github\.com/(%s)/?" % OWNER_REPO,
+                r"ssh://(?:[^/@]+@)?github\.com/(%s)/?" % OWNER_REPO,
+                r"(?:[^@/:]+@)?[^/:]+:(%s)/?" % OWNER_REPO):
+        m = re.fullmatch(pat, url, re.I)
+        if m:
+            return m.group(1).lower().removesuffix(".git")
+    return None
+
+
 def repository_name(root):
-    """Read origin's GitHub owner/repository locally, including linked worktrees.
+    """Read origin's owner/repository locally, including linked worktrees.
 
     No Git command or config include is executed. Unknown metadata returns None,
     so a qualified reference cannot pass on its number alone.
@@ -240,10 +257,7 @@ def repository_name(root):
         url = config.get('remote "origin"', "url", fallback="")
     except (OSError, UnicodeError, configparser.Error):
         return None
-    match = re.fullmatch(
-        r"(?:https?://github\.com/|ssh://git@github\.com/|git@github\.com:)(%s)/?"
-        % OWNER_REPO, url, re.I)
-    return match.group(1).lower().removesuffix(".git") if match else None
+    return owner_repo_from_url(url)
 
 
 def link_form_hits(lines):
@@ -253,8 +267,11 @@ def link_form_hits(lines):
     return [n for n, raw in lines if LINK_FORM.match(raw)]
 
 
-def closing_check(root, body_path, issue):
-    """The one line verdict for a PR body against the repo's closing: setting."""
+def closing_check(root, body_path, issue, override=None):
+    """The one line verdict for a PR body against the repo's closing: setting.
+
+    override names the issue repository and takes precedence over origin.
+    """
     lines, code = read(root)
     if code:
         return [f"CLOSING-BAD settings {lines[0]}"], 1
@@ -274,10 +291,13 @@ def closing_check(root, body_path, issue):
     closes = keyword_hits(body, CLOSING_WORDS)
     refs = keyword_hits(body, ("refs",))
     n = int(issue)
-    repository = repository_name(root)
-    wrong = [f"{repo}#{num}" if repo.lower() != repository else num
-             for _, repo, num in closes
-             if num != n or repo.lower() != repository]
+    repository = override or repository_name(root)
+    wrong = []
+    for _, repo, num in closes:
+        if repo is None:
+            wrong.append(f"#{num}")
+        elif num != n or repo.lower() != repository:
+            wrong.append(f"{repo}#{num}" if repo.lower() != repository else str(num))
     if wanted == "closes":
         if not closes:
             return ["CLOSING-BAD no-closing-keyword"], 1
@@ -287,7 +307,7 @@ def closing_check(root, body_path, issue):
     if wanted == "refs":
         if closes:
             return [f"CLOSING-BAD closing-keyword line {closes[0][0]}"], 1
-        if not any(num == n and repo.lower() == repository
+        if not any(num == n and repo is not None and repo.lower() == repository
                    for _, repo, num in refs):
             return ["CLOSING-BAD no-refs-line"], 1
         return ["CLOSING-OK"], 0
@@ -298,7 +318,7 @@ def closing_check(root, body_path, issue):
 
 def main(argv):
     args = argv[1:]
-    body = issue = None
+    body = issue = override = None
     rest = []
     i = 0
     while i < len(args):
@@ -307,6 +327,9 @@ def main(argv):
             i += 2
         elif args[i] == "--issue" and i + 1 < len(args):
             issue = args[i + 1]
+            i += 2
+        elif args[i] == "--repo" and i + 1 < len(args):
+            override = args[i + 1]
             i += 2
         elif args[i].startswith("-"):
             print(f"PROJECT-REFUSED unknown option {re.sub(r'[\x00-\x1f\x7f]', '?', args[i])[:60]}")
@@ -319,7 +342,13 @@ def main(argv):
         print(f"PROJECT-REFUSED {re.sub(r'[\x00-\x1f\x7f]', '?', str(root))[:100]} is not a folder")
         return 1
     if body is not None:
-        lines, code = closing_check(root, body, issue)
+        if override is not None:
+            if not REPO_ARG.fullmatch(override):
+                bad = re.sub(r'[\x00-\x1f\x7f]', '?', override)[:60]
+                print(f"CLOSING-BAD bad-repo {bad}")
+                return 1
+            override = override.lower().removesuffix(".git")
+        lines, code = closing_check(root, body, issue, override)
         print("\n".join(lines))
         return code
     lines, code = read(root)

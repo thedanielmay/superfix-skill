@@ -189,7 +189,7 @@ A comment without the body update is not a stop.
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
    numbered, each with the recommended answer, the effort and the budget.
-   If the user's rules require a question tool, also ask through the harness question tool: `AskUserQuestion` in Claude Code, `question` in OpenCode. The decision comment stays as the written record. Without such a rule, keep the questions as plain text.
+   If the user's rules require a question tool, also ask through the harness question tool: `AskUserQuestion` in Claude Code, `question` in OpenCode. The decision comment stays as the written record. Without such a rule, keep the questions as plain text. The create-issue, assets release and criteria reminder questions still have no recommended option. A dismissed or empty answer is not a go.
    If an issue exists, add the person who must decide: `gh issue edit <N> --add-assignee <login>` (the `gh api user -q .login` user when the owner runs this). Others stay assigned. Report a failed assignment and do not stop the run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    Simple with one problem and no design decision: keep the three-line decision, but drop the ceremony: the body holds only the Status line, ## Problems and ## Done when.
@@ -352,7 +352,7 @@ Status "Waiting for you: 1 question". Never re-diagnose quietly.
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. Unless `closing: refs` is set,
 the PR body includes `Closes <owner>/<repo>#<N>` so GitHub closes the issue when the PR merges into the default branch. A bare `Closes #<N>` is refused.
 Criteria mode: the PR body says `Refs <owner>/<repo>#<N>` in the cases in `references/criteria.md` section 16. `closing: closes` makes the closing keyword required, `closing: refs` forbids it,
-and `python3 -I "<skill dir>/references/project.py" --pr-body <body file> --issue <N> <repo>` must print `CLOSING-OK` before the PR is opened.
+and `python3 -I "<skill dir>/references/project.py" --pr-body <body file> --issue <N> [--repo <owner>/<repo>] <repo>` must print `CLOSING-OK` before the PR is opened.
 ### Independent review (Moderate, Complex, or any gate or prompt text change)
 After the PR is open, dispatch one reviewer that gets the PR number and the owner's own words, and nothing else. The rules, mechanics and limits are in `references/execute.md` (Independent review).
 It posts one verdict line, `INDEPENDENT-REVIEW PASS|FAIL <n> findings`; FAIL blocks the ready-for-review status.
