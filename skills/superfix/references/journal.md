@@ -244,6 +244,7 @@ Write that line in the decision comment's "In plain English" opening and in each
 ### Decision message (posted at the Stop gate)
 
 ONE comment, or one journal entry, per run. It holds every question for this run, numbered, each with the recommended answer, the effort and the budget.
+When the user's rules require a question tool, also ask through the harness question tool, `AskUserQuestion` in Claude Code or `question` in OpenCode, and keep this comment as the written record. Without such a rule, post the questions as plain text only. The create-issue, assets release and criteria reminder questions still have no recommended option. A dismissed or empty answer is not a go.
 
 ```
 > **In plain English:** I found 2 problems and what causes them. I need 2 answers before I fix anything.

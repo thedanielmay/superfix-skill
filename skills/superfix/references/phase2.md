@@ -18,7 +18,7 @@ If the panel overturns the approved option or breaks the approved budget, go bac
 ### Moderate and Complex dispatch
 Create branch with the shared block above before dispatching the agent (except Qik work, which has no branch). Architecture: create the worktree from `<approval-sha>` instead of creating a branch first.
 
-Invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. Pass:
+By default invoke `Agent` tool [sonnet/high for implementation; opus/high for architecture judgment]. If the user has their own rule that sends build work to another executor, for example a global instruction file, follow that rule for implementation steps instead. Other users keep this dispatch. The executor or the agent receives the same brief. The brief holds:
 - Branch name
 - Context file path
 - Plan file path

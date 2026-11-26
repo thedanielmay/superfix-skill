@@ -9,12 +9,11 @@ description: >-
   change to an opened PR with CI green, and stops for approval before fixing.
 license: MIT
 metadata:
-  version: "1.12.1"
+  version: "1.12.2"
 ---
 
-# Superfix Orchestrator (version 1.12.1)
-Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green,
-ready for review) without requiring manual skill invocation or step breakdown.
+# Superfix Orchestrator (version 1.12.2)
+Intelligent front-door for all development work. Accepts a GitHub issue or freeform description, classifies the problem, assembles the right skill set, and drives it to an opened PR (CI green, ready for review) without requiring manual skill invocation or step breakdown.
 It diagnoses first and stops for approval before fixing: one decision message per run, then the fix, then proof that it worked.
 Supersedes `change-pipeline` - do not invoke change-pipeline.
 
@@ -30,6 +29,7 @@ Applied automatically. No user configuration required.
 State model+effort inline at every dispatch: `[sonnet/high - codebase exploration]`
 Skill names are Claude Code names. If a name does not resolve, use the opencode equivalent from the inventory; if neither exists,
 do the step inline from its stated purpose and write `ran inline: <skill>` in the PR body. Never skip tests or verification.
+If the user has their own rule that sends build work to another executor, for example in a global instruction file, follow that rule for implementation steps. Other users keep the model and effort above.
 
 ## Input Handling
 | Input form | How to get context |
@@ -44,8 +44,7 @@ the same record goes in the file-mode journal outside the repo (see journal-nofi
 never in the working tree. Read `references/journal.md` before the first
 comment, body edit or journal entry.
 
-If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately.
-Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
+If `gh issue view` fails (auth error, repo not set, issue not found), surface the error immediately. Do not silently fall back to "no issue" mode - confirm with the user whether to continue without GitHub integration or abort.
 
 ## Phase 0 - Problem Profile
 Read the full input - body, labels, all comments - before classifying. Never classify from title alone.
@@ -190,6 +189,7 @@ A comment without the body update is not a stop.
 3. Run the redaction check (below), then post ONE decision comment, or write
    it to the file-mode journal. It holds every question for this run,
    numbered, each with the recommended answer, the effort and the budget.
+   If the user's rules require a question tool, also ask through the harness question tool: `AskUserQuestion` in Claude Code, `question` in OpenCode. The decision comment stays as the written record. Without such a rule, keep the questions as plain text. The create-issue, assets release and criteria reminder questions still have no recommended option. A dismissed or empty answer is not a go.
    If an issue exists, add the person who must decide: `gh issue edit <N> --add-assignee <login>` (the `gh api user -q .login` user when the owner runs this). Others stay assigned. Report a failed assignment and do not stop the run.
    Simple with one problem: three lines (problem, fix, effort) and "Go?".
    Simple with one problem and no design decision: keep the three-line decision, but drop the ceremony: the body holds only the Status line, ## Problems and ## Done when.
@@ -350,9 +350,9 @@ Status "Waiting for you: 1 question". Never re-diagnose quietly.
 
 ## Phase 4 - Close
 Invoke `superpowers:finishing-a-development-branch` [sonnet/high]. Standard choice: push and create PR. Unless `closing: refs` is set,
-the PR body includes `Closes #<N>` so GitHub closes the issue when the PR merges into the default branch.
-Criteria mode: the PR body says `Refs #<N>` in the cases in `references/criteria.md` section 16. `closing: closes` makes the closing keyword required, `closing: refs` forbids it,
-and `python3 -I "<skill dir>/references/project.py" --pr-body <body file> --issue <N> <repo>` must print `CLOSING-OK` before the PR is opened.
+the PR body includes `Closes <owner>/<repo>#<N>` so GitHub closes the issue when the PR merges into the default branch. A bare `Closes #<N>` is refused.
+Criteria mode: the PR body says `Refs <owner>/<repo>#<N>` in the cases in `references/criteria.md` section 16. `closing: closes` makes the closing keyword required, `closing: refs` forbids it,
+and `python3 -I "<skill dir>/references/project.py" --pr-body <body file> --issue <N> [--repo <owner>/<repo>] <repo>` must print `CLOSING-OK` before the PR is opened.
 ### Independent review (Moderate, Complex, or any gate or prompt text change)
 After the PR is open, dispatch one reviewer that gets the PR number and the owner's own words, and nothing else. The rules, mechanics and limits are in `references/execute.md` (Independent review).
 It posts one verdict line, `INDEPENDENT-REVIEW PASS|FAIL <n> findings`; FAIL blocks the ready-for-review status.

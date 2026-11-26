@@ -12,7 +12,7 @@ the run reaches Phase 3 with the owner's go.
 
 ````
 python3 -I "<skill dir>/references/project.py" <repo>        # <repo> defaults to the current folder
-python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> <repo>   # the closing check
+python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> [--repo <owner>/<repo>] <repo>   # the closing check
 ````
 
 ## The file
@@ -48,21 +48,24 @@ where the run works.
 
 ## closing and model
 
-`closing: auto` (the default) keeps the Phase 4 rule: the PR body carries `Closes #<N>` so the issue
-closes on merge, or `Refs #<N>` when a criteria-mode problem still has a `later` or `owner` criterion,
+`closing: auto` (the default) keeps the Phase 4 rule: the PR body carries `Closes <owner>/<repo>#<N>` so the issue
+closes on merge, or `Refs <owner>/<repo>#<N>` when a criteria-mode problem still has a `later` or `owner` criterion,
 is a process, or still matches the owner's description. `closes` makes the closing keyword required.
-`refs` forbids every closing keyword (`Closes`, `Fixes`, `Resolves`) and needs a `Refs #<N>` line. A
+`refs` forbids every closing keyword (`Closes`, `Fixes`, `Resolves`) and needs a `Refs <owner>/<repo>#<N>` line. A
 keyword inside a code fence does not count, and a closing keyword naming a different issue is refused.
-The checker is `python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> <repo>`, which prints
-`CLOSING-OK` or `CLOSING-BAD <why>` and exits 1.
+The checker is `python3 -I "<skill dir>/references/project.py" --pr-body <file> --issue <N> [--repo <owner>/<repo>] <repo>`, which prints
+`CLOSING-OK` or `CLOSING-BAD <why>` and exits 1. `--repo` names the issue repository and wins over `origin`,
+which the check reads from local Git metadata (including linked worktrees). Pass `--repo` when the issue
+is in an upstream repository or `origin` uses an address the checker cannot read.
 
-A keyword counts in three forms only: `Closes #12`, `Closes owner/repo#12` or
-`Closes https://github.com/owner/repo/issues/12`, and the same three after `Refs`. A keyword followed
-by a markdown link, `Closes [label](https://github.com/owner/repo/issues/12)`, closes nothing on
-GitHub, so `closes` and `refs` refuse it with `CLOSING-BAD link-form-does-not-close <line>`.
-Qualified references must match this clone's GitHub `origin` repository, read from local Git
-metadata (including linked worktrees); if it cannot be identified, they are refused. Unqualified
-`#<N>` references still refer to this repository without needing remote metadata.
+A keyword may name an issue in three forms: `Closes owner/repo#12`,
+`Closes https://github.com/owner/repo/issues/12` and `Closes #12`, and the same three after `Refs`. GitHub closes all three. The qualified
+forms count only when they match the issue repository. A bare `Closes #12` is refused in every mode with
+`CLOSING-BAD closing-keyword-for #12`, because GitHub closes a bare number too. In `refs` mode any closing
+keyword, bare or qualified, is refused with `CLOSING-BAD closing-keyword line <line>`, and a `Refs` line
+must name a repository. A keyword followed by a markdown link,
+`Closes [label](https://github.com/owner/repo/issues/12)`, closes nothing on GitHub, so `closes` and
+`refs` refuse it with `CLOSING-BAD link-form-does-not-close <line>`. A bare `#<N>` reference is never written in the PR body.
 
 `model:` is a default for the fix stage only. The Model and Effort Policy table in `SKILL.md` can still
 raise it for a Complex or architecture step, so it is not "always use this model". `default` means the

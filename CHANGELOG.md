@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.2 - 2026-11-26
+
+- Model and effort policy: when the user has their own rule that sends build work to another executor, for example a global instruction file, Superfix follows it for implementation steps. Other users keep the model and effort table. The fix agent dispatch says the same.
+- Stop gate questions: when the user's rules require a question tool, Superfix also asks through the harness question tool, `AskUserQuestion` in Claude Code or `question` in OpenCode, and keeps the decision comment as the written record. Without such a rule, the questions stay plain text.
+- Screenshots: the user's browser order rules come first. Playwright is used only when that order cannot take the picture, or when the user asks. `references/evidence.md` and `references/diagnose.md` agree.
+- Pull request closing lines use `Closes <owner>/<repo>#<N>`, never a bare `#12`. `references/project.py` refuses the bare form and keeps the repository-qualified and URL forms that GitHub closes. The tests and the rule text agree.
+- `SKILL.md` stays at 400 lines. `tests/preservation-1.12.2.md` records every line removed or replaced.
+
 ## 1.12.1 - 2026-11-26
 
 - Issue links in side findings and research reports use `<repo>#<N>` as the label. The link address keeps the owner.

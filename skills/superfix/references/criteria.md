@@ -300,7 +300,7 @@ python3 -I "$HOME/.superfix/runs/<run-key>/crit.py" progress --run "$HOME/.super
 
 ### 16. Later and owner
 
-- `Refs`, not `Closes`: the PR body says `Refs #<N>` whenever any non-code problem has a `later` or `owner` criterion, is a process, or is in the "description still holds" case; with a `later` criterion it adds "Adopted, effect not measured yet. <plain name> is due on <date>." Status `Waiting for you: re-check on <date>`.
+- `Refs`, not `Closes`: the PR body says `Refs <owner>/<repo>#<N>` whenever any non-code problem has a `later` or `owner` criterion, is a process, or is in the "description still holds" case; with a `later` criterion it adds "Adopted, effect not measured yet. <plain name> is due on <date>." Status `Waiting for you: re-check on <date>`.
 - The reminder question, at the stop, with NO recommended answer (anything but an explicit yes to it is no, like the create-issue question; "keep executing" never creates a task):
 
 ```

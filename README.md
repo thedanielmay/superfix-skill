@@ -191,7 +191,7 @@ Every path simplifies before review (never after), re-runs tests after simplifyi
 
 ### Close (Phase 4)
 
-Pushes the branch, creates a PR with `Closes #N` in the body, and watches CI checks when the repo has them. The final comment is posted only after the checks are green. The issue closes when the PR merges, never on PR creation.
+Pushes the branch, creates a PR with `Closes <owner>/<repo>#N` in the body, and watches CI checks when the repo has them. The final comment is posted only after the checks are green. The issue closes when the PR merges, never on PR creation.
 
 Not tested: the PR body and the final comment always end with a `## Not tested` list. An empty list says "Nothing known untested".
 

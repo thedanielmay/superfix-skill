@@ -21,7 +21,7 @@ What it produces:
 - A branch created from the approval commit, not from a newer main.
 - A fix with a test that failed before it and passes after it.
 - Review passes, a security audit when the diff touches auth, input parsing, SQL, shell, secrets or dependencies, and the solved check runs.
-- A PR with `Closes #<N>` and a final comment with the solved check output, the cost estimate, the undo line and `## Not tested`.
+- A PR with `Closes <owner>/<repo>#<N>` and a final comment with the solved check output, the cost estimate, the undo line and `## Not tested`.
 
 How it ends: the final comment sets Status to "Ready for review: PR <link>" and the yellow waiting label. After the merge, the run verifies the closing state, sets Status to "Done" and removes the label.
 
@@ -93,7 +93,7 @@ Nothing leaves the repo, the run folder and your Mac: no send, share, publish, u
 - The owner's description still seems true after every check passes: Superfix says so and keeps the issue open.
 - A process: "ready for your review", never "solved".
 
-The PR body says `Refs #<N>`, not `Closes`, when any criterion is `later` or `owner`, the problem is a process, or the description still holds.
+The PR body says `Refs <owner>/<repo>#<N>`, not `Closes`, when any criterion is `later` or `owner`, the problem is a process, or the description still holds.
 
 ## Work order mode
 
