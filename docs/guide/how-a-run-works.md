@@ -132,7 +132,7 @@ A run 3 that passes means the check does not detect the problem: the check is fi
 
 ## Phase 4: close
 
-The branch is pushed and a PR is opened with `Closes #N` in the body. If the repo has CI, the run watches the checks. Zero registered checks is not green. The checks from the repo settings must pass before the PR.
+The branch is pushed and a PR is opened with `Closes <owner>/<repo>#N` in the body. If the repo has CI, the run watches the checks. Zero registered checks is not green. The checks from the repo settings must pass before the PR.
 
 If main moved after the proof, the run merges main into the branch and re-proves the solved check on the merged tree. If it does not, the PR body and final comment say "merged tree not re-tested" and name the new main commit.
 

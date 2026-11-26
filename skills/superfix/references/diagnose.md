@@ -69,7 +69,7 @@ Additions for diagnosis. Nothing is removed from `references/explore.md` or `ref
 | `general-purpose` subagent, report-only header | review-style reading | inline by the main thread |
 | episodic memory search | past runs on the same code | skip; write "no history search" |
 | `git log`, `git blame`, `git bisect` in the scratch worktree | when the symptom started | always present in a repo |
-| Playwright MCP, else Claude in Chrome | reproduce a visible symptom | none; list "visual check" under Not tested |
+| user browser order rules first, then Playwright MCP when that order cannot take the picture or the user asks, else Claude in Chrome | reproduce a visible symptom | none; list "visual check" under Not tested |
 | Pictures (references/evidence.md) | before and after pictures | NO-BROWSER Not tested line |
 | Qik read tools (`get_content`, `get_content_log`, `get_content_diffs`, `explain_access`, `search_interface_code`, `get_interface`) | Qik evidence | none; Qik diagnosis is then "Everything else" level, low confidence |
 

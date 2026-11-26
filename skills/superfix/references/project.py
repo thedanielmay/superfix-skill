@@ -49,11 +49,12 @@ FLAGS = ("-I", "-u", "-B", "-n")
 SCRIPT_EXT = (".py", ".sh", ".js")
 SHELL_META = set('|&;$`<>(){}!*?#~\\"\'')
 REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
-# The three forms a closing keyword or a refs line may name an issue in. A markdown
-# link is not one of them: GitHub does not read it as a closing keyword.
+# The two forms a closing keyword or a refs line may name an issue in. Both close on
+# GitHub. A bare #<n> is not one of them, and neither is a markdown link: GitHub does
+# not read a link as a closing keyword.
 OWNER_REPO = r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+"
 ISSUE = (r"(?:https?://github\.com/(?P<url_repo>" + OWNER_REPO + r")/issues/(?P<url_num>\d+)\b|"
-         r"(?P<repo>" + OWNER_REPO + r")#(?P<num>\d+)\b|#(?P<local_num>\d+)\b)")
+         r"(?P<repo>" + OWNER_REPO + r")#(?P<num>\d+)\b)")
 LINK_FORM = re.compile(
     r"^\s*(%s)\s*:?\s*\[[^\]]*\]\(\s*https?://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/issues/\d+\s*\)"
     % "|".join(CLOSING_WORDS + ("refs",)),
@@ -205,16 +206,16 @@ def body_lines(text):
 
 
 def keyword_hits(lines, words):
-    """(line number, repository or None, issue number) for each keyword line that
-    names the issue as #<n>, <owner>/<repo>#<n> or
-    https://github.com/<owner>/<repo>/issues/<n>."""
+    """(line number, repository, issue number) for each keyword line that
+    names the issue as <owner>/<repo>#<n> or
+    https://github.com/<owner>/<repo>/issues/<n>. A bare #<n> is not a hit."""
     pat = re.compile(r"^\s*(%s)\s*:?\s*%s" % ("|".join(words), ISSUE), re.I)
     out = []
     for n, raw in lines:
         m = pat.match(raw)
         if m:
             out.append((n, m.group("url_repo") or m.group("repo"),
-                        int(m.group("url_num") or m.group("num") or m.group("local_num"))))
+                        int(m.group("url_num") or m.group("num"))))
     return out
 
 
@@ -274,9 +275,9 @@ def closing_check(root, body_path, issue):
     refs = keyword_hits(body, ("refs",))
     n = int(issue)
     repository = repository_name(root)
-    wrong = [f"{repo}#{num}" if repo and repo.lower() != repository else num
+    wrong = [f"{repo}#{num}" if repo.lower() != repository else num
              for _, repo, num in closes
-             if num != n or (repo and repo.lower() != repository)]
+             if num != n or repo.lower() != repository]
     if wanted == "closes":
         if not closes:
             return ["CLOSING-BAD no-closing-keyword"], 1
@@ -286,7 +287,7 @@ def closing_check(root, body_path, issue):
     if wanted == "refs":
         if closes:
             return [f"CLOSING-BAD closing-keyword line {closes[0][0]}"], 1
-        if not any(num == n and (repo is None or repo.lower() == repository)
+        if not any(num == n and repo.lower() == repository
                    for _, repo, num in refs):
             return ["CLOSING-BAD no-refs-line"], 1
         return ["CLOSING-OK"], 0

@@ -25,7 +25,7 @@ Plain steps. This repo is a prompt-only skill, so "the code" is markdown: `skill
    - CI runs the same check on every PR that touches the skill files, so bump `version` in `.claude-plugin/plugin.json` in the first PR of a release: the check reads the justification file named after it.
    - Known limit: indentation is ignored (lines are compared with spaces stripped), so a line that only changed its indent is not reported.
 5. Test it (next section).
-6. Commit, push, open a PR with `Closes #<issue-number>` in the body. Merge, delete the branch.
+6. Commit, push, open a PR with `Closes <owner>/<repo>#<issue-number>` in the body. Merge, delete the branch.
 
 ## Testing a change before release
 

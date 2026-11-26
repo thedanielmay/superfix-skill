@@ -26,6 +26,8 @@ D="$HOME/.superfix/runs/<run-key>"; if [ -d "$D/evidence" ]; then echo "PICTURES
 
 ### Finding the tools (every run, before the first picture)
 
+Follow the user's browser order rules first when the user has them. Take the picture with the first tool in that order that can run the blanking and checks below. Use the Playwright paths below only when that order cannot take the picture, or when the user asks for Playwright or a new browser. Without such a rule, keep the order below.
+
 1. Look at your own tool list for `mcp__plugin_playwright_playwright__browser_run_code` (or any `mcp__*playwright*__browser_run_code`).
    - Listed in full: usable.
    - Listed by name only as a deferred tool (a system reminder names deferred tools): load it first with ToolSearch `select:mcp__plugin_playwright_playwright__browser_navigate,mcp__plugin_playwright_playwright__browser_run_code,mcp__plugin_playwright_playwright__browser_close`.

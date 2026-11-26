@@ -164,31 +164,36 @@ printf 'closing: auto\nclosing: refs\n' > "$R/.superfix/project.md"
 t closing-twice '^PROJECT-BAD-VALUE closing \(set 2 times\)' 1 read_it
 pb() { printf '%b\n' "$1" > "$T/pr-body.md"; }
 issue_run() { $P --pr-body "$T/pr-body.md" --issue 125 "$R"; }
+# Qualified closing lines need the repository in local Git metadata.
+mkdir -p "$R/.git"
+printf '[remote "origin"]\nurl = https://github.com/thedanielmay/superfix-skill.git\n' > "$R/.git/config"
 w 'closing: closes'
-pb 'Body.\n\nCloses #125'
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
 t closing-body-closes-ok '^CLOSING-OK$' 0 issue_run
+pb 'Body.\n\nCloses #125'
+t closing-body-bare-hash-refused '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 pb 'Body.\n\nCloses 125'
 t closing-body-bare-number '^CLOSING-BAD no-closing-keyword$' 1 issue_run
-pb 'Body.\n\nRefs #125'
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
 t closing-body-closes-missing '^CLOSING-BAD no-closing-keyword$' 1 issue_run
-pb 'Body.\n\nCloses #999'
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#999'
 t closing-body-wrong-issue '^CLOSING-BAD closing-keyword-for 999$' 1 issue_run
 w 'closing: refs'
-pb 'Body.\n\nRefs #125'
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
 t closing-body-refs-ok '^CLOSING-OK$' 0 issue_run
 pb 'Body.\n\nCloses #125'
+t closing-body-refs-bare-hash '^CLOSING-BAD no-refs-line$' 1 issue_run
+pb 'Body.\n\nCloses thedanielmay/superfix-skill#125'
 t closing-body-refs-has-closing '^CLOSING-BAD closing-keyword line 3$' 1 issue_run
-pb 'Body.\n\n```\nCloses #125\n```'
+pb 'Body.\n\n```\nCloses thedanielmay/superfix-skill#125\n```'
 t closing-body-fence-ignored '^CLOSING-BAD no-refs-line$' 1 issue_run
 w 'closing: auto'
-pb 'Body.\n\nRefs #125'
+pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
 t closing-body-auto-ok '^CLOSING-OK$' 0 issue_run
 t closing-body-missing-file '^CLOSING-BAD no-body-file$' 1 $P --pr-body "$T/nope.md" --issue 125 "$R"
 t closing-no-issue '^CLOSING-BAD no-issue$' 1 $P --pr-body "$T/pr-body.md" "$R"
 
-# ---- the three forms a keyword may name an issue in, and the link form GitHub ignores (superfix-skill#127) ----
-mkdir -p "$R/.git"
-printf '[remote "origin"]\nurl = https://github.com/thedanielmay/superfix-skill.git\n' > "$R/.git/config"
+# ---- the two forms a keyword may name an issue in, and the link form GitHub ignores (superfix-skill#127) ----
 w 'closing: closes'
 pb 'Body.\n\nCloses https://github.com/thedanielmay/superfix-skill/issues/125'
 t closing-body-url-ok '^CLOSING-OK$' 0 issue_run
@@ -198,7 +203,7 @@ pb 'Body.\n\nCloses https://github.com/thedanielmay/superfix-skill/issues/999'
 t closing-body-url-wrong-issue '^CLOSING-BAD closing-keyword-for 999$' 1 issue_run
 pb 'Body.\n\nCloses [the issue](https://github.com/thedanielmay/superfix-skill/issues/125)'
 t closing-body-link-form '^CLOSING-BAD link-form-does-not-close 3$' 1 issue_run
-pb 'Body.\n\n```\nCloses #125\n```'
+pb 'Body.\n\n```\nCloses thedanielmay/superfix-skill#125\n```'
 t closing-body-fence-closes '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 w 'closing: refs'
 pb 'Body.\n\nRefs https://github.com/thedanielmay/superfix-skill/issues/125'
@@ -213,7 +218,7 @@ for mode in closes auto; do
     pb "Body.\n\nCloses $ref"
     t "closing-$mode-other-repo-$ref" '^CLOSING-BAD closing-keyword-for elsewhere/other#125$' 1 issue_run
   done
-  pb 'Body.\n\nCloses #125\nCloses elsewhere/other#125'
+  pb 'Body.\n\nCloses thedanielmay/superfix-skill#125\nCloses elsewhere/other#125'
   t "closing-$mode-mixed-repos" '^CLOSING-BAD closing-keyword-for elsewhere/other#125$' 1 issue_run
 done
 w 'closing: refs'
@@ -223,7 +228,7 @@ for ref in 'elsewhere/other#125' 'https://github.com/elsewhere/other/issues/125'
 done
 pb 'Body.\n\nRefs thedanielmay/superfix-skill#125'
 t closing-refs-owner-repo-ok '^CLOSING-OK$' 0 issue_run
-pb 'Body.\n\nRefs elsewhere/other#125\nRefs #125'
+pb 'Body.\n\nRefs elsewhere/other#125\nRefs thedanielmay/superfix-skill#125'
 t closing-refs-mixed-repos-ok '^CLOSING-OK$' 0 issue_run
 w 'closing: closes'
 pb 'Body.\n\nCloses TheDanielMay/Superfix-Skill#125'
@@ -240,7 +245,7 @@ t closing-repo-identity-worktree '^CLOSING-OK$' 0 issue_run
 rm "$R/.git"
 t closing-qualified-without-repo '^CLOSING-BAD closing-keyword-for TheDanielMay/Superfix-Skill#125$' 1 issue_run
 pb 'Body.\n\nCloses #125'
-t closing-unqualified-without-repo '^CLOSING-OK$' 0 issue_run
+t closing-bare-hash-without-repo '^CLOSING-BAD no-closing-keyword$' 1 issue_run
 
 # ---- model: the fix stage default (1.7.0 part one, superfix-skill#125) ----
 for v in sonnet opus default; do
